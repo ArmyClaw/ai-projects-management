@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  nginx-army-yorozuya:
+    build:
+      context: .
+      dockerfile: Dockerfile-army-yorozuya
+    container_name: army-yorozuya-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - army-yorozuya-network
+    restart: unless-stopped
+    # 如果需要持久化日志，可以取消注释下面的配置
+    # volumes:
+    #   - ./logs:/var/log/nginx
+    #   - ./ssl:/etc/nginx/ssl:ro
+
+networks:
+  army-yorozuya-network:
+    driver: bridge

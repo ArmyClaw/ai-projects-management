@@ -1,0 +1,24 @@
+# 使用官方nginx镜像
+FROM nginx:alpine
+
+# 复制自定义配置文件
+COPY nginx-prod.conf /etc/nginx/nginx.conf
+
+# 创建SSL证书目录
+RUN mkdir -p /etc/nginx/ssl
+
+# 生成自签名SSL证书（用于开发环境）
+RUN apk add --no-cache openssl && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/localhost.key \
+    -out /etc/nginx/ssl/localhost.crt \
+    -subj "/C=CN/ST=Jiangsu/L=Nanjing/O=ArmyYorozuya/CN=army-yorozuya.art"
+
+# 复制打包后的React应用
+COPY ../army-yorozuya/dist /usr/share/nginx/html/army-yorozuya
+
+# 暴露端口
+EXPOSE 80 443
+
+# 启动nginx
+CMD ["nginx", "-g", "daemon off;"]
