@@ -202,6 +202,14 @@ taskCommand
     }
   })
 
+// 导入任务详情命令
+import { handler as taskDetailHandler } from './commands/task-detail'
+
+taskCommand
+  .command('detail <id>').description('Show task details').action(async (id: string) => {
+    await taskDetailHandler(id)
+  })
+
 program.addCommand(taskCommand)
 
 // 导入项目创建命令
