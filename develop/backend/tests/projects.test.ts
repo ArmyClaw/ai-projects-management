@@ -110,6 +110,77 @@ const createTestApp = async () => {
     })
   })
 
+  // POST 创建项目路由（简化版）
+  fastify.post('/api/v1/projects', async (request: any, reply: any) => {
+    const { title, description, mode = 'COMMUNITY', budget = 0, skills = [] } = request.body
+
+    // 验证必填字段
+    if (!title || title.trim().length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '项目标题不能为空'
+      })
+    }
+
+    if (!description || description.trim().length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '项目描述不能为空'
+      })
+    }
+
+    // 验证 mode 字段
+    if (mode && !['COMMUNITY', 'ENTERPRISE'].includes(mode)) {
+      return reply.status(400).send({
+        success: false,
+        error: '项目模式必须是 COMMUNITY 或 ENTERPRISE'
+      })
+    }
+
+    // 验证 budget 字段
+    if (budget < 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '预算金额不能为负数'
+      })
+    }
+
+    // 生成项目ID（模拟）
+    const projectId = `project-${Date.now()}`
+
+    // 创建项目（模拟数据）
+    const project = {
+      id: projectId,
+      title: title.trim(),
+      description: description.trim(),
+      mode,
+      status: 'ACTIVE',
+      budget,
+      initiatorName: '测试用户',
+      taskCount: 0,
+      skills,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    return reply.status(201).send({
+      success: true,
+      data: {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        mode: project.mode,
+        status: project.status,
+        budget: project.budget,
+        initiatorName: project.initiatorName,
+        taskCount: project.taskCount,
+        skills: project.skills,
+        createdAt: project.createdAt.toISOString(),
+        updatedAt: project.updatedAt.toISOString()
+      }
+    })
+  })
+
   return fastify
 }
 
@@ -125,6 +196,93 @@ describe('Project Routes - /api/v1/projects', () => {
 
   afterAll(async () => {
     await fastify.close()
+  })
+
+  describe('POST /api/v1/projects', () => {
+    it('应该成功创建项目', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/projects')
+        .send({
+          title: '新创建的项目',
+          description: '这是一个通过API创建的项目',
+          mode: 'COMMUNITY',
+          budget: 5000
+        })
+        .expect(201)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).toHaveProperty('id')
+      expect(response.body.data.title).toBe('新创建的项目')
+      expect(response.body.data.mode).toBe('COMMUNITY')
+      expect(response.body.data.status).toBe('ACTIVE')
+      expect(response.body.data.initiatorName).toBe('测试用户')
+    })
+
+    it('应该验证必填字段 title', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/projects')
+        .send({
+          description: '缺少标题'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('标题')
+    })
+
+    it('应该验证必填字段 description', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/projects')
+        .send({
+          title: '缺少描述'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('描述')
+    })
+
+    it('应该接受可选字段 budget', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/projects')
+        .send({
+          title: '带预算的项目',
+          description: '测试预算字段',
+          mode: 'ENTERPRISE',
+          budget: 10000
+        })
+        .expect(201)
+
+      expect(response.body.data.budget).toBe(10000)
+    })
+
+    it('应该支持可选字段 skills（技能列表）', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/projects')
+        .send({
+          title: '多技能项目',
+          description: '测试技能字段',
+          mode: 'COMMUNITY',
+          skills: ['vue', 'fastify', 'typescript']
+        })
+        .expect(201)
+
+      expect(response.body.data).toHaveProperty('skills')
+      expect(response.body.data.skills).toEqual(['vue', 'fastify', 'typescript'])
+    })
+
+    it('应该验证 mode 字段的有效值', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/projects')
+        .send({
+          title: '无效模式',
+          description: '测试无效模式',
+          mode: 'INVALID_MODE'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+    })
   })
 
   describe('GET /api/v1/projects', () => {
