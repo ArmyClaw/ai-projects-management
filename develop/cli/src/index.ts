@@ -144,6 +144,27 @@ function claimTask(id: string, tasks: Task[]): { success: boolean; message: stri
   return { success: true, message: `成功认领任务 ${id}`, task }
 }
 
+/**
+ * 提交任务
+ * 
+ * @param id 任务ID
+ * @param tasks 任务列表
+ * @returns 提交结果对象
+ */
+function submitTask(id: string, tasks: Task[]): { success: boolean; message: string; task?: Task } {
+  const task = tasks.find(t => t.id === id)
+  
+  if (!task) {
+    return { success: false, message: `任务 ${id} 不存在` }
+  }
+  
+  if (task.status === '可认领') {
+    return { success: false, message: `任务 ${id} 未被认领，无法提交` }
+  }
+  
+  return { success: true, message: `成功提交任务 ${id}`, task }
+}
+
 // 任务命令
 const taskCommand = new Command('task').description('Task management')
 
@@ -169,7 +190,16 @@ taskCommand
 
 taskCommand
   .command('submit <id>').description('Submit task completion').action(async (id) => {
-    console.log(chalk.blue(`✅ Submitting task ${id}`))
+    const tasks = getMockTasks()
+    const result = submitTask(id, tasks)
+    
+    if (result.success) {
+      console.log(chalk.green(`✅ ${result.message}`))
+      console.log(formatTaskDetail(result.task!))
+    } else {
+      console.log(chalk.red(`❌ ${result.message}`))
+      process.exit(1)
+    }
   })
 
 program.addCommand(taskCommand)
