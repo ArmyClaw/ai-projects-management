@@ -16,8 +16,10 @@ describe('task list 命令', () => {
       })
       
       // 验证输出包含任务列表关键字
-      expect(output).toContain('Task List')
+      expect(output).toContain('📋')
       expect(output).toContain('任务列表')
+      expect(output).toContain('ID')
+      expect(output).toContain('预算')
     })
 
     it('应显示模拟任务数据', () => {
