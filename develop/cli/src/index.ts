@@ -206,21 +206,26 @@ program.addCommand(taskCommand)
 
 // 导入项目列表命令
 import { handler as projectListHandler } from './commands/project-list'
+import { handler as projectInfoHandler } from './commands/project-info'
 
 // 项目命令
-program
-  .command('project')
-  .description('Project management')
-  .addCommand(
-    new Command('list').description('List my projects').action(async () => {
-      await projectListHandler()
-    })
-  )
-  .addCommand(
-    new Command('info <id>').description('Show project details').action(async (id) => {
-      console.log(chalk.blue(`📄 Project ${id} details`))
-    })
-  )
+const projectCommand = new Command('project').description('Project management')
+
+projectCommand
+  .command('list')
+  .description('List my projects')
+  .action(async () => {
+    await projectListHandler()
+  })
+
+projectCommand
+  .command('info <id>')
+  .description('Show project details')
+  .action(async (id: string) => {
+    await projectInfoHandler(id)
+  })
+
+program.addCommand(projectCommand)
 
 // Skill命令
 program
