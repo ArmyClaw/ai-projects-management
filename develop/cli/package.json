@@ -12,18 +12,19 @@
     "lint": "eslint src --ext .ts --fix"
   },
   "dependencies": {
-    "commander": "^11.1.0",
-    "inquirer": "^9.2.0",
-    "chalk": "^5.3.0",
     "axios": "^1.6.0",
-    "dotenv": "^16.3.0"
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.0",
+    "inquirer": "^9.2.0"
   },
   "devDependencies": {
-    "typescript": "^5.3.0",
-    "@types/node": "^20.10.0",
     "@types/inquirer": "^9.0.0",
-    "tsx": "^4.6.0",
+    "@types/node": "^20.10.0",
     "eslint": "^8.56.0",
-    "prettier": "^3.1.0"
+    "prettier": "^3.1.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
   }
 }
