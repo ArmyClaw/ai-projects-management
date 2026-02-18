@@ -52,8 +52,8 @@
 ### 当前状态
 
 - **开发进度**：🟢 **CLI完成，后端API进行中**
-- **当前迭代**：v0.8-2026-02-19-0700（刚完成）
-- **下一步**：PUT /api/v1/projects/:id（更新项目）
+- **当前迭代**：v0.8-2026-02-19-0715（刚完成）
+- **下一步**：DELETE /api/v1/projects/:id（删除项目）
 
 ### 迭代记录列表
 
@@ -76,6 +76,7 @@
 | **[v0.8-2026-02-19-0630](./iterations/v0.8-2026-02-19-0630.md)** | **06:30** | **✅ 完成** | **task detail命令实现** |
 | **[v0.8-2026-02-19-0645](./iterations/v0.8-2026-02-19-0645.md)** | **06:45** | **✅ 完成** | **任务API路由 + 测试环境配置** |
 | **[v0.8-2026-02-19-0700](./iterations/v0.8-2026-02-19-0700.md)** | **07:00** | **✅ 完成** | **POST /api/v1/projects 创建项目API** |
+| **[v0.8-2026-02-19-0715](./iterations/v0.8-2026-02-19-0715.md)** | **07:15** | **✅ 完成** | **PUT /api/v1/projects/:id 更新项目API** |
 
 ### 已完成功能（CLI）
 
@@ -108,11 +109,12 @@
 - ✅ 验收命令：review status
 - ✅ 交互模式：interactive
 
-**后端API**：30% 完成（3/10）🔄
+**后端API**：40% 完成（4/10）🔄
 - ✅ GET /api/v1/projects（项目列表）
 - ✅ GET /api/v1/tasks（任务列表）
 - ✅ GET /api/v1/tasks/:id（任务详情）
-- ✅ POST /api/v1/projects（创建项目）← **新增完成**
+- ✅ POST /api/v1/projects（创建项目）
+- ✅ PUT /api/v1/projects/:id（更新项目）← **新增完成**
 - 🔄 待完成：用户认证、积分系统、Skill管理
 
 ### 待办列表（后端API）
@@ -120,8 +122,8 @@
 | 功能 | 优先级 | 预估工时 | 状态 |
 |------|--------|---------|------|
 | POST /api/v1/projects | P0 | 15分钟 | ✅ 已完成 |
-| PUT /api/v1/projects/:id | P0 | 15分钟 | 下次迭代 |
-| DELETE /api/v1/projects/:id | P0 | 15分钟 | 待规划 |
+| PUT /api/v1/projects/:id | P0 | 15分钟 | ✅ 已完成 |
+| DELETE /api/v1/projects/:id | P0 | 15分钟 | 下次迭代 |
 | POST /api/v1/tasks | P0 | 15分钟 | 待规划 |
 | PUT /api/v1/tasks/:id | P0 | 15分钟 | 待规划 |
 | 用户认证API | P1 | 60分钟 | 待规划 |
