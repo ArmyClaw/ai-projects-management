@@ -247,6 +247,9 @@ program.addCommand(skillCommand)
 // 导入验收状态命令
 import { handler as reviewStatusHandler } from './commands/review-status'
 
+// 导入交互式菜单命令
+import { handler as interactiveHandler } from './commands/interactive'
+
 // 验收命令
 const reviewCommand = new Command('review').description('Review management')
 
@@ -259,29 +262,12 @@ reviewCommand
 
 program.addCommand(reviewCommand)
 
-// 交互式菜单
+// 使用新导入的interactiveHandler
 program
   .command('interactive')
-  .description('Interactive mode')
+  .description('Interactive mode with menu')
   .action(async () => {
-    const { action } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'action',
-        message: 'What do you want to do?',
-        choices: [
-          { name: '📋 List Tasks', value: 'task-list' },
-          { name: '📁 List Projects', value: 'project-list' },
-          { name: '🛠️ List Skills', value: 'skill-list' },
-          { name: '📝 Check Reviews', value: 'review-status' },
-          { name: '🚪 Exit', value: 'exit' }
-        ]
-      }
-    ])
-
-    if (action !== 'exit') {
-      console.log(chalk.yellow(`Selected: ${action}`))
-    }
+    await interactiveHandler()
   })
 
 program.parse()
