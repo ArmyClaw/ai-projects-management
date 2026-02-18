@@ -179,7 +179,15 @@ cd cli && node bin/index.js --help
 
 ## 开发规范
 
-### Git Flow
+### Git Flow（当前：简化模式）
+
+```
+master      - 主分支（当前开发分支）
+```
+
+> **说明**: 项目初期暂时在master分支直接开发，简化流程，待功能稳定后再启用完整Git Flow。
+
+### 后续启用完整Git Flow
 
 ```
 main        - 生产分支
