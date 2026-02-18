@@ -278,6 +278,9 @@ program.addCommand(projectCommand)
 // 导入Skill导入命令
 import { handler as skillImportHandler } from './commands/skill-import'
 
+// 导入Skill验证命令
+import { handler as skillValidateHandler } from './commands/skill-validate'
+
 // Skill命令
 const skillCommand = new Command('skill').description('Skill management')
 
@@ -294,6 +297,11 @@ skillCommand
 skillCommand
   .command('import <file>').description('Import skill from JSON file').action(async (file: string) => {
     await skillImportHandler(file)
+  })
+
+skillCommand
+  .command('validate <file>').description('Validate skill JSON file').action(async (file: string) => {
+    await skillValidateHandler(file)
   })
 
 program.addCommand(skillCommand)

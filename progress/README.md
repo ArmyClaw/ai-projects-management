@@ -70,6 +70,7 @@
 | **[v0.8-2026-02-19-0500](./iterations/v0.8-2026-02-19-0500.md)** | **05:00** | **✅ 完成** | **review status命令实现** |
 | **[v0.8-2026-02-19-0515](./iterations/v0.8-2026-02-19-0515.md)** | **05:15** | **✅ 完成** | **interactive交互式菜单实现** |
 | **[v0.8-2026-02-19-0530](./iterations/v0.8-2026-02-19-0530.md)** | **05:30** | **✅ 完成** | **skill import命令实现** |
+| **[v0.8-2026-02-19-0545](./iterations/v0.8-2026-02-19-0545.md)** | **05:45** | **✅ 完成** | **project create命令实现** |
 
 ### 已完成功能（CLI）
 
@@ -82,18 +83,20 @@
 | task submit \<id\> | ✅ v0.8-0345 | 提交任务完成 |
 | project list | ✅ v0.8-0400 | 显示项目列表 |
 | project info \<id\> | ✅ v0.8-0415 | 显示项目详情 |
+| **project create** | ✅ **v0.8-0545** | **交互式创建项目** |
 | skill list | ✅ v0.8-0430 | 显示Skill列表 |
 | skill export \<id\> | ✅ v0.8-0445 | 导出Skill详情 |
+| skill import \<file\> | ✅ v0.8-0530 | 导入Skill文件 |
 | review status | ✅ v0.8-0500 | 查看验收状态 |
 | interactive | ✅ v0.8-0515 | 交互式菜单 |
-| **skill import \<file\>** | ✅ **v0.8-0530** | **导入Skill文件** |
 
 ### 待办列表（CLI命令）
 
 | 功能 | 优先级 | 预估工时 | 状态 |
 |------|--------|---------|------|
-| project create | P2 | 15分钟 | **下次迭代** |
-| skill validate | P3 | 15分钟 | 待开发 |
+| **skill validate \<file\>** | **P3** | **15分钟** | **下次迭代** |
+| project delete | P3 | 15分钟 | 待开发 |
+| task detail \<id\> | P3 | 15分钟 | 待开发 |
 
 ### 迭代模板
 
