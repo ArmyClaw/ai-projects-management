@@ -204,13 +204,16 @@ taskCommand
 
 program.addCommand(taskCommand)
 
+// 导入项目列表命令
+import { handler as projectListHandler } from './commands/project-list'
+
 // 项目命令
 program
   .command('project')
   .description('Project management')
   .addCommand(
     new Command('list').description('List my projects').action(async () => {
-      console.log(chalk.blue('📁 Project List'))
+      await projectListHandler()
     })
   )
   .addCommand(
