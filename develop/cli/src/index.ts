@@ -229,6 +229,9 @@ projectCommand
 
 program.addCommand(projectCommand)
 
+// 导入Skill导入命令
+import { handler as skillImportHandler } from './commands/skill-import'
+
 // Skill命令
 const skillCommand = new Command('skill').description('Skill management')
 
@@ -240,6 +243,11 @@ skillCommand
 skillCommand
   .command('export <id>').description('Export skill as prompt').action(async (id: string) => {
     await skillExportHandler({ id })
+  })
+
+skillCommand
+  .command('import <file>').description('Import skill from JSON file').action(async (file: string) => {
+    await skillImportHandler(file)
   })
 
 program.addCommand(skillCommand)
