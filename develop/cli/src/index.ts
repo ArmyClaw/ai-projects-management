@@ -207,6 +207,7 @@ program.addCommand(taskCommand)
 // 导入项目列表命令
 import { handler as projectListHandler } from './commands/project-list'
 import { handler as projectInfoHandler } from './commands/project-info'
+import { handler as skillListHandler } from './commands/skill-list'
 
 // 项目命令
 const projectCommand = new Command('project').description('Project management')
@@ -233,7 +234,7 @@ program
   .description('Skill management')
   .addCommand(
     new Command('list').description('List my skills').action(async () => {
-      console.log(chalk.blue('🛠️ Skill List'))
+      await skillListHandler()
     })
   )
   .addCommand(
