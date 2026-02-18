@@ -407,4 +407,58 @@ export async function updateProjectRoute(fastify: FastifyInstance): Promise<void
   })
 }
 
-export { getProjectsRoute, createProjectRoute, updateProjectRoute }
+/**
+ * 删除项目响应类型
+ */
+interface DeleteProjectResponse {
+  success: boolean
+  data: {
+    id: string
+    message: string
+  }
+}
+
+/**
+ * 删除项目
+ * DELETE /api/v1/projects/:id
+ * 
+ * 路径参数：
+ * - id: 项目ID
+ */
+export async function deleteProjectRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.delete<{
+    Params: {
+      id: string
+    }
+  }>('/api/v1/projects/:id', async (request, reply) => {
+    try {
+      const { id } = request.params
+
+      // 验证项目ID是否存在
+      if (!id || id.trim().length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: '项目ID不能为空'
+        })
+      }
+
+      // 模拟删除项目（实际应用中需要数据库操作）
+      const deleteResult: DeleteProjectResponse = {
+        success: true,
+        data: {
+          id,
+          message: '项目删除成功'
+        }
+      }
+
+      // 返回响应
+      return reply.status(200).send(deleteResult)
+    } catch (error) {
+      fastify.log.error('删除项目失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}

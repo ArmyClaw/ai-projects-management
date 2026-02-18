@@ -181,6 +181,32 @@ const createTestApp = async () => {
     })
   })
 
+  // DELETE 删除项目路由（简化版）
+  const deletedProjects = new Set<string>()
+  fastify.delete('/api/v1/projects/:id', async (request: any, reply: any) => {
+    const { id } = request.params
+
+    // 验证项目是否存在
+    const projectIndex = mockProjects.findIndex(p => p.id === id)
+    if (projectIndex === -1) {
+      return reply.status(404).send({
+        success: false,
+        error: '项目不存在'
+      })
+    }
+
+    // 标记项目为已删除
+    deletedProjects.add(id)
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        id,
+        message: '项目删除成功'
+      }
+    })
+  })
+
   // PUT 更新项目路由（简化版）
   fastify.put('/api/v1/projects/:id', async (request: any, reply: any) => {
     const { id } = request.params
@@ -539,6 +565,38 @@ describe('Project Routes - /api/v1/projects', () => {
 
       expect(response.body.success).toBe(false)
       expect(response.body.error).toContain('不存在')
+    })
+  })
+
+  describe('DELETE /api/v1/projects/:id', () => {
+    it('应该成功删除项目', async () => {
+      const response = await supertest(server)
+        .delete('/api/v1/projects/project-1')
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).toHaveProperty('id', 'project-1')
+      expect(response.body.data).toHaveProperty('message')
+    })
+
+    it('应该验证项目是否存在', async () => {
+      const response = await supertest(server)
+        .delete('/api/v1/projects/non-existent')
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('不存在')
+    })
+
+    it('应该返回正确的响应格式', async () => {
+      const response = await supertest(server)
+        .delete('/api/v1/projects/project-2')
+        .expect(200)
+
+      expect(response.body).toHaveProperty('success')
+      expect(response.body).toHaveProperty('data')
+      expect(response.body.data).toHaveProperty('id')
+      expect(response.body.data).toHaveProperty('message')
     })
   })
 })

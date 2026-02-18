@@ -43,8 +43,11 @@ fastify.get('/api/v1/health', async () => {
 })
 
 // 注册项目路由
-import { getProjectsRoute } from './routes/projects'
+import { getProjectsRoute, createProjectRoute, updateProjectRoute, deleteProjectRoute } from './routes/projects'
 await getProjectsRoute(fastify)
+await createProjectRoute(fastify)
+await updateProjectRoute(fastify)
+await deleteProjectRoute(fastify)
 
 // 启动
 const start = async () => {
