@@ -204,6 +204,9 @@ taskCommand
 
 program.addCommand(taskCommand)
 
+// 导入项目创建命令
+import { handler as projectCreateHandler } from './commands/project-create'
+
 // 导入项目列表命令
 import { handler as projectListHandler } from './commands/project-list'
 import { handler as projectInfoHandler } from './commands/project-info'
@@ -225,6 +228,49 @@ projectCommand
   .description('Show project details')
   .action(async (id: string) => {
     await projectInfoHandler(id)
+  })
+
+projectCommand
+  .command('create')
+  .description('Create a new project')
+  .action(async () => {
+    const questions = [
+      {
+        type: 'input',
+        name: 'name',
+        message: '项目名称:',
+        validate: (input: string) => {
+          if (input.trim().length < 3) {
+            return '项目名称至少3个字符'
+          }
+          return true
+        }
+      },
+      {
+        type: 'input',
+        name: 'description',
+        message: '项目描述:',
+        validate: (input: string) => {
+          if (input.trim().length < 10) {
+            return '项目描述至少10个字符'
+          }
+          return true
+        }
+      },
+      {
+        type: 'input',
+        name: 'gitUrl',
+        message: 'Git仓库URL (可选):',
+        validate: () => true
+      }
+    ]
+    
+    const answers = await inquirer.prompt(questions)
+    await projectCreateHandler({
+      name: answers.name,
+      description: answers.description,
+      gitUrl: answers.gitUrl || undefined
+    })
   })
 
 program.addCommand(projectCommand)
