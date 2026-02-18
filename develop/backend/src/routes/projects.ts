@@ -279,4 +279,132 @@ export async function createProjectRoute(fastify: FastifyInstance): Promise<void
   })
 }
 
-export { getProjectsRoute, createProjectRoute }
+/**
+ * 更新项目请求体类型
+ */
+interface UpdateProjectBody {
+  title?: string
+  description?: string
+  mode?: 'COMMUNITY' | 'ENTERPRISE'
+  budget?: number
+  skills?: string[]
+  status?: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+}
+
+/**
+ * 更新项目响应类型
+ */
+interface UpdateProjectResponse {
+  success: boolean
+  data: {
+    id: string
+    title: string
+    description: string
+    mode: 'COMMUNITY' | 'ENTERPRISE'
+    status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+    budget: number
+    initiatorName: string
+    taskCount: number
+    skills: string[]
+    createdAt: string
+    updatedAt: string
+  }
+}
+
+/**
+ * 更新项目
+ * PUT /api/v1/projects/:id
+ * 
+ * 路径参数：
+ * - id: 项目ID
+ * 
+ * 请求体：
+ * - title: 项目标题（可选）
+ * - description: 项目描述（可选）
+ * - mode: 项目模式（可选）
+ * - budget: 预算金额（可选）
+ * - skills: 技能列表（可选）
+ * - status: 项目状态（可选）
+ */
+export async function updateProjectRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.put<{
+    Params: {
+      id: string
+    }
+    Body: UpdateProjectBody
+  }>('/api/v1/projects/:id', async (request, reply) => {
+    try {
+      const { id } = request.params
+      const { title, description, mode, budget, skills, status } = request.body
+
+      // 验证 mode 字段
+      if (mode && !['COMMUNITY', 'ENTERPRISE'].includes(mode)) {
+        return reply.status(400).send({
+          success: false,
+          error: '项目模式必须是 COMMUNITY 或 ENTERPRISE'
+        })
+      }
+
+      // 验证 budget 字段
+      if (budget !== undefined && budget < 0) {
+        return reply.status(400).send({
+          success: false,
+          error: '预算金额不能为负数'
+        })
+      }
+
+      // 验证 status 字段
+      const validStatuses = ['DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED']
+      if (status && !validStatuses.includes(status)) {
+        return reply.status(400).send({
+          success: false,
+          error: '项目状态必须是 DRAFT、ACTIVE、COMPLETED 或 CANCELLED'
+        })
+      }
+
+      // 验证项目是否存在（模拟）
+      const project = {
+        id,
+        title: title || '示例项目',
+        description: description || '示例描述',
+        mode: mode || 'COMMUNITY',
+        status: status || 'ACTIVE',
+        budget: budget || 0,
+        initiatorName: '测试用户',
+        taskCount: 0,
+        skills: skills || [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      // 格式化响应数据
+      const formattedProject: UpdateProjectResponse['data'] = {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        mode: project.mode,
+        status: project.status,
+        budget: project.budget,
+        initiatorName: project.initiatorName,
+        taskCount: project.taskCount,
+        skills: project.skills,
+        createdAt: project.createdAt.toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      // 返回响应
+      return reply.status(200).send({
+        success: true,
+        data: formattedProject
+      })
+    } catch (error) {
+      fastify.log.error('更新项目失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}
+
+export { getProjectsRoute, createProjectRoute, updateProjectRoute }

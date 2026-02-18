@@ -181,6 +181,72 @@ const createTestApp = async () => {
     })
   })
 
+  // PUT 更新项目路由（简化版）
+  fastify.put('/api/v1/projects/:id', async (request: any, reply: any) => {
+    const { id } = request.params
+    const { title, description, mode, budget, skills } = request.body
+
+    // 验证项目是否存在
+    const project = mockProjects.find(p => p.id === id)
+    if (!project) {
+      return reply.status(404).send({
+        success: false,
+        error: '项目不存在'
+      })
+    }
+
+    // 验证 mode 字段
+    if (mode && !['COMMUNITY', 'ENTERPRISE'].includes(mode)) {
+      return reply.status(400).send({
+        success: false,
+        error: '项目模式必须是 COMMUNITY 或 ENTERPRISE'
+      })
+    }
+
+    // 验证 budget 字段
+    if (budget !== undefined && budget < 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '预算金额不能为负数'
+      })
+    }
+
+    // 更新项目（模拟）
+    const updatedProject = {
+      id: project.id,
+      title: title || project.title,
+      description: description || project.description,
+      mode: mode || project.mode,
+      status: project.status,
+      budget: budget !== undefined ? budget : project.budget,
+      initiatorId: project.initiatorId,
+      skills: skills || [],
+      createdAt: project.createdAt,
+      updatedAt: new Date()
+    }
+
+    // 同步更新模拟数据
+    const index = mockProjects.findIndex(p => p.id === id)
+    mockProjects[index] = updatedProject
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        id: updatedProject.id,
+        title: updatedProject.title,
+        description: updatedProject.description,
+        mode: updatedProject.mode,
+        status: updatedProject.status,
+        budget: updatedProject.budget,
+        initiatorName: '测试用户',
+        taskCount: 0,
+        skills: updatedProject.skills,
+        createdAt: updatedProject.createdAt.toISOString(),
+        updatedAt: updatedProject.updatedAt.toISOString()
+      }
+    })
+  })
+
   return fastify
 }
 
@@ -407,6 +473,72 @@ describe('Project Routes - /api/v1/projects', () => {
 
       // 有 2 个模拟项目，pageSize=1，应该有 2 页
       expect(response.body.data.totalPages).toBe(2)
+    })
+  })
+
+  describe('PUT /api/v1/projects/:id', () => {
+    it('应该成功更新项目', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/projects/project-1')
+        .send({
+          title: '更新的项目标题',
+          description: '更新的项目描述'
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).toHaveProperty('id', 'project-1')
+      expect(response.body.data.title).toBe('更新的项目标题')
+      expect(response.body.data.description).toBe('更新的项目描述')
+    })
+
+    it('应该支持更新可选字段 mode', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/projects/project-1')
+        .send({
+          mode: 'ENTERPRISE',
+          budget: 15000
+        })
+        .expect(200)
+
+      expect(response.body.data.mode).toBe('ENTERPRISE')
+      expect(response.body.data.budget).toBe(15000)
+    })
+
+    it('应该验证无效的 mode 字段', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/projects/project-1')
+        .send({
+          mode: 'INVALID_MODE'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('COMMUNITY')
+    })
+
+    it('应该验证负数的 budget', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/projects/project-1')
+        .send({
+          budget: -100
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('预算')
+    })
+
+    it('应该验证项目是否存在', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/projects/non-existent')
+        .send({
+          title: '不存在的项目'
+        })
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('不存在')
     })
   })
 })
