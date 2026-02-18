@@ -208,6 +208,7 @@ program.addCommand(taskCommand)
 import { handler as projectListHandler } from './commands/project-list'
 import { handler as projectInfoHandler } from './commands/project-info'
 import { handler as skillListHandler } from './commands/skill-list'
+import { handler as skillExportHandler } from './commands/skill-export'
 
 // 项目命令
 const projectCommand = new Command('project').description('Project management')
@@ -229,19 +230,19 @@ projectCommand
 program.addCommand(projectCommand)
 
 // Skill命令
-program
-  .command('skill')
-  .description('Skill management')
-  .addCommand(
-    new Command('list').description('List my skills').action(async () => {
-      await skillListHandler()
-    })
-  )
-  .addCommand(
-    new Command('export <id>').description('Export skill as prompt').action(async (id) => {
-      console.log(chalk.blue(`📤 Exporting skill ${id}`))
-    })
-  )
+const skillCommand = new Command('skill').description('Skill management')
+
+skillCommand
+  .command('list').description('List my skills').action(async () => {
+    await skillListHandler()
+  })
+
+skillCommand
+  .command('export <id>').description('Export skill as prompt').action(async (id: string) => {
+    await skillExportHandler({ id })
+  })
+
+program.addCommand(skillCommand)
 
 // 验收命令
 program
