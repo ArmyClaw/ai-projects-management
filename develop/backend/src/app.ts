@@ -42,6 +42,10 @@ fastify.get('/api/v1/health', async () => {
   return { status: 'ok' }
 })
 
+// 注册项目路由
+import { getProjectsRoute } from './routes/projects'
+await getProjectsRoute(fastify)
+
 // 启动
 const start = async () => {
   try {
