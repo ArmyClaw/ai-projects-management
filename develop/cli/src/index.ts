@@ -244,15 +244,20 @@ skillCommand
 
 program.addCommand(skillCommand)
 
+// 导入验收状态命令
+import { handler as reviewStatusHandler } from './commands/review-status'
+
 // 验收命令
-program
-  .command('review')
-  .description('Review tasks')
-  .addCommand(
-    new Command('status').description('Check review status').action(async () => {
-      console.log(chalk.blue('📝 Review Status'))
-    })
-  )
+const reviewCommand = new Command('review').description('Review management')
+
+reviewCommand
+  .command('status')
+  .description('Check review status')
+  .action(async () => {
+    await reviewStatusHandler()
+  })
+
+program.addCommand(reviewCommand)
 
 // 交互式菜单
 program

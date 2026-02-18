@@ -66,6 +66,8 @@
 | [v0.8-2026-02-19-0400](./iterations/v0.8-2026-02-19-0400.md) | 04:00 | ✅ 完成 | project list命令实现 |
 | [v0.8-2026-02-19-0415](./iterations/v0.8-2026-02-19-0415.md) | 04:15 | ✅ 完成 | project info命令实现 |
 | [v0.8-2026-02-19-0430](./iterations/v0.8-2026-02-19-0430.md) | 04:30 | ✅ 完成 | **skill list命令实现** |
+| [v0.8-2026-02-19-0445](./iterations/v0.8-2026-02-19-0445.md) | 04:45 | ✅ 完成 | **skill export命令实现** |
+| **[v0.8-2026-02-19-0500](./iterations/v0.8-2026-02-19-0500.md)** | **05:00** | **✅ 完成** | **review status命令实现** |
 
 ### 已完成功能（CLI）
 
@@ -78,16 +80,17 @@
 | task submit \<id\> | ✅ v0.8-0345 | 提交任务完成 |
 | project list | ✅ v0.8-0400 | 显示项目列表 |
 | project info \<id\> | ✅ v0.8-0415 | 显示项目详情 |
-| **skill list** | ✅ **v0.8-0430** | **显示Skill列表** |
+| skill list | ✅ v0.8-0430 | 显示Skill列表 |
+| skill export \<id\> | ✅ v0.8-0445 | 导出Skill详情 |
+| **review status** | ✅ **v0.8-0500** | **查看验收状态** |
 
 ### 待办列表（CLI命令）
 
 | 功能 | 优先级 | 预估工时 | 状态 |
 |------|--------|---------|------|
-| skill export \<id\> | P1 | 15分钟 | **下次迭代** |
-| review status | P2 | 15分钟 | 待开发 |
-| interactive模式 | P2 | 15分钟 | 待开发 |
+| interactive模式 | P2 | 15分钟 | **下次迭代** |
 | skill import | P2 | 15分钟 | 待开发 |
+| project create | P3 | 15分钟 | 待开发 |
 
 ### 迭代模板
 
