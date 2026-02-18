@@ -273,6 +273,15 @@ projectCommand
     })
   })
 
+projectCommand
+  .command('delete <id>')
+  .description('Delete a project')
+  .action(async (id: string) => {
+    // 导入并使用项目删除处理器
+    const { handler: projectDeleteHandler } = await import('./commands/project-delete')
+    await projectDeleteHandler(id)
+  })
+
 program.addCommand(projectCommand)
 
 // 导入Skill导入命令
