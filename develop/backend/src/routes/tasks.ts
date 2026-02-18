@@ -257,4 +257,147 @@ export async function getTaskDetailRoute(fastify: FastifyInstance): Promise<void
   })
 }
 
-export default { getTasksRoute, getTaskDetailRoute }
+/**
+ * 创建任务请求体类型
+ */
+interface CreateTaskBody {
+  title: string
+  description: string
+  projectId: string
+  budget?: number
+  skills?: string[]
+  deadline?: string
+}
+
+/**
+ * 创建任务响应类型
+ */
+interface CreateTaskResponse {
+  success: boolean
+  data: {
+    id: string
+    title: string
+    description: string
+    status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+    budget: number
+    projectId: string
+    projectTitle: string
+    assigneeName: string | null
+    skills: string[]
+    deadline: string | null
+    createdAt: string
+    updatedAt: string
+  }
+}
+
+/**
+ * 创建任务
+ * POST /api/v1/tasks
+ * 
+ * 请求体：
+ * - title: 任务标题（必填）
+ * - description: 任务描述（必填）
+ * - projectId: 项目ID（必填）
+ * - budget: 任务预算（可选，默认 0）
+ * - skills: 技能列表（可选）
+ * - deadline: 截止日期（可选，ISO 8601格式）
+ */
+export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.post<{
+    Body: CreateTaskBody
+  }>('/api/v1/tasks', async (request, reply) => {
+    try {
+      const { title, description, projectId, budget = 0, skills = [], deadline } = request.body
+
+      // 验证必填字段
+      if (!title || title.trim().length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: '任务标题不能为空'
+        })
+      }
+
+      if (!description || description.trim().length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: '任务描述不能为空'
+        })
+      }
+
+      if (!projectId || projectId.trim().length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: '项目ID不能为空'
+        })
+      }
+
+      // 验证 budget 字段
+      if (budget < 0) {
+        return reply.status(400).send({
+          success: false,
+          error: '预算金额不能为负数'
+        })
+      }
+
+      // 验证 deadline 格式（如果提供）
+      if (deadline) {
+        const deadlineDate = new Date(deadline)
+        if (isNaN(deadlineDate.getTime())) {
+          return reply.status(400).send({
+            success: false,
+            error: '截止日期格式无效，请使用 ISO 8601 格式'
+          })
+        }
+      }
+
+      // 生成任务ID（模拟）
+      const taskId = `task-${Date.now()}`
+
+      // 创建任务（模拟数据）
+      const task = {
+        id: taskId,
+        title: title.trim(),
+        description: description.trim(),
+        status: 'OPEN' as const,
+        budget,
+        projectId: projectId.trim(),
+        projectTitle: '示例项目',
+        assigneeName: null as const,
+        skills: skills || [],
+        deadline: deadline ? new Date(deadline).toISOString() : null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      // 格式化响应数据
+      const formattedTask: CreateTaskResponse['data'] = {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        budget: task.budget,
+        projectId: task.projectId,
+        projectTitle: task.projectTitle,
+        assigneeName: task.assigneeName,
+        skills: task.skills,
+        deadline: task.deadline,
+        createdAt: task.createdAt.toISOString(),
+        updatedAt: task.updatedAt.toISOString()
+      }
+
+      // 返回响应
+      return reply.status(201).send({
+        success: true,
+        data: formattedTask
+      })
+    } catch (error) {
+      fastify.log.error('创建任务失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}
+
+export default { getTasksRoute, getTaskDetailRoute, createTaskRoute }

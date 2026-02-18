@@ -172,6 +172,77 @@ const createTestApp = async () => {
     })
   })
 
+  // 创建任务路由
+  fastify.post('/api/v1/tasks', async (request, reply) => {
+    const { title, description, projectId, budget = 0, skills = [], deadline } = request.body as any
+
+    // 验证必填字段
+    if (!title || title.trim().length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '任务标题不能为空'
+      })
+    }
+
+    if (!description || description.trim().length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '任务描述不能为空'
+      })
+    }
+
+    if (!projectId || projectId.trim().length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '项目ID不能为空'
+      })
+    }
+
+    if (budget < 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '预算金额不能为负数'
+      })
+    }
+
+    // 生成任务ID
+    const taskId = `task-${Date.now()}`
+
+    // 创建任务
+    const task = {
+      id: taskId,
+      title: title.trim(),
+      description: description.trim(),
+      status: 'OPEN',
+      budget,
+      projectId: projectId.trim(),
+      projectTitle: '示例项目',
+      assigneeName: null,
+      skills: skills || [],
+      deadline: deadline ? new Date(deadline).toISOString() : null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    return reply.status(201).send({
+      success: true,
+      data: {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        budget: task.budget,
+        projectId: task.projectId,
+        projectTitle: task.projectTitle,
+        assigneeName: task.assigneeName,
+        skills: task.skills,
+        deadline: task.deadline,
+        createdAt: task.createdAt.toISOString(),
+        updatedAt: task.updatedAt.toISOString()
+      }
+    })
+  })
+
   return fastify
 }
 
@@ -366,6 +437,130 @@ describe('Task Routes - /api/v1/tasks', () => {
 
       expect(response.body.data.assignee).not.toBe(null)
       expect(response.body.data.assignee.name).toBe('张三')
+    })
+  })
+
+  describe('POST /api/v1/tasks', () => {
+    it('应该成功创建任务', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          title: '新任务测试',
+          description: '这是一个测试任务',
+          projectId: 'project-1',
+          budget: 500,
+          skills: ['TypeScript', 'Fastify']
+        })
+        .expect(201)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).toHaveProperty('id')
+      expect(response.body.data.title).toBe('新任务测试')
+      expect(response.body.data.description).toBe('这是一个测试任务')
+      expect(response.body.data.status).toBe('OPEN')
+      expect(response.body.data.budget).toBe(500)
+      expect(response.body.data.projectId).toBe('project-1')
+      expect(response.body.data.skills).toContain('TypeScript')
+      expect(response.body.data.skills).toContain('Fastify')
+      expect(response.body.data.assigneeName).toBe(null)
+    })
+
+    it('应该验证必填字段 - 标题为空', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          description: '任务描述',
+          projectId: 'project-1'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('标题')
+    })
+
+    it('应该验证必填字段 - 描述为空', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          title: '任务标题',
+          projectId: 'project-1'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('描述')
+    })
+
+    it('应该验证必填字段 - 项目ID为空', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          title: '任务标题',
+          description: '任务描述'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('项目ID')
+    })
+
+    it('应该验证预算不能为负数', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          title: '任务标题',
+          description: '任务描述',
+          projectId: 'project-1',
+          budget: -100
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('预算')
+    })
+
+    it('应该支持可选字段 - deadline', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          title: '带截止日期的任务',
+          description: '这是一个有截止日期的任务',
+          projectId: 'project-1',
+          deadline: '2026-12-31T23:59:59Z'
+        })
+        .expect(201)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.deadline).toContain('2026-12-31')
+    })
+
+    it('应该支持空技能列表', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          title: '无技能要求的任务',
+          description: '这是一个没有技能要求的任务',
+          projectId: 'project-1',
+          skills: []
+        })
+        .expect(201)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.skills).toEqual([])
+    })
+
+    it('应该使用默认值 - budget=0', async () => {
+      const response = await supertest(server)
+        .post('/api/v1/tasks')
+        .send({
+          title: '免费任务',
+          description: '这是一个免费任务',
+          projectId: 'project-1'
+        })
+        .expect(201)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.budget).toBe(0)
     })
   })
 })
