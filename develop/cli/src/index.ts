@@ -98,26 +98,81 @@ function formatTaskList(tasks: Task[]): string {
   return output
 }
 
+/**
+ * 格式化任务详情输出
+ * 
+ * @param task 任务对象
+ * @returns 格式化后的字符串
+ */
+function formatTaskDetail(task: Task): string {
+  const statusColor = 
+    task.status === '可认领' ? chalk.green :
+    task.status === '进行中' ? chalk.yellow :
+    chalk.gray
+
+  let output = chalk.blue('🎯 任务详情\n')
+  output += chalk.gray('─'.repeat(50)) + '\n'
+  output += `${chalk.cyan('ID')}: ${task.id}\n`
+  output += `${chalk.cyan('项目名称')}: ${task.projectName}\n`
+  output += `${chalk.cyan('预算')}: ${task.budget}\n`
+  output += `${chalk.cyan('状态')}: ${statusColor(task.status)}\n`
+  output += `${chalk.cyan('所需技能')}: ${task.skills.join(', ')}\n`
+  output += `${chalk.cyan('截止日期')}: ${task.deadline}\n`
+  output += chalk.gray('─'.repeat(50))
+  
+  return output
+}
+
+/**
+ * 认领任务
+ * 
+ * @param id 任务ID
+ * @param tasks 任务列表
+ * @returns 认领结果对象
+ */
+function claimTask(id: string, tasks: Task[]): { success: boolean; message: string; task?: Task } {
+  const task = tasks.find(t => t.id === id)
+  
+  if (!task) {
+    return { success: false, message: `任务 ${id} 不存在` }
+  }
+  
+  if (task.status !== '可认领') {
+    return { success: false, message: `任务 ${id} 已被认领或已完成` }
+  }
+  
+  return { success: true, message: `成功认领任务 ${id}`, task }
+}
+
 // 任务命令
-program
-  .command('task')
-  .description('Task management')
-  .addCommand(
-    new Command('list').description('List available tasks').action(async () => {
-      const tasks = getMockTasks()
-      console.log(formatTaskList(tasks))
-    })
-  )
-  .addCommand(
-    new Command('claim <id>').description('Claim a task').action(async (id) => {
-      console.log(chalk.blue(`🎯 Claiming task ${id}`))
-    })
-  )
-  .addCommand(
-    new Command('submit <id>').description('Submit task completion').action(async (id) => {
-      console.log(chalk.blue(`✅ Submitting task ${id}`))
-    })
-  )
+const taskCommand = new Command('task').description('Task management')
+
+taskCommand
+  .command('list').description('List available tasks').action(async () => {
+    const tasks = getMockTasks()
+    console.log(formatTaskList(tasks))
+  })
+
+taskCommand
+  .command('claim <id>').description('Claim a task').action(async (id) => {
+    const tasks = getMockTasks()
+    const result = claimTask(id, tasks)
+    
+    if (result.success) {
+      console.log(chalk.green(`✅ ${result.message}`))
+      console.log(formatTaskDetail(result.task!))
+    } else {
+      console.log(chalk.red(`❌ ${result.message}`))
+      process.exit(1)
+    }
+  })
+
+taskCommand
+  .command('submit <id>').description('Submit task completion').action(async (id) => {
+    console.log(chalk.blue(`✅ Submitting task ${id}`))
+  })
+
+program.addCommand(taskCommand)
 
 // 项目命令
 program
