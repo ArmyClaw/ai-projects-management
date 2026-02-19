@@ -85,6 +85,10 @@ await fastify.register(settlementRoutes, { prefix: '/api/v1' })
 import disputeRoutes from './routes/dispute'
 await fastify.register(disputeRoutes, { prefix: '/api/v1' })
 
+// 注册防作弊路由
+import antiCheatRoutes from './routes/anti-cheat'
+await fastify.register(antiCheatRoutes, { prefix: '/api/v1' })
+
 // 启动
 const start = async () => {
   try {

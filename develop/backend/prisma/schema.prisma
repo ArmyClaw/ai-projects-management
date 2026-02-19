@@ -395,3 +395,120 @@ enum SourceType {
   BAD_REVIEW
   PUNISHMENT
 }
+
+// 技能测试结果表
+model SkillTestResult {
+  id            String    @id @default(uuid())
+  userId        String
+  
+  // 测试信息
+  testType      String
+  score         Float
+  totalQuestions Int?
+  correctAnswers Int?
+  
+  // 防作弊数据
+  antiCheat     Json?
+  suspicious    Boolean   @default(false)
+  flaggedAt     DateTime?
+  
+  createdAt     DateTime  @default(now())
+  
+  @@map("skill_test_results")
+}
+
+// 作品集验证表
+model PortfolioVerification {
+  id              String    @id @default(uuid())
+  userId          String
+  portfolioUrl    String
+  
+  // 验证类型
+  verificationType VerificationType
+  result          VerificationResult
+  
+  // AI分析
+  aiAnalysis      Json?
+  
+  // Git验证
+  gitVerified     Boolean   @default(false)
+  commitHistory   Json?
+  
+  // 人工复核
+  manualReview    Boolean   @default(false)
+  reviewerId      String?
+  reviewResult    String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("portfolio_verifications")
+}
+
+enum VerificationType {
+  AI_AUTO
+  MANUAL
+  HYBRID
+}
+
+enum VerificationResult {
+  PASS
+  FAIL
+  SUSPICIOUS
+  NEED_REVIEW
+}
+
+// 同伴评议限制表
+model PeerReviewLimit {
+  id            String    @id @default(uuid())
+  reviewerId    String
+  
+  limitType     String    @default("DAILY_COUNT")
+  dailyCount    Int       @default(0)
+  dailyLimit    Int       @default(3)
+  
+  date          DateTime  @default(now())
+  
+  @@unique([reviewerId, date])
+  @@map("peer_review_limits")
+}
+
+// 作弊举报表
+model CheatingReport {
+  id              String    @id @default(uuid())
+  
+  // 被举报人
+  reportedUserId  String
+  
+  // 举报人
+  reporterId      String
+  
+  // 举报内容
+  reportType     CheatingType
+  evidence       String
+  evidenceUrls   String[]
+  
+  // 处理结果
+  status         CheatingReportStatus @default(PENDING)
+  investigation  String?
+  result        String?
+  
+  // 时间
+  reportedAt     DateTime  @default(now())
+  resolvedAt     DateTime?
+  
+  @@map("cheating_reports")
+}
+
+enum CheatingType {
+  TEST_CHEATING
+  PORTFOLIO_FAKE
+  FAKE_REVIEW
+  OTHER
+}
+
+enum CheatingReportStatus {
+  PENDING
+  INVESTIGATING
+  CONFIRMED
+  DISMISSED
+}
