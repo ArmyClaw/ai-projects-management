@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+coverage/
+
+# OpenClaw system files
+.openclaw/
+skills/
+
+# Logs
+logs/
+optimization_logs/
+
+# Temporary
+*.tmp
+*.temp
