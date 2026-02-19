@@ -311,3 +311,87 @@ enum SettlementStatus {
   FAILED
   REFUNDED
 }
+
+// 争议表
+model Dispute {
+  id            String    @id @default(uuid())
+  
+  // 关联
+  taskId        String
+  projectId     String
+  
+  // 争议方
+  initiatorId   String
+  respondentId  String
+  
+  // 内容
+  reason        String
+  evidence      String?
+  evidenceUrls  String[]
+  
+  // 仲裁结果
+  status        DisputeStatus @default(OPEN)
+  decision      DisputeDecision?
+  decisionReason String?
+  refundAmount  Float?
+  penaltyAmount Float?
+  
+  // 仲裁员
+  arbitratorId  String?
+  
+  // 时间
+  createdAt     DateTime  @default(now())
+  arbitratedAt  DateTime?
+  closedAt      DateTime?
+  
+  @@map("disputes")
+}
+
+enum DisputeStatus {
+  OPEN
+  ARBITRATING
+  CLOSED
+}
+
+enum DisputeDecision {
+  SUSTAIN_INITIATOR    // 维持发起人决定
+  OVERTURN_INITIATOR   // 推翻发起人决定
+  COMPROMISE           // 各退一步
+}
+
+// 用户信用历史记录表
+model UserCreditHistory {
+  id              String    @id @default(uuid())
+  userId          String
+  
+  // 信用类型
+  creditType      CreditType
+  
+  // 信用变化
+  change          Float
+  previousScore   Float
+  newScore        Float
+  
+  // 来源
+  sourceType      SourceType
+  sourceId        String?
+  description     String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("user_credit_history")
+}
+
+enum CreditType {
+  PARTICIPANT_CREDIT
+  INITIATOR_CREDIT
+}
+
+enum SourceType {
+  PROJECT_COMPLETED
+  TASK_APPROVED
+  TASK_REJECTED
+  GOOD_REVIEW
+  BAD_REVIEW
+  PUNISHMENT
+}
