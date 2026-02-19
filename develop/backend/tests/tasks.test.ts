@@ -329,6 +329,26 @@ const createTestApp = async () => {
     })
   })
 
+  // 删除任务路由
+  fastify.delete<{
+    Params: { id: string }
+  }>('/api/v1/tasks/:id', async (request, reply) => {
+    const { id } = request.params
+
+    // 模拟验证：任务ID以 "task-" 开头表示存在
+    const taskExists = id.startsWith('task-')
+
+    if (!taskExists) {
+      return reply.status(404).send({
+        success: false,
+        error: '任务不存在'
+      })
+    }
+
+    // 删除成功，返回 204 No Content
+    return reply.status(204).send()
+  })
+
   return fastify
 }
 
@@ -801,6 +821,37 @@ describe('Task Routes - /api/v1/tasks', () => {
       expect(response.body.success).toBe(true)
       expect(response.body.data.title).toBe('实现用户认证模块')
       expect(response.body.data.budget).toBe(500)
+    })
+  })
+
+  /**
+   * DELETE /api/v1/tasks/:id 删除任务 API 测试
+   */
+  describe('DELETE /api/v1/tasks/:id', () => {
+    it('应该成功删除存在的任务', async () => {
+      const response = await supertest(server)
+        .delete('/api/v1/tasks/task-1')
+        .expect(204)
+
+      expect(response.body).toEqual({})
+    })
+
+    it('应该返回404当任务不存在', async () => {
+      const response = await supertest(server)
+        .delete('/api/v1/tasks/invalid-id')
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('不存在')
+    })
+
+    it('删除成功后应该返回空内容（无响应体）', async () => {
+      const response = await supertest(server)
+        .delete('/api/v1/tasks/task-1')
+        .expect(204)
+
+      // 204状态码不应该有响应体
+      expect(response.text).toBe('')
     })
   })
 })

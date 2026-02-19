@@ -536,4 +536,47 @@ export async function updateTaskRoute(fastify: FastifyInstance): Promise<void> {
   })
 }
 
-export default { getTasksRoute, getTaskDetailRoute, createTaskRoute, updateTaskRoute }
+/**
+ * 删除任务
+ * DELETE /api/v1/tasks/:id
+ * 
+ * 路径参数：
+ * - id: 任务ID
+ * 
+ * 响应：
+ * - 204 No Content: 删除成功
+ * - 404 Not Found: 任务不存在
+ * - 500 Internal Server Error: 服务器错误
+ */
+export async function deleteTaskRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.delete<{
+    Params: {
+      id: string
+    }
+  }>('/api/v1/tasks/:id', async (request, reply) => {
+    try {
+      const { id } = request.params
+
+      // 模拟验证：任务ID以 "task-" 开头表示存在
+      const taskExists = id.startsWith('task-')
+
+      if (!taskExists) {
+        return reply.status(404).send({
+          success: false,
+          error: '任务不存在'
+        })
+      }
+
+      // 删除成功，返回 204 No Content
+      return reply.status(204).send()
+    } catch (error) {
+      fastify.log.error('删除任务失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}
+
+export default { getTasksRoute, getTaskDetailRoute, createTaskRoute, updateTaskRoute, deleteTaskRoute }
