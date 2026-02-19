@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { NCard, NButton, NTag, NGrid, NGi, NEmpty, NSpin, NInput, NSpace } from 'naive-ui'
-import axios from 'axios'
+import { NCard, NButton, NTag, NGrid, NGi, NEmpty, NSpin, NInput } from 'naive-ui'
+import axios, { AxiosError } from 'axios'
 
 /**
  * Skill市场视图
@@ -43,8 +43,9 @@ async function fetchSkills() {
     if (response.data.success) {
       skills.value = response.data.data.skills
     }
-  } catch (err: any) {
-    error.value = err.message || '获取Skill列表失败'
+  } catch (err) {
+    const axiosError = err as AxiosError
+    error.value = axiosError.message || '获取Skill列表失败'
     skills.value = mockSkills
   } finally {
     loading.value = false

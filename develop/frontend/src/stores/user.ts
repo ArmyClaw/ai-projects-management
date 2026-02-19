@@ -29,6 +29,7 @@ export interface User {
  */
 export interface LoginResponse {
   success: boolean
+  error?: string
   data: {
     user: User
     token: string
@@ -69,17 +70,18 @@ export const useUserStore = defineStore('user', () => {
       if (response.data.success) {
         token.value = response.data.data.token
         user.value = response.data.data.user
-        
+
         // 存储到localStorage
         localStorage.setItem('token', token.value)
-        
+
         return true
       } else {
-        error.value = response.data.error || '登录失败'
+        error.value = response.data.error ?? '登录失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '登录失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '登录失败'
       return false
     } finally {
       loading.value = false
@@ -105,8 +107,9 @@ export const useUserStore = defineStore('user', () => {
         error.value = oauthResponse.data.error || 'GitHub登录失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || 'GitHub登录失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? 'GitHub登录失败'
       return false
     } finally {
       loading.value = false
@@ -119,7 +122,10 @@ export const useUserStore = defineStore('user', () => {
   async function fetchCurrentUser(): Promise<boolean> {
     if (!token.value) {
       // 尝试从localStorage获取token
-      token.value = localStorage.getItem('token')
+      const savedToken = localStorage.getItem('token')
+      if (savedToken) {
+        token.value = savedToken
+      }
     }
 
     if (!token.value) {
@@ -144,8 +150,9 @@ export const useUserStore = defineStore('user', () => {
         logout()
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '获取用户信息失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '获取用户信息失败'
       return false
     } finally {
       loading.value = false
@@ -195,14 +202,17 @@ export const useUserStore = defineStore('user', () => {
 
       if (response.data.success) {
         token.value = response.data.data.accessToken
-        localStorage.setItem('token', token.value)
+        if (token.value) {
+          localStorage.setItem('token', token.value)
+        }
         return true
       } else {
         error.value = response.data.error || '刷新Token失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '刷新Token失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '刷新Token失败'
       return false
     } finally {
       loading.value = false
@@ -234,8 +244,9 @@ export const useUserStore = defineStore('user', () => {
         error.value = response.data.error || '更新失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '更新失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '更新失败'
       return false
     } finally {
       loading.value = false

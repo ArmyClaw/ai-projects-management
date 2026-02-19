@@ -1,8 +1,17 @@
+/**
+ * Fastify 应用主入口
+ * 
+ * 配置中间件、路由和WebSocket服务
+ */
+
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
 import { PrismaClient } from '@prisma/client'
 import dotenv from 'dotenv'
+import { createWebSocketServer, setGlobalFastifyInstance } from './services/websocket.js'
 
 dotenv.config()
 
@@ -22,12 +31,51 @@ await fastify.register(jwt, {
   secret: process.env.JWT_SECRET || 'your-secret-key'
 })
 
-// 健康检查
+// Swagger文档配置
+await fastify.register(swagger, {
+  openapi: {
+    info: {
+      title: 'AI Project Manager API',
+      description: 'AI项目管理系统后端API文档',
+      version: '1.0.0'
+    },
+    servers: [
+      {
+        url: 'http://localhost:4000',
+        description: '开发服务器'
+      }
+    ],
+    tags: [
+      { name: 'projects', description: '项目管理' },
+      { name: 'tasks', description: '任务管理' },
+      { name: 'auth', description: '认证授权' },
+      { name: 'skills', description: '技能管理' },
+      { name: 'points', description: '积分系统' },
+      { name: 'review', description: '验收管理' },
+      { name: 'settlement', description: '结算管理' },
+      { name: 'dispute', description: '争议处理' },
+      { name: 'anti-cheat', description: '防作弊系统' },
+      { name: 'ai-agent', description: 'AI代理' },
+      { name: 'github', description: 'GitHub集成' },
+      { name: 'notifications', description: '通知系统' }
+    ]
+  }
+})
+
+await fastify.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: {
+    docExpansion: 'list',
+    deepLinking: false
+  }
+})
+
+// 健康检查端点
 fastify.get('/health', async () => {
   return { status: 'healthy', timestamp: new Date().toISOString() }
 })
 
-// 就绪检查
+// 就绪检查端点
 fastify.get('/ready', async () => {
   try {
     await prisma.$queryRaw`SELECT 1`
@@ -101,11 +149,24 @@ await fastify.register(githubOAuthRoutes, { prefix: '/api/v1' })
 import authRefreshRoutes from './routes/auth-refresh'
 await fastify.register(authRefreshRoutes, { prefix: '/api/v1/auth' })
 
-// 启动
+// 注册通知路由
+import notificationRoutes from './routes/notifications'
+await fastify.register(notificationRoutes, { prefix: '/api/v1' })
+
+// 初始化WebSocket服务
+createWebSocketServer(fastify.server, {
+  corsOrigin: process.env.CORS_ORIGIN || true,
+  jwtSecret: process.env.JWT_SECRET || 'your-secret-key'
+})
+
+// 设置全局Fastify实例供WebSocket使用
+setGlobalFastifyInstance(fastify)
+
+// 启动服务器
 const start = async () => {
   try {
     await fastify.listen({ port: 4000, host: '0.0.0.0' })
-    console.log('Server running at http://localhost:4000')
+    fastify.log.info('Server running at http://localhost:4000')
   } catch (err) {
     fastify.log.error(err)
     process.exit(1)

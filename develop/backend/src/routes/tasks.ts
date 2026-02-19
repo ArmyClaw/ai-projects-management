@@ -53,7 +53,60 @@ export async function getTasksRoute(fastify: FastifyInstance): Promise<void> {
       projectId?: string
       assigneeId?: string
     }
-  }>('/api/v1/tasks', async (request, reply) => {
+  }>('/api/v1/tasks', {
+    schema: {
+      description: '获取任务列表',
+      tags: ['tasks'],
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'string', description: '页码', default: '1' },
+          pageSize: { type: 'string', description: '每页数量', default: '10' },
+          status: { type: 'string', description: '任务状态筛选' },
+          projectId: { type: 'string', description: '项目ID筛选' },
+          assigneeId: { type: 'string', description: '负责人ID筛选' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回任务列表',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                tasks: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      title: { type: 'string' },
+                      description: { type: 'string' },
+                      status: { type: 'string' },
+                      budget: { type: 'number' },
+                      projectId: { type: 'string' },
+                      projectTitle: { type: 'string' },
+                      assigneeName: { type: ['string', 'null'] },
+                      skills: { type: 'array', items: { type: 'string' } },
+                      deadline: { type: ['string', 'null'] },
+                      createdAt: { type: 'string' },
+                      updatedAt: { type: 'string' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 解析分页参数
       const page = parseInt(request.query.page || '1', 10)
@@ -171,7 +224,44 @@ export async function getTaskDetailRoute(fastify: FastifyInstance): Promise<void
     Params: {
       id: string
     }
-  }>('/api/v1/tasks/:id', async (request, reply) => {
+  }>('/api/v1/tasks/:id', {
+    schema: {
+      description: '获取单个任务详情',
+      tags: ['tasks'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '任务ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回任务详情',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                status: { type: 'string' },
+                budget: { type: 'number' },
+                project: { type: 'object' },
+                assignee: { type: ['object', 'null'] },
+                skills: { type: 'array', items: { type: 'string' } },
+                reviews: { type: 'array' },
+                deadline: { type: ['string', 'null'] },
+                createdAt: { type: 'string' },
+                updatedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       const { id } = request.params
 
@@ -305,7 +395,50 @@ interface CreateTaskResponse {
 export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post<{
     Body: CreateTaskBody
-  }>('/api/v1/tasks', async (request, reply) => {
+  }>('/api/v1/tasks', {
+    schema: {
+      description: '创建新任务',
+      tags: ['tasks'],
+      body: {
+        type: 'object',
+        required: ['title', 'description', 'projectId'],
+        properties: {
+          title: { type: 'string', description: '任务标题' },
+          description: { type: 'string', description: '任务描述' },
+          projectId: { type: 'string', description: '项目ID' },
+          budget: { type: 'number', description: '任务预算' },
+          skills: { type: 'array', items: { type: 'string' }, description: '技能列表' },
+          deadline: { type: 'string', description: '截止日期（ISO 8601格式）' }
+        }
+      },
+      response: {
+        201: {
+          description: '任务创建成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                status: { type: 'string' },
+                budget: { type: 'number' },
+                projectId: { type: 'string' },
+                projectTitle: { type: 'string' },
+                assigneeName: { type: ['string', 'null'] },
+                skills: { type: 'array', items: { type: 'string' } },
+                deadline: { type: ['string', 'null'] },
+                createdAt: { type: 'string' },
+                updatedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       const { title, description, projectId, budget = 0, skills = [], deadline } = request.body
 

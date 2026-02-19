@@ -151,7 +151,7 @@ export async function reviewTaskRoute(fastify: FastifyInstance) {
       // 更新任务状态
       const newTaskStatus = result === 'APPROVED' ? 'COMPLETED' 
         : result === 'REJECTED' ? 'REJECTED' 
-        : 'IN_PROGRESS' : 'SUBMITTED'
+        : 'PENDING'
 
       await prisma.task.update({
         where: { id: taskId },

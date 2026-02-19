@@ -1,3 +1,15 @@
+/**
+ * 应用入口文件
+ * 
+ * 功能：
+ * - 初始化Vue应用实例
+ * - 配置Pinia状态管理
+ * - 注册Vue Router路由
+ * - 配置i18n国际化
+ * - 配置Naive UI组件库
+ * - 挂载应用到DOM
+ */
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import naive from 'naive-ui'

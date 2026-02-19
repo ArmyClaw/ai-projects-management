@@ -1,3 +1,12 @@
+/**
+ * Vue Router 配置
+ * 
+ * 功能：
+ * - 定义应用路由
+ * - 支持懒加载视图组件
+ * - 配置历史模式
+ */
+
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [

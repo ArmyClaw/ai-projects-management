@@ -8,7 +8,7 @@
  */
 
 import { FastifyInstance } from 'fastify'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, User } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -20,6 +20,39 @@ interface AIAgentType {
   name: string
   description: string
   behaviors: string[]
+}
+
+interface AIAgentCreateBody {
+  type: string
+  name?: string
+  initialPoints?: number
+  skills?: string[]
+  avatar?: string
+}
+
+interface AIAgentQueryParams {
+  status?: string
+  page?: string
+  pageSize?: string
+}
+
+interface AIAgentActionBody {
+  action: string
+  targetId?: string
+  params?: Record<string, unknown>
+}
+
+interface AIAgentResult {
+  success: boolean
+  action?: string
+  message?: string
+  taskId?: string
+  qualityScore?: number
+  reward?: number
+  newPoints?: number
+  error?: string
+  skillId?: string
+  projectId?: string
 }
 
 /**
@@ -57,13 +90,7 @@ const AGENT_TYPES: Record<string, AIAgentType> = {
  */
 export async function createAIAgentRoute(fastify: FastifyInstance) {
   fastify.post('/api/v1/ai-agents', async (request, reply) => {
-    const { type, name, initialPoints, skills, avatar } = request.body as {
-      type: string
-      name?: string
-      initialPoints?: number
-      skills?: string[]
-      avatar?: string
-    }
+    const { type, name, initialPoints, skills, avatar } = request.body as AIAgentCreateBody
 
     // 验证类型
     if (!type || !AGENT_TYPES[type]) {
@@ -86,14 +113,9 @@ export async function createAIAgentRoute(fastify: FastifyInstance) {
           avatar: avatar || null,
           role: 'PARTICIPANT',
           status: 'ACTIVE',
-          points: initialPoints || 100,
-          // 标记为AIAgent
-          skillUsages: undefined // 避免关联
+          points: initialPoints || 100
         }
       })
-
-      // 记录为AIAgent
-      // 注意：需要创建关联表来标记AIAgent，这里简化处理
 
       return {
         success: true,
@@ -122,19 +144,14 @@ export async function createAIAgentRoute(fastify: FastifyInstance) {
  */
 export async function getAIAgentsRoute(fastify: FastifyInstance) {
   fastify.get('/api/v1/ai-agents', async (request, reply) => {
-    const { type, status, page, pageSize } = request.query as {
-      type?: string
-      status?: string
-      page?: string
-      pageSize?: string
-    }
+    const { status, page, pageSize } = request.query as AIAgentQueryParams
 
     const pageNum = Math.max(1, Number(page) || 1)
     const pageSizeNum = Math.min(100, Math.max(1, Number(pageSize) || 10))
 
     try {
       // 查询AIAgent（通过邮箱前缀识别）
-      const where: any = {
+      const where: { email: { startsWith: string }; status?: string } = {
         email: { startsWith: 'ai-agent-' }
       }
       
@@ -193,12 +210,8 @@ export async function getAIAgentsRoute(fastify: FastifyInstance) {
  */
 export async function triggerAIAgentActionRoute(fastify: FastifyInstance) {
   fastify.post('/api/v1/ai-agents/:id/action', async (request, reply) => {
-    const agentId = (request.params as { id: string }).id
-    const { action, targetId, params } = request.body as {
-      action: string
-      targetId?: string
-      params?: Record<string, any>
-    }
+    const { id: agentId } = request.params as { id: string }
+    const { action, targetId, params } = request.body as AIAgentActionBody
 
     // 验证必填字段
     if (!action) {
@@ -224,7 +237,7 @@ export async function triggerAIAgentActionRoute(fastify: FastifyInstance) {
       }
 
       // 根据行为类型处理
-      let result: any = { success: true, action }
+      let result: AIAgentResult = { success: true, action }
 
       switch (action) {
         case 'CLAIM_TASK':
@@ -402,8 +415,11 @@ async function simulateRejectTask(agentId: string, taskId?: string) {
 
 /**
  * 模拟创建Skill
+ * @param _agentId - 代理ID（预留参数）
+ * @param _params - 创建参数
+ * @returns 创建结果
  */
-async function simulateCreateSkill(agentId: string, params?: Record<string, any>) {
+async function simulateCreateSkill(_agentId: string, _params?: Record<string, unknown>): Promise<AIAgentResult> {
   return { 
     success: true, 
     message: 'Skill创建成功',
@@ -413,8 +429,11 @@ async function simulateCreateSkill(agentId: string, params?: Record<string, any>
 
 /**
  * 模拟创建项目
+ * @param _agentId - 代理ID（预留参数）
+ * @param _params - 创建参数
+ * @returns 创建结果
  */
-async function simulateCreateProject(agentId: string, params?: Record<string, any>) {
+async function simulateCreateProject(_agentId: string, _params?: Record<string, unknown>): Promise<AIAgentResult> {
   return { 
     success: true, 
     message: '项目创建成功',

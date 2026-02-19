@@ -10,7 +10,6 @@
 
 import { FastifyInstance } from 'fastify'
 import { PrismaClient } from '@prisma/client'
-import jwt from '@fastify/jwt'
 
 const prisma = new PrismaClient()
 
@@ -148,7 +147,7 @@ export async function handleGitHubCallbackRoute(fastify: FastifyInstance) {
  */
 export async function exchangeGitHubTokenRoute(fastify: FastifyInstance) {
   fastify.post('/api/v1/auth/github/token', async (request, reply) => {
-    const { code, clientId, clientSecret } = request.body as {
+    const { code } = request.body as {
       code?: string
       clientId?: string
       clientSecret?: string
@@ -223,7 +222,7 @@ function buildOAuthUrl(state: string): string {
 /**
  * 交换code获取access_token
  */
-async function exchangeCodeForToken(code: string): Promise<{
+async function exchangeCodeForToken(_code: string): Promise<{
   success: boolean
   data?: {
     accessToken: string
@@ -263,7 +262,7 @@ async function exchangeCodeForToken(code: string): Promise<{
 /**
  * 获取GitHub用户信息
  */
-async function getGitHubUserInfo(accessToken: string): Promise<{
+async function getGitHubUserInfo(_accessToken: string): Promise<{
   success: boolean
   data?: {
     id: number

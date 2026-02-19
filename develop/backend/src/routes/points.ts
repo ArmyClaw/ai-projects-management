@@ -12,19 +12,6 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 /**
- * 积分交易记录类型
- */
-interface PointTransaction {
-  id: string
-  type: string
-  amount: number
-  description: string | null
-  balanceBefore: number
-  balanceAfter: number
-  createdAt: string
-}
-
-/**
  * GET /api/v1/users/:id/points - 获取用户积分余额
  */
 export async function getUserPointsRoute(fastify: FastifyInstance) {

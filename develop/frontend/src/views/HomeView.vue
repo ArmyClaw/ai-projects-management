@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { NButton, NCard, NGrid, NGi } from 'naive-ui'
 
+/**
+ * 首页视图
+ * 
+ * 功能：
+ * - 展示项目核心价值
+ * - 提供发起人和参与者入口
+ */
+
+// 功能特性数据
 const features = [
   {
     icon: '🏢',

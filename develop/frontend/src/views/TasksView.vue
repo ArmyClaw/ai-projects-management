@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { NCard, NButton, NTag, NGrid, NGi, NEmpty, NSpin, NBadge } from 'naive-ui'
-import axios from 'axios'
+import { ref, onMounted, computed } from 'vue'
+import { NCard, NButton, NTag, NGrid, NGi, NEmpty, NBadge } from 'naive-ui'
+import axios, { AxiosError } from 'axios'
+import SkeletonList from '@/components/SkeletonList.vue'
 
 /**
  * 任务大厅视图
@@ -41,6 +42,16 @@ const statusConfig: Record<string, { type: 'success' | 'info' | 'warning'; text:
 }
 
 /**
+ * 过滤任务列表
+ */
+const filteredTasks = computed(() => {
+  if (activeTab.value === 'all') return tasks.value
+  if (activeTab.value === 'open') return tasks.value.filter(t => t.status === 'OPEN')
+  if (activeTab.value === 'claimed') return tasks.value.filter(t => t.status === 'CLAIMED')
+  return tasks.value
+})
+
+/**
  * 获取任务列表
  */
 async function fetchTasks() {
@@ -52,8 +63,9 @@ async function fetchTasks() {
     if (response.data.success) {
       tasks.value = response.data.data.tasks
     }
-  } catch (err: any) {
-    error.value = err.message || '获取任务列表失败'
+  } catch (err) {
+    const axiosError = err as AxiosError
+    error.value = axiosError.message || '获取任务列表失败'
     tasks.value = mockTasks
   } finally {
     loading.value = false
@@ -155,10 +167,9 @@ onMounted(() => {
         </n-badge>
       </div>
 
-      <!-- 加载状态 -->
+      <!-- 加载状态 - 骨架屏 -->
       <div v-if="loading" class="loading">
-        <n-spin size="large" />
-        <p>加载中...</p>
+        <SkeletonList :count="3" />
       </div>
 
       <!-- 错误状态 -->
@@ -232,18 +243,6 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<script lang="ts">
-// 计算属性
-import { computed } from 'vue'
-
-const filteredTasks = computed(() => {
-  if (activeTab.value === 'all') return tasks.value
-  if (activeTab.value === 'open') return tasks.value.filter(t => t.status === 'OPEN')
-  if (activeTab.value === 'claimed') return tasks.value.filter(t => t.status === 'CLAIMED')
-  return tasks.value
-})
-</script>
 
 <style scoped>
 .tasks-view {

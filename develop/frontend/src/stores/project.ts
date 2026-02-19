@@ -34,6 +34,7 @@ export interface Project {
  */
 export interface ProjectListResponse {
   success: boolean
+  error?: string
   data: {
     projects: Project[]
     total: number
@@ -114,8 +115,9 @@ export const useProjectStore = defineStore('project', () => {
         error.value = response.data.error || '获取项目列表失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '获取项目列表失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '获取项目列表失败'
       return false
     } finally {
       loading.value = false
@@ -132,6 +134,7 @@ export const useProjectStore = defineStore('project', () => {
     try {
       const response = await axios.get<{
         success: boolean
+        error?: string
         data: Project
       }>(`/api/v1/projects/${id}`)
 
@@ -142,8 +145,9 @@ export const useProjectStore = defineStore('project', () => {
         error.value = response.data.error || '获取项目详情失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '获取项目详情失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '获取项目详情失败'
       return false
     } finally {
       loading.value = false
@@ -160,6 +164,7 @@ export const useProjectStore = defineStore('project', () => {
     try {
       const response = await axios.post<{
         success: boolean
+        error?: string
         data: { id: string }
       }>('/api/v1/projects', data, {
         headers: getHeaders()
@@ -173,8 +178,9 @@ export const useProjectStore = defineStore('project', () => {
         error.value = response.data.error || '创建项目失败'
         return null
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '创建项目失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '创建项目失败'
       return null
     } finally {
       loading.value = false
@@ -191,6 +197,7 @@ export const useProjectStore = defineStore('project', () => {
     try {
       const response = await axios.put<{
         success: boolean
+        error?: string
         data: Project
       }>(`/api/v1/projects/${id}`, data, {
         headers: getHeaders()
@@ -211,8 +218,9 @@ export const useProjectStore = defineStore('project', () => {
         error.value = response.data.error || '更新项目失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '更新项目失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '更新项目失败'
       return false
     } finally {
       loading.value = false
@@ -229,6 +237,7 @@ export const useProjectStore = defineStore('project', () => {
     try {
       const response = await axios.delete<{
         success: boolean
+        error?: string
         message?: string
       }>(`/api/v1/projects/${id}`, {
         headers: getHeaders()
@@ -246,8 +255,9 @@ export const useProjectStore = defineStore('project', () => {
         error.value = response.data.error || '删除项目失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '删除项目失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '删除项目失败'
       return false
     } finally {
       loading.value = false

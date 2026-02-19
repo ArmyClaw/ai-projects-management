@@ -4,37 +4,6 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 /**
- * 技能列表项类型
- */
-interface SkillListItem {
-  id: string
-  name: string
-  description: string
-  tags: string[]
-  visibility: 'PRIVATE' | 'COMMUNITY' | 'PUBLIC'
-  authorId: string
-  authorName: string
-  usageCount: number
-  avgScore: number
-  createdAt: string
-  updatedAt: string
-}
-
-/**
- * 技能列表响应类型
- */
-interface SkillListResponse {
-  success: boolean
-  data: {
-    skills: SkillListItem[]
-    total: number
-    page: number
-    pageSize: number
-    totalPages: number
-  }
-}
-
-/**
  * 获取技能列表
  * GET /api/v1/skills
  * 
@@ -75,7 +44,7 @@ export async function getSkillsRoute(fastify: FastifyInstance): Promise<void> {
     const skip = (pageNum - 1) * size
 
     // 构建查询条件
-    const where: any = {}
+    const where: { authorId?: string; visibility?: string; tags?: { hasEvery: string[] } } = {}
 
     if (authorId) {
       where.authorId = authorId
@@ -126,8 +95,8 @@ export async function getSkillsRoute(fastify: FastifyInstance): Promise<void> {
           visibility: skill.visibility,
           authorId: skill.authorId,
           authorName: skill.author.name,
-          usageCount: (skill.stats as any)?.usageCount || 0,
-          avgScore: (skill.stats as any)?.avgScore || 0,
+          usageCount: (skill.stats as { usageCount?: number })?.usageCount || 0,
+          avgScore: (skill.stats as { avgScore?: number })?.avgScore || 0,
           createdAt: skill.createdAt.toISOString(),
           updatedAt: skill.updatedAt.toISOString()
         })),

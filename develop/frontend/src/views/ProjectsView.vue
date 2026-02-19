@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { NCard, NButton, NTag, NGrid, NGi, NEmpty, NSpin } from 'naive-ui'
-import { useProjectStore, type Project } from '@/stores/project'
+import { onMounted } from 'vue'
+import { NCard, NButton, NTag, NGrid, NGi, NEmpty } from 'naive-ui'
+import { useProjectStore } from '@/stores/project'
+import SkeletonCard from '@/components/SkeletonCard.vue'
 
 /**
  * 项目列表视图
@@ -56,61 +57,6 @@ function getStatusText(status: string): string {
 onMounted(() => {
   projectStore.fetchProjects()
 })
-}
-
-/**
- * 获取状态标签类型
- */
-function getStatusType(status: string): 'success' | 'info' | 'warning' | 'error' {
-  const map: Record<string, 'success' | 'info' | 'warning' | 'error'> = {
-    DRAFT: 'warning',
-    ACTIVE: 'info',
-    COMPLETED: 'success',
-    CANCELLED: 'error'
-  }
-  return map[status] || 'info'
-}
-
-/**
- * 获取状态文本
- */
-function getStatusText(status: string): string {
-  const map: Record<string, string> = {
-    DRAFT: '草稿',
-    ACTIVE: '进行中',
-    COMPLETED: '已完成',
-    CANCELLED: '已取消'
-  }
-  return map[status] || status
-}
-
-// 模拟数据
-const mockProjects: Project[] = [
-  {
-    id: 'proj-1',
-    title: 'AI代码审查工具',
-    description: '基于AI的自动化代码审查工具',
-    status: 'ACTIVE',
-    budget: 10000,
-    progress: 66,
-    initiator: { name: '张三' },
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'proj-2',
-    title: '智能客服系统',
-    description: '基于大语言模型的智能客服',
-    status: 'COMPLETED',
-    budget: 15000,
-    progress: 100,
-    initiator: { name: '李四' },
-    createdAt: new Date(Date.now() - 86400000 * 7).toISOString()
-  }
-]
-
-onMounted(() => {
-  fetchProjects()
-})
 </script>
 
 <template>
@@ -125,10 +71,9 @@ onMounted(() => {
         <n-button type="primary">发起新项目</n-button>
       </header>
 
-      <!-- 加载状态 -->
-      <div v-if="loading" class="loading">
-        <n-spin size="large" />
-        <p>加载中...</p>
+      <!-- 加载状态 - 骨架屏 -->
+      <div v-if="projectStore.loading" class="loading">
+        <SkeletonCard :count="4" />
       </div>
 
       <!-- 错误状态 -->

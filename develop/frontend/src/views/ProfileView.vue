@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { NCard, NButton, NTag, NGrid, NGi, NAvatar, NProgress, NStatistic, NInput, NSpace, NRate } from 'naive-ui'
-import axios from 'axios'
+import { ref, onMounted } from 'vue'
+import { NCard, NButton, NTag, NGrid, NGi, NAvatar, NProgress, NInput, NRate } from 'naive-ui'
+import axios, { AxiosError } from 'axios'
 
 /**
  * 个人档案视图
@@ -59,8 +59,9 @@ async function fetchUser() {
       user.value = response.data.data.user
       initEditForm()
     }
-  } catch (err: any) {
-    error.value = err.message || '获取用户信息失败'
+  } catch (err) {
+    const axiosError = err as AxiosError
+    error.value = axiosError.message || '获取用户信息失败'
     user.value = mockUser
     initEditForm()
   } finally {
@@ -110,8 +111,9 @@ async function saveEdit() {
     user.value.bio = editForm.value.bio
     user.value.location = editForm.value.location
     isEditing.value = false
-  } catch (err: any) {
-    error.value = err.message || '保存失败'
+  } catch (err) {
+    const axiosError = err as AxiosError
+    error.value = axiosError.message || '保存失败'
   }
 }
 

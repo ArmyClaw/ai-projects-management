@@ -234,7 +234,7 @@ export async function getCurrentUserRoute(fastify: FastifyInstance) {
  * POST /api/v1/auth/verify - 验证Token
  */
 export async function verifyTokenRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/auth/verify', async (request, reply) => {
+  fastify.post('/api/v1/auth/verify', async (request, _reply) => {
     const authHeader = request.headers.authorization
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

@@ -15,15 +15,17 @@ const prisma = new PrismaClient()
 /**
  * POST /api/v1/disputes - 发起争议
  */
+interface CreateDisputeBody {
+  taskId: string
+  initiatorId: string
+  reason: string
+  evidence?: string
+  evidenceUrls?: string[]
+}
+
 export async function createDisputeRoute(fastify: FastifyInstance) {
   fastify.post('/api/v1/disputes', async (request, reply) => {
-    const { taskId, initiatorId, reason, evidence, evidenceUrls } = request.body as {
-      taskId: string
-      initiatorId: string
-      reason: string
-      evidence?: string
-      evidenceUrls?: string[]
-    }
+    const { taskId, initiatorId, reason, evidence, evidenceUrls } = request.body as CreateDisputeBody
 
     // 验证必填字段
     if (!taskId || !initiatorId || !reason) {
@@ -92,21 +94,28 @@ export async function createDisputeRoute(fastify: FastifyInstance) {
 /**
  * GET /api/v1/disputes - 查询争议列表
  */
+interface DisputesQueryParams {
+  status?: string
+  userId?: string
+  page?: string
+  pageSize?: string
+}
+
+interface DisputeWhereInput {
+  status?: string
+  OR?: Array<{ initiatorId: string } | { respondentId: string }>
+}
+
 export async function getDisputesRoute(fastify: FastifyInstance) {
   fastify.get('/api/v1/disputes', async (request, reply) => {
-    const { status, userId, page, pageSize } = request.query as {
-      status?: string
-      userId?: string
-      page?: string
-      pageSize?: string
-    }
+    const { status, userId, page, pageSize } = request.query as DisputesQueryParams
 
     const pageNum = Math.max(1, Number(page) || 1)
     const pageSizeNum = Math.min(100, Math.max(1, Number(pageSize) || 10))
 
     try {
       // 构建查询条件
-      const where: any = {}
+      const where: DisputeWhereInput = {}
       if (status) {
         where.status = status
       }

@@ -49,7 +49,57 @@ export async function getProjectsRoute(fastify: FastifyInstance): Promise<void> 
       status?: string
       mode?: string
     }
-  }>('/api/v1/projects', async (request, reply) => {
+  }>('/api/v1/projects', {
+    schema: {
+      description: '获取项目列表',
+      tags: ['projects'],
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'string', description: '页码', default: '1' },
+          pageSize: { type: 'string', description: '每页数量', default: '10' },
+          status: { type: 'string', description: '项目状态筛选' },
+          mode: { type: 'string', description: '项目模式筛选' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回项目列表',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                projects: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      title: { type: 'string' },
+                      description: { type: 'string' },
+                      mode: { type: 'string' },
+                      status: { type: 'string' },
+                      budget: { type: 'number' },
+                      initiatorName: { type: 'string' },
+                      taskCount: { type: 'number' },
+                      createdAt: { type: 'string' },
+                      updatedAt: { type: 'string' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 解析分页参数
       const page = parseInt(request.query.page || '1', 10)
@@ -196,7 +246,48 @@ interface CreateProjectResponse {
 export async function createProjectRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post<{
     Body: CreateProjectBody
-  }>('/api/v1/projects', async (request, reply) => {
+  }>('/api/v1/projects', {
+    schema: {
+      description: '创建新项目',
+      tags: ['projects'],
+      body: {
+        type: 'object',
+        required: ['title', 'description'],
+        properties: {
+          title: { type: 'string', description: '项目标题' },
+          description: { type: 'string', description: '项目描述' },
+          mode: { type: 'string', enum: ['COMMUNITY', 'ENTERPRISE'], description: '项目模式' },
+          budget: { type: 'number', description: '预算金额' },
+          skills: { type: 'array', items: { type: 'string' }, description: '技能列表' }
+        }
+      },
+      response: {
+        201: {
+          description: '项目创建成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                mode: { type: 'string' },
+                status: { type: 'string' },
+                budget: { type: 'number' },
+                initiatorName: { type: 'string' },
+                taskCount: { type: 'number' },
+                skills: { type: 'array', items: { type: 'string' } },
+                createdAt: { type: 'string' },
+                updatedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       const { title, description, mode = 'COMMUNITY', budget = 0, skills = [] } = request.body
 

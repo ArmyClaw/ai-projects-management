@@ -1,0 +1,27 @@
+{
+  "root": true,
+  "env": {
+    "es2022": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "no-console": "warn",
+    "no-debugger": "warn",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "eqeqeq": ["error", "always"],
+    "prefer-const": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-explicit-any": "warn"
+  },
+  "ignorePatterns": ["node_modules/", "dist/", "*.d.ts", "tests/", "vitest.config.ts"]
+}

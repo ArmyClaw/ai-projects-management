@@ -40,6 +40,7 @@ export interface Task {
  */
 export interface TaskListResponse {
   success: boolean
+  error?: string
   data: {
     tasks: Task[]
     total: number
@@ -141,8 +142,9 @@ export const useTaskStore = defineStore('task', () => {
         error.value = response.data.error || '获取任务列表失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '获取任务列表失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '获取任务列表失败'
       return false
     } finally {
       loading.value = false
@@ -159,6 +161,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const response = await axios.get<{
         success: boolean
+        error?: string
         data: Task
       }>(`/api/v1/tasks/${id}`)
 
@@ -169,8 +172,9 @@ export const useTaskStore = defineStore('task', () => {
         error.value = response.data.error || '获取任务详情失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '获取任务详情失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '获取任务详情失败'
       return false
     } finally {
       loading.value = false
@@ -187,6 +191,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const response = await axios.post<{
         success: boolean
+        error?: string
         data: { id: string }
       }>('/api/v1/tasks', data, {
         headers: getHeaders()
@@ -199,8 +204,9 @@ export const useTaskStore = defineStore('task', () => {
         error.value = response.data.error || '创建任务失败'
         return null
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '创建任务失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '创建任务失败'
       return null
     } finally {
       loading.value = false
@@ -217,6 +223,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const response = await axios.post<{
         success: boolean
+        error?: string
         data: Task
       }>(`/api/v1/tasks/${taskId}/claim`, {}, {
         headers: getHeaders()
@@ -233,8 +240,9 @@ export const useTaskStore = defineStore('task', () => {
         error.value = response.data.error || '认领任务失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '认领任务失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '认领任务失败'
       return false
     } finally {
       loading.value = false
@@ -256,6 +264,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const response = await axios.post<{
         success: boolean
+        error?: string
         data: Task
       }>(`/api/v1/tasks/${taskId}/submit`, data, {
         headers: getHeaders()
@@ -272,8 +281,9 @@ export const useTaskStore = defineStore('task', () => {
         error.value = response.data.error || '提交任务失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '提交任务失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '提交任务失败'
       return false
     } finally {
       loading.value = false
@@ -290,6 +300,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const response = await axios.put<{
         success: boolean
+        error?: string
         data: Task
       }>(`/api/v1/tasks/${taskId}`, data, {
         headers: getHeaders()
@@ -310,8 +321,9 @@ export const useTaskStore = defineStore('task', () => {
         error.value = response.data.error || '更新任务失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '更新任务失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '更新任务失败'
       return false
     } finally {
       loading.value = false
@@ -328,6 +340,7 @@ export const useTaskStore = defineStore('task', () => {
     try {
       const response = await axios.delete<{
         success: boolean
+        error?: string
         message?: string
       }>(`/api/v1/tasks/${taskId}`, {
         headers: getHeaders()
@@ -345,8 +358,9 @@ export const useTaskStore = defineStore('task', () => {
         error.value = response.data.error || '删除任务失败'
         return false
       }
-    } catch (err: any) {
-      error.value = err.response?.data?.error || '删除任务失败'
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      error.value = axiosError.response?.data?.error ?? '删除任务失败'
       return false
     } finally {
       loading.value = false
