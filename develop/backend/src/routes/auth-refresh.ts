@@ -30,7 +30,31 @@ const tokenBlacklist = new Set<string>()
  * POST /api/v1/auth/refresh - 刷新Token
  */
 export async function refreshTokenRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/auth/refresh', async (request, reply) => {
+  fastify.post('/api/v1/auth/refresh', {
+    schema: {
+      description: '刷新访问令牌',
+      tags: ['auth'],
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          description: '刷新成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                accessToken: { type: 'string' },
+                refreshToken: { type: 'string' },
+                tokenType: { type: 'string' },
+                expiresIn: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const authHeader = request.headers.authorization
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -127,7 +151,22 @@ export async function refreshTokenRoute(fastify: FastifyInstance) {
  * POST /api/v1/auth/logout - 登出
  */
 export async function logoutRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/auth/logout', async (request, reply) => {
+  fastify.post('/api/v1/auth/logout', {
+    schema: {
+      description: '用户登出',
+      tags: ['auth'],
+      response: {
+        200: {
+          description: '登出成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const authHeader = request.headers.authorization
 
     // 获取Access Token并加入黑名单
@@ -156,7 +195,37 @@ export async function logoutRoute(fastify: FastifyInstance) {
  * GET /api/v1/auth/me - 获取当前用户
  */
 export async function getCurrentUserRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/auth/me', async (request, reply) => {
+  fastify.get('/api/v1/auth/me', {
+    schema: {
+      description: '获取当前登录用户信息',
+      tags: ['auth'],
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          description: '成功返回用户信息',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+                avatar: { type: 'string' },
+                role: { type: 'string' },
+                githubId: { type: 'string' },
+                points: { type: 'number' },
+                status: { type: 'string' },
+                createdAt: { type: 'string' },
+                updatedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const authHeader = request.headers.authorization
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -234,7 +303,30 @@ export async function getCurrentUserRoute(fastify: FastifyInstance) {
  * POST /api/v1/auth/verify - 验证Token
  */
 export async function verifyTokenRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/auth/verify', async (request, _reply) => {
+  fastify.post('/api/v1/auth/verify', {
+    schema: {
+      description: '验证访问令牌',
+      tags: ['auth'],
+      response: {
+        200: {
+          description: '验证结果',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                valid: { type: 'boolean' },
+                message: { type: 'string' },
+                userId: { type: 'string' },
+                expiresAt: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, _reply) => {
     const authHeader = request.headers.authorization
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

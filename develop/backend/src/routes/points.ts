@@ -15,7 +15,37 @@ const prisma = new PrismaClient()
  * GET /api/v1/users/:id/points - 获取用户积分余额
  */
 export async function getUserPointsRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/users/:id/points', async (request, reply) => {
+  fastify.get<{
+    Params: { id: string }
+  }>('/api/v1/users/:id/points', {
+    schema: {
+      description: '获取用户积分余额',
+      tags: ['points'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '用户ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回用户积分',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                userId: { type: 'string' },
+                points: { type: 'number' },
+                lastUpdated: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id } = request.params as { id: string }
 
     try {
@@ -49,7 +79,65 @@ export async function getUserPointsRoute(fastify: FastifyInstance) {
  * GET /api/v1/users/:id/points/transactions - 获取用户积分交易记录
  */
 export async function getUserPointsTransactionsRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/users/:id/points/transactions', async (request, reply) => {
+  fastify.get<{
+    Params: { id: string }
+    Querystring: {
+      page?: string
+      pageSize?: string
+    }
+  }>('/api/v1/users/:id/points/transactions', {
+    schema: {
+      description: '获取用户积分交易记录',
+      tags: ['points'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '用户ID' }
+        }
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'string', default: '1', description: '页码' },
+          pageSize: { type: 'string', default: '10', description: '每页数量' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回交易记录',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                userId: { type: 'string' },
+                transactions: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      type: { type: 'string' },
+                      amount: { type: 'number' },
+                      description: { type: 'string' },
+                      balanceBefore: { type: 'number' },
+                      balanceAfter: { type: 'number' },
+                      createdAt: { type: 'string' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const query = request.query as { page?: string; pageSize?: string }
     const page = Math.max(1, Number(query?.page) || 1)

@@ -16,7 +16,64 @@ const prisma = new PrismaClient()
  * POST /api/v1/anti-cheat/skill-test - 提交技能测试
  */
 export async function submitSkillTestRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/anti-cheat/skill-test', async (request, reply) => {
+  fastify.post<{
+    Body: {
+      userId: string
+      testType: string
+      score: number
+      antiCheat?: {
+        duration?: number
+        tabSwitches?: number
+        screenshotCount?: number
+        copyAttempts?: number
+      }
+    }
+  }>('/api/v1/anti-cheat/skill-test', {
+    schema: {
+      description: '提交技能测试',
+      tags: ['anti-cheat'],
+      body: {
+        type: 'object',
+        required: ['userId', 'testType', 'score'],
+        properties: {
+          userId: { type: 'string', description: '用户ID' },
+          testType: { type: 'string', description: '测试类型' },
+          score: { type: 'number', description: '测试分数' },
+          antiCheat: {
+            type: 'object',
+            description: '防作弊数据',
+            properties: {
+              duration: { type: 'number', description: '测试时长（秒）' },
+              tabSwitches: { type: 'number', description: '标签切换次数' },
+              screenshotCount: { type: 'number', description: '截图次数' },
+              copyAttempts: { type: 'number', description: '复制尝试次数' }
+            }
+          }
+        }
+      },
+      response: {
+        201: {
+          description: '提交成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                userId: { type: 'string' },
+                testType: { type: 'string' },
+                score: { type: 'number' },
+                isSuspicious: { type: 'boolean' },
+                flaggedAt: { type: ['string', 'null'] },
+                createdAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { userId, testType, score, antiCheat } = request.body as {
       userId: string
       testType: string
@@ -101,7 +158,62 @@ function detectSuspiciousActivity(antiCheat?: {
  * POST /api/v1/anti-cheat/portfolio-verify - 作品集验证
  */
 export async function verifyPortfolioRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/anti-cheat/portfolio-verify', async (request, reply) => {
+  fastify.post<{
+    Body: {
+      userId: string
+      portfolioUrl: string
+      aiAnalysis?: {
+        similarity: number
+        complexity: number
+        originality: number
+      }
+      gitVerified?: boolean
+    }
+  }>('/api/v1/anti-cheat/portfolio-verify', {
+    schema: {
+      description: '验证作品集',
+      tags: ['anti-cheat'],
+      body: {
+        type: 'object',
+        required: ['userId', 'portfolioUrl'],
+        properties: {
+          userId: { type: 'string', description: '用户ID' },
+          portfolioUrl: { type: 'string', description: '作品集地址' },
+          aiAnalysis: {
+            type: 'object',
+            description: 'AI分析结果',
+            properties: {
+              similarity: { type: 'number', description: '相似度' },
+              complexity: { type: 'number', description: '复杂度' },
+              originality: { type: 'number', description: '原创性' }
+            }
+          },
+          gitVerified: { type: 'boolean', description: 'Git验证状态' }
+        }
+      },
+      response: {
+        201: {
+          description: '验证成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                userId: { type: 'string' },
+                portfolioUrl: { type: 'string' },
+                result: { type: 'string' },
+                aiAnalysis: { type: 'object' },
+                gitVerified: { type: 'boolean' },
+                createdAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { userId, portfolioUrl, aiAnalysis, gitVerified } = request.body as {
       userId: string
       portfolioUrl: string
@@ -191,7 +303,51 @@ function analyzePortfolio(aiAnalysis?: {
  * GET /api/v1/anti-cheat/limits/:userId - 查询评议限制
  */
 export async function getUserLimitsRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/anti-cheat/limits/:userId', async (request, reply) => {
+  fastify.get<{
+    Params: { userId: string }
+    Querystring: {
+      date?: string
+    }
+  }>('/api/v1/anti-cheat/limits/:userId', {
+    schema: {
+      description: '查询评议限制',
+      tags: ['anti-cheat'],
+      params: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: '用户ID' }
+        }
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: '查询日期' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回评议限制',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                userId: { type: 'string' },
+                dailyCount: { type: 'number' },
+                dailyLimit: { type: 'number' },
+                recentCount: { type: 'number' },
+                recentLimit: { type: 'number' },
+                date: { type: 'string' },
+                canReview: { type: 'boolean' },
+                remaining: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { userId } = request.params as { userId: string }
     const { date } = request.query as { date?: string }
 
@@ -249,7 +405,51 @@ export async function getUserLimitsRoute(fastify: FastifyInstance) {
  * POST /api/v1/anti-cheat/report - 举报作弊
  */
 export async function reportCheatingRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/anti-cheat/report', async (request, reply) => {
+  fastify.post<{
+    Body: {
+      reportedUserId: string
+      reporterId: string
+      type: 'TEST_CHEATING' | 'PORTFOLIO_FAKE' | 'FAKE_REVIEW' | 'OTHER'
+      evidence: string
+      evidenceUrls?: string[]
+    }
+  }>('/api/v1/anti-cheat/report', {
+    schema: {
+      description: '举报作弊',
+      tags: ['anti-cheat'],
+      body: {
+        type: 'object',
+        required: ['reportedUserId', 'reporterId', 'type', 'evidence'],
+        properties: {
+          reportedUserId: { type: 'string', description: '被举报用户ID' },
+          reporterId: { type: 'string', description: '举报人ID' },
+          type: { type: 'string', enum: ['TEST_CHEATING', 'PORTFOLIO_FAKE', 'FAKE_REVIEW', 'OTHER'], description: '举报类型' },
+          evidence: { type: 'string', description: '证据描述' },
+          evidenceUrls: { type: 'array', items: { type: 'string' }, description: '证据链接' }
+        }
+      },
+      response: {
+        201: {
+          description: '举报成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                reportedUserId: { type: 'string' },
+                reporterId: { type: 'string' },
+                type: { type: 'string' },
+                status: { type: 'string' },
+                reportedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { reportedUserId, reporterId, type, evidence, evidenceUrls } = request.body as {
       reportedUserId: string
       reporterId: string

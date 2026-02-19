@@ -89,7 +89,54 @@ const AGENT_TYPES: Record<string, AIAgentType> = {
  * POST /api/v1/ai-agents - 创建模拟用户
  */
 export async function createAIAgentRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/ai-agents', async (request, reply) => {
+  fastify.post<{
+    Body: {
+      type: string
+      name?: string
+      initialPoints?: number
+      skills?: string[]
+      avatar?: string
+    }
+  }>('/api/v1/ai-agents', {
+    schema: {
+      description: '创建AI代理',
+      tags: ['ai-agent'],
+      body: {
+        type: 'object',
+        required: ['type'],
+        properties: {
+          type: { type: 'string', enum: ['TASK_COMPLETER', 'REVIEWER', 'SKILL_SHARER', 'PROJECT_INITIATOR'], description: 'Agent类型' },
+          name: { type: 'string', description: 'Agent名称' },
+          initialPoints: { type: 'number', description: '初始积分' },
+          skills: { type: 'array', items: { type: 'string' }, description: '技能列表' },
+          avatar: { type: 'string', description: '头像URL' }
+        }
+      },
+      response: {
+        201: {
+          description: '创建成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                type: { type: 'string' },
+                name: { type: 'string' },
+                avatar: { type: 'string' },
+                points: { type: 'number' },
+                skills: { type: 'array', items: { type: 'string' } },
+                status: { type: 'string' },
+                agentType: { type: 'object' },
+                createdAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { type, name, initialPoints, skills, avatar } = request.body as AIAgentCreateBody
 
     // 验证类型
@@ -143,7 +190,60 @@ export async function createAIAgentRoute(fastify: FastifyInstance) {
  * GET /api/v1/ai-agents - 查询AIAgent列表
  */
 export async function getAIAgentsRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/ai-agents', async (request, reply) => {
+  fastify.get<{
+    Querystring: {
+      status?: string
+      page?: string
+      pageSize?: string
+    }
+  }>('/api/v1/ai-agents', {
+    schema: {
+      description: '查询AI代理列表',
+      tags: ['ai-agent'],
+      querystring: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', description: '状态筛选' },
+          page: { type: 'string', default: '1', description: '页码' },
+          pageSize: { type: 'string', default: '10', description: '每页数量' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回AI代理列表',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                agents: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      name: { type: 'string' },
+                      avatar: { type: 'string' },
+                      points: { type: 'number' },
+                      status: { type: 'string' },
+                      type: { type: 'string' },
+                      agentType: { type: 'object' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' },
+                agentTypes: { type: 'array' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { status, page, pageSize } = request.query as AIAgentQueryParams
 
     const pageNum = Math.max(1, Number(page) || 1)
@@ -209,7 +309,61 @@ export async function getAIAgentsRoute(fastify: FastifyInstance) {
  * POST /api/v1/ai-agents/:id/action - 触发Agent行为
  */
 export async function triggerAIAgentActionRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/ai-agents/:id/action', async (request, reply) => {
+  fastify.post<{
+    Params: { id: string }
+    Body: {
+      action: string
+      targetId?: string
+      params?: Record<string, unknown>
+    }
+  }>('/api/v1/ai-agents/:id/action', {
+    schema: {
+      description: '触发AI代理行为',
+      tags: ['ai-agent'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Agent ID' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['action'],
+        properties: {
+          action: { type: 'string', description: '行为类型' },
+          targetId: { type: 'string', description: '目标ID' },
+          params: { type: 'object', description: '行为参数' }
+        }
+      },
+      response: {
+        200: {
+          description: '行为执行成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                agentId: { type: 'string' },
+                agentName: { type: 'string' },
+                action: { type: 'string' },
+                targetId: { type: 'string' },
+                success: { type: 'boolean' },
+                message: { type: 'string' },
+                taskId: { type: 'string' },
+                qualityScore: { type: 'number' },
+                reward: { type: 'number' },
+                newPoints: { type: 'number' },
+                error: { type: 'string' },
+                skillId: { type: 'string' },
+                projectId: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id: agentId } = request.params as { id: string }
     const { action, targetId, params } = request.body as AIAgentActionBody
 

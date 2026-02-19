@@ -15,7 +15,54 @@ const prisma = new PrismaClient()
  * POST /api/v1/tasks/:id/submit - 提交任务交付
  */
 export async function submitTaskRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/tasks/:id/submit', async (request, reply) => {
+  fastify.post<{
+    Params: { id: string }
+    Body: {
+      repoUrl: string
+      description?: string
+      branch?: string
+      commitHash?: string
+    }
+  }>('/api/v1/tasks/:id/submit', {
+    schema: {
+      description: '提交任务交付',
+      tags: ['review'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '任务ID' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['repoUrl'],
+        properties: {
+          repoUrl: { type: 'string', description: '仓库地址' },
+          description: { type: 'string', description: '交付描述' },
+          branch: { type: 'string', description: '分支名称' },
+          commitHash: { type: 'string', description: '提交哈希' }
+        }
+      },
+      response: {
+        201: {
+          description: '提交成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                taskId: { type: 'string' },
+                submissionId: { type: 'string' },
+                status: { type: 'string' },
+                submittedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const taskId = (request.params as { id: string }).id
     const { repoUrl, description, branch, commitHash } = request.body as {
       repoUrl: string
@@ -91,7 +138,56 @@ export async function submitTaskRoute(fastify: FastifyInstance) {
  * POST /api/v1/tasks/:id/review - 发起人验收任务
  */
 export async function reviewTaskRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/tasks/:id/review', async (request, reply) => {
+  fastify.post<{
+    Params: { id: string }
+    Body: {
+      result: 'APPROVED' | 'REJECTED' | 'REVISION_REQUIRED'
+      scores: number[]
+      comment?: string
+      reviewerId?: string
+    }
+  }>('/api/v1/tasks/:id/review', {
+    schema: {
+      description: '发起人验收任务',
+      tags: ['review'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '任务ID' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['result', 'scores'],
+        properties: {
+          result: { type: 'string', enum: ['APPROVED', 'REJECTED', 'REVISION_REQUIRED'], description: '验收结果' },
+          scores: { type: 'array', items: { type: 'number' }, description: '评分数组' },
+          comment: { type: 'string', description: '验收评语' },
+          reviewerId: { type: 'string', description: '验收人ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '验收成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                taskId: { type: 'string' },
+                reviewId: { type: 'string' },
+                result: { type: 'string' },
+                totalScore: { type: 'number' },
+                comment: { type: 'string' },
+                reviewedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const taskId = (request.params as { id: string }).id
     const { result, scores, comment, reviewerId } = request.body as {
       result: 'APPROVED' | 'REJECTED' | 'REVISION_REQUIRED'

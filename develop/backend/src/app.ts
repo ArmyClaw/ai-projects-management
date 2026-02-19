@@ -67,7 +67,47 @@ await fastify.register(swaggerUi, {
   uiConfig: {
     docExpansion: 'list',
     deepLinking: false
+  },
+  staticCSP: true,
+  transformSpecification: (swaggerObject) => swaggerObject,
+  transformSpecificationClone: true
+})
+
+// 添加API JSON文档端点
+fastify.get('/docs/json', {
+  schema: {
+    description: '获取OpenAPI JSON文档',
+    tags: ['documentation'],
+    response: {
+      200: {
+        description: 'OpenAPI 3.0规范文档',
+        type: 'application/json'
+      }
+    }
   }
+}, async (request, reply) => {
+  reply.header('Content-Type', 'application/json').send(fastify.swagger())
+})
+
+// 添加JWT认证配置说明
+const jwtSecurityScheme = {
+  type: 'http',
+  scheme: 'bearer',
+  bearerFormat: 'JWT',
+  description: 'JWT认证 - 在请求头中添加 Authorization: Bearer <token>'
+}
+
+// 更新openapi配置，添加security定义
+fastify.ready(() => {
+  const swaggerObj = fastify.swagger() as any
+  if (!swaggerObj.components) {
+    swaggerObj.components = {}
+  }
+  if (!swaggerObj.components.securitySchemes) {
+    swaggerObj.components.securitySchemes = {}
+  }
+  swaggerObj.components.securitySchemes.bearerAuth = jwtSecurityScheme
+  swaggerObj.security = [{ bearerAuth: [] }]
 })
 
 // 健康检查端点

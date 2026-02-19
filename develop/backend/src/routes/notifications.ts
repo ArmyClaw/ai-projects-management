@@ -58,7 +58,56 @@ export async function getNotificationsRoute(fastify: FastifyInstance): Promise<v
       type?: string
       isRead?: string
     }
-  }>('/api/v1/notifications', async (request, reply) => {
+  }>('/api/v1/notifications', {
+    schema: {
+      description: '获取通知列表',
+      tags: ['notifications'],
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'string', default: '1', description: '页码' },
+          pageSize: { type: 'string', default: '10', description: '每页数量' },
+          type: { type: 'string', enum: ['TASK_UPDATE', 'SETTLEMENT', 'DISPUTE', 'SYSTEM'], description: '通知类型筛选' },
+          isRead: { type: 'string', enum: ['true', 'false'], description: '已读状态筛选' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回通知列表',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                notifications: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      type: { type: 'string' },
+                      title: { type: 'string' },
+                      message: { type: 'string' },
+                      data: { type: 'object' },
+                      isRead: { type: 'boolean' },
+                      readAt: { type: ['string', 'null'] },
+                      createdAt: { type: 'string' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                unreadCount: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 验证JWT
       if (!request.user) {
@@ -162,7 +211,27 @@ export async function getNotificationsRoute(fastify: FastifyInstance): Promise<v
  * GET /api/v1/notifications/unread-count
  */
 export async function getUnreadCountRoute(fastify: FastifyInstance): Promise<void> {
-  fastify.get('/api/v1/notifications/unread-count', async (request, reply) => {
+  fastify.get('/api/v1/notifications/unread-count', {
+    schema: {
+      description: '获取未读通知数量',
+      tags: ['notifications'],
+      response: {
+        200: {
+          description: '成功返回未读数量',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                unreadCount: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 验证JWT
       if (!request.user) {
@@ -204,7 +273,28 @@ export async function markAsReadRoute(fastify: FastifyInstance): Promise<void> {
     Params: {
       id: string
     }
-  }>('/api/v1/notifications/:id/read', async (request, reply) => {
+  }>('/api/v1/notifications/:id/read', {
+    schema: {
+      description: '标记通知为已读',
+      tags: ['notifications'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '通知ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '标记成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 验证JWT
       if (!request.user) {
@@ -265,7 +355,22 @@ export async function markAsReadRoute(fastify: FastifyInstance): Promise<void> {
  * PUT /api/v1/notifications/read-all
  */
 export async function markAllAsReadRoute(fastify: FastifyInstance): Promise<void> {
-  fastify.put('/api/v1/notifications/read-all', async (request, reply) => {
+  fastify.put('/api/v1/notifications/read-all', {
+    schema: {
+      description: '批量标记所有通知为已读',
+      tags: ['notifications'],
+      response: {
+        200: {
+          description: '标记成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 验证JWT
       if (!request.user) {
@@ -309,7 +414,28 @@ export async function deleteNotificationRoute(fastify: FastifyInstance): Promise
     Params: {
       id: string
     }
-  }>('/api/v1/notifications/:id', async (request, reply) => {
+  }>('/api/v1/notifications/:id', {
+    schema: {
+      description: '删除通知',
+      tags: ['notifications'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '通知ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '删除成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 验证JWT
       if (!request.user) {

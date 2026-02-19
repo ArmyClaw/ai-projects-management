@@ -481,7 +481,31 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
   );
 
   // 获取当前用户信息
-  fastify.get('/me', getMe);
+  fastify.get('/me', {
+    schema: {
+      description: '获取当前登录用户信息',
+      tags: ['auth'],
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          description: '成功返回当前用户信息',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                username: { type: 'string' },
+                createdAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, getMe);
 
   // 刷新Token
   fastify.post<{ Body: RefreshRequest }>(

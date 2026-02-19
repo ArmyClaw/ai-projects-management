@@ -15,7 +15,56 @@ const prisma = new PrismaClient()
  * POST /api/v1/settlements - 创建结算记录
  */
 export async function createSettlementRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/settlements', async (request, reply) => {
+  fastify.post<{
+    Body: {
+      userId: string
+      taskId?: string
+      amount: number
+      type: 'TASK_COMPLETE' | 'REVIEW_REWARD' | 'BONUS' | 'PENALTY' | 'PLATFORM_FEE' | 'REFUND'
+      mode?: 'COMMUNITY' | 'ENTERPRISE'
+      description?: string
+    }
+  }>('/api/v1/settlements', {
+    schema: {
+      description: '创建结算记录',
+      tags: ['settlement'],
+      body: {
+        type: 'object',
+        required: ['userId', 'amount', 'type'],
+        properties: {
+          userId: { type: 'string', description: '用户ID' },
+          taskId: { type: 'string', description: '任务ID' },
+          amount: { type: 'number', description: '结算金额' },
+          type: { type: 'string', enum: ['TASK_COMPLETE', 'REVIEW_REWARD', 'BONUS', 'PENALTY', 'PLATFORM_FEE', 'REFUND'], description: '结算类型' },
+          mode: { type: 'string', enum: ['COMMUNITY', 'ENTERPRISE'], description: '项目模式' },
+          description: { type: 'string', description: '结算描述' }
+        }
+      },
+      response: {
+        201: {
+          description: '结算成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                userId: { type: 'string' },
+                taskId: { type: 'string' },
+                amount: { type: 'number' },
+                platformFee: { type: 'number' },
+                netAmount: { type: 'number' },
+                type: { type: 'string' },
+                status: { type: 'string' },
+                createdAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { userId, taskId, amount, type, mode, description } = request.body as {
       userId: string
       taskId?: string
@@ -98,7 +147,61 @@ export async function createSettlementRoute(fastify: FastifyInstance) {
  * GET /api/v1/settlements - 查询结算记录
  */
 export async function getSettlementsRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/settlements', async (request, reply) => {
+  fastify.get<{
+    Querystring: {
+      userId?: string
+      page?: string
+      pageSize?: string
+    }
+  }>('/api/v1/settlements', {
+    schema: {
+      description: '查询结算记录',
+      tags: ['settlement'],
+      querystring: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: '用户ID筛选' },
+          page: { type: 'string', default: '1', description: '页码' },
+          pageSize: { type: 'string', default: '10', description: '每页数量' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回结算记录',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                settlements: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      userId: { type: 'string' },
+                      taskId: { type: 'string' },
+                      amount: { type: 'number' },
+                      platformFee: { type: 'number' },
+                      netAmount: { type: 'number' },
+                      type: { type: 'string' },
+                      status: { type: 'string' },
+                      createdAt: { type: 'string' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { userId, page, pageSize } = request.query as {
       userId?: string
       page?: string

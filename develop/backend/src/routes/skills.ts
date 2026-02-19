@@ -25,14 +25,53 @@ export async function getSkillsRoute(fastify: FastifyInstance): Promise<void> {
     }
   }>('/api/v1/skills', {
     schema: {
+      description: '获取技能列表',
+      tags: ['skills'],
       querystring: {
         type: 'object',
         properties: {
-          page: { type: 'string' },
-          pageSize: { type: 'string' },
-          authorId: { type: 'string' },
-          tags: { type: 'string' },
-          visibility: { type: 'string' }
+          page: { type: 'string', description: '页码', default: '1' },
+          pageSize: { type: 'string', description: '每页数量', default: '10' },
+          authorId: { type: 'string', description: '作者ID筛选' },
+          tags: { type: 'string', description: '标签筛选（逗号分隔）' },
+          visibility: { type: 'string', enum: ['PRIVATE', 'COMMUNITY', 'PUBLIC'], description: '可见性筛选' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回技能列表',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                skills: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      name: { type: 'string' },
+                      description: { type: 'string' },
+                      tags: { type: 'array', items: { type: 'string' } },
+                      visibility: { type: 'string' },
+                      authorId: { type: 'string' },
+                      authorName: { type: 'string' },
+                      usageCount: { type: 'number' },
+                      avgScore: { type: 'number' },
+                      createdAt: { type: 'string' },
+                      updatedAt: { type: 'string' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' }
+              }
+            }
+          }
         }
       }
     }
@@ -122,7 +161,43 @@ export async function getSkillsRoute(fastify: FastifyInstance): Promise<void> {
 export async function getSkillByIdRoute(fastify: FastifyInstance): Promise<void> {
   fastify.get<{
     Params: { id: string }
-  }>('/api/v1/skills/:id', async (request, reply) => {
+  }>('/api/v1/skills/:id', {
+    schema: {
+      description: '获取技能详情',
+      tags: ['skills'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '技能ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回技能详情',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                description: { type: 'string' },
+                tags: { type: 'array', items: { type: 'string' } },
+                visibility: { type: 'string' },
+                license: { type: 'string' },
+                definition: { type: 'object' },
+                author: { type: 'object' },
+                stats: { type: 'object' },
+                createdAt: { type: 'string' },
+                updatedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id } = request.params
 
     try {
@@ -178,7 +253,52 @@ export async function createSkillRoute(fastify: FastifyInstance): Promise<void> 
       license?: string
       definition: any
     }
-  }>('/api/v1/skills', async (request, reply) => {
+  }>('/api/v1/skills', {
+    schema: {
+      description: '创建新技能',
+      tags: ['skills'],
+      body: {
+        type: 'object',
+        required: ['name', 'description', 'definition'],
+        properties: {
+          name: { type: 'string', description: '技能名称' },
+          description: { type: 'string', description: '技能描述' },
+          tags: { type: 'array', items: { type: 'string' }, description: '技能标签' },
+          visibility: { type: 'string', enum: ['PRIVATE', 'COMMUNITY', 'PUBLIC'], description: '可见性' },
+          license: { type: 'string', description: '开源许可证' },
+          definition: {
+            type: 'object',
+            description: '技能定义',
+            properties: {
+              prompts: { type: 'array' },
+              workflow: { type: 'array' },
+              qualityStandard: { type: 'object' }
+            }
+          }
+        }
+      },
+      response: {
+        201: {
+          description: '技能创建成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                description: { type: 'string' },
+                tags: { type: 'array', items: { type: 'string' } },
+                visibility: { type: 'string' },
+                createdAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { name, description, tags, visibility = 'COMMUNITY', license = 'MIT', definition } = request.body
 
     // 验证必填字段
@@ -244,7 +364,48 @@ export async function updateSkillRoute(fastify: FastifyInstance): Promise<void> 
       visibility?: 'PRIVATE' | 'COMMUNITY' | 'PUBLIC'
       definition?: any
     }
-  }>('/api/v1/skills/:id', async (request, reply) => {
+  }>('/api/v1/skills/:id', {
+    schema: {
+      description: '更新技能',
+      tags: ['skills'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '技能ID' }
+        }
+      },
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '技能名称' },
+          description: { type: 'string', description: '技能描述' },
+          tags: { type: 'array', items: { type: 'string' }, description: '技能标签' },
+          visibility: { type: 'string', enum: ['PRIVATE', 'COMMUNITY', 'PUBLIC'], description: '可见性' },
+          definition: { type: 'object', description: '技能定义' }
+        }
+      },
+      response: {
+        200: {
+          description: '技能更新成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                description: { type: 'string' },
+                tags: { type: 'array', items: { type: 'string' } },
+                visibility: { type: 'string' },
+                updatedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id } = request.params
     const updateData = request.body
 
@@ -305,7 +466,28 @@ export async function updateSkillRoute(fastify: FastifyInstance): Promise<void> 
 export async function deleteSkillRoute(fastify: FastifyInstance): Promise<void> {
   fastify.delete<{
     Params: { id: string }
-  }>('/api/v1/skills/:id', async (request, reply) => {
+  }>('/api/v1/skills/:id', {
+    schema: {
+      description: '删除技能',
+      tags: ['skills'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '技能ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '技能删除成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { id } = request.params
 
     try {

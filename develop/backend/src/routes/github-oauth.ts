@@ -28,7 +28,29 @@ const GITHUB_CONFIG = {
  * GET /api/v1/auth/github - 获取GitHub OAuth URL
  */
 export async function getGitHubAuthUrlRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/auth/github', async (request, reply) => {
+  fastify.get('/api/v1/auth/github', {
+    schema: {
+      description: '获取GitHub OAuth授权URL',
+      tags: ['github'],
+      response: {
+        200: {
+          description: '成功返回OAuth URL',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                oauthUrl: { type: 'string' },
+                state: { type: 'string' },
+                expiresIn: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     try {
       // 生成随机state防止CSRF
       const state = generateState()
@@ -63,7 +85,47 @@ export async function getGitHubAuthUrlRoute(fastify: FastifyInstance) {
  * GET /api/v1/auth/github/callback - OAuth回调处理
  */
 export async function handleGitHubCallbackRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/auth/github/callback', async (request, reply) => {
+  fastify.get('/api/v1/auth/github/callback', {
+    schema: {
+      description: 'GitHub OAuth回调处理',
+      tags: ['github'],
+      querystring: {
+        type: 'object',
+        properties: {
+          code: { type: 'string', description: '授权码' },
+          state: { type: 'string', description: '状态参数' },
+          error: { type: 'string', description: '错误信息' }
+        }
+      },
+      response: {
+        200: {
+          description: '授权成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                user: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                    avatar: { type: 'string' },
+                    githubId: { type: 'string' }
+                  }
+                },
+                token: { type: 'string' },
+                tokenType: { type: 'string' },
+                expiresIn: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { code, state, error } = request.query as {
       code?: string
       state?: string
@@ -146,7 +208,45 @@ export async function handleGitHubCallbackRoute(fastify: FastifyInstance) {
  * POST /api/v1/auth/github/token - 交换Access Token
  */
 export async function exchangeGitHubTokenRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/auth/github/token', async (request, reply) => {
+  fastify.post<{
+    Body: {
+      code?: string
+      clientId?: string
+      clientSecret?: string
+    }
+  }>('/api/v1/auth/github/token', {
+    schema: {
+      description: '交换GitHub Access Token',
+      tags: ['github'],
+      body: {
+        type: 'object',
+        required: ['code'],
+        properties: {
+          code: { type: 'string', description: '授权码' },
+          clientId: { type: 'string', description: '客户端ID' },
+          clientSecret: { type: 'string', description: '客户端密钥' }
+        }
+      },
+      response: {
+        200: {
+          description: '交换成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                accessToken: { type: 'string' },
+                tokenType: { type: 'string' },
+                scope: { type: 'string' },
+                expiresIn: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { code } = request.body as {
       code?: string
       clientId?: string
@@ -173,7 +273,33 @@ export async function exchangeGitHubTokenRoute(fastify: FastifyInstance) {
  * POST /api/v1/auth/github/user - 获取GitHub用户信息
  */
 export async function getGitHubUserRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/auth/github/user', async (request, reply) => {
+  fastify.post('/api/v1/auth/github/user', {
+    schema: {
+      description: '获取GitHub用户信息',
+      tags: ['github'],
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          description: '成功返回用户信息',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+                login: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+                avatar_url: { type: 'string' },
+                created_at: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const authHeader = request.headers.authorization
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

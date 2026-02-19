@@ -512,3 +512,37 @@ enum CheatingReportStatus {
   CONFIRMED
   DISMISSED
 }
+
+// 通知表
+model Notification {
+  id            String    @id @default(uuid())
+
+  // 接收者
+  userId        String
+
+  // 通知类型
+  type          NotificationType
+
+  // 通知内容
+  title         String
+  message       String
+  data          Json?     // 关联数据（如任务ID、项目ID等）
+
+  // 状态
+  isRead        Boolean   @default(false)
+  readAt        DateTime?
+
+  // 时间
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  TASK_UPDATE       // 任务更新
+  SETTLEMENT       // 结算提醒
+  DISPUTE          // 争议仲裁
+  SYSTEM           // 系统消息
+}

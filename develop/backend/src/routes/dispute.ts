@@ -24,7 +24,47 @@ interface CreateDisputeBody {
 }
 
 export async function createDisputeRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/disputes', async (request, reply) => {
+  fastify.post<{
+    Body: CreateDisputeBody
+  }>('/api/v1/disputes', {
+    schema: {
+      description: '发起争议',
+      tags: ['dispute'],
+      body: {
+        type: 'object',
+        required: ['taskId', 'initiatorId', 'reason'],
+        properties: {
+          taskId: { type: 'string', description: '任务ID' },
+          initiatorId: { type: 'string', description: '发起人ID' },
+          reason: { type: 'string', description: '争议原因' },
+          evidence: { type: 'string', description: '证据描述' },
+          evidenceUrls: { type: 'array', items: { type: 'string' }, description: '证据链接' }
+        }
+      },
+      response: {
+        201: {
+          description: '争议创建成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                taskId: { type: 'string' },
+                projectId: { type: 'string' },
+                initiatorId: { type: 'string' },
+                respondentId: { type: 'string' },
+                reason: { type: 'string' },
+                status: { type: 'string' },
+                createdAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { taskId, initiatorId, reason, evidence, evidenceUrls } = request.body as CreateDisputeBody
 
     // 验证必填字段
@@ -107,7 +147,64 @@ interface DisputeWhereInput {
 }
 
 export async function getDisputesRoute(fastify: FastifyInstance) {
-  fastify.get('/api/v1/disputes', async (request, reply) => {
+  fastify.get<{
+    Querystring: {
+      status?: string
+      userId?: string
+      page?: string
+      pageSize?: string
+    }
+  }>('/api/v1/disputes', {
+    schema: {
+      description: '查询争议列表',
+      tags: ['dispute'],
+      querystring: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['OPEN', 'ARBITRATING', 'CLOSED'], description: '状态筛选' },
+          userId: { type: 'string', description: '用户ID筛选' },
+          page: { type: 'string', default: '1', description: '页码' },
+          pageSize: { type: 'string', default: '10', description: '每页数量' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回争议列表',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                disputes: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      taskId: { type: 'string' },
+                      taskTitle: { type: 'string' },
+                      initiatorId: { type: 'string' },
+                      initiatorName: { type: 'string' },
+                      respondentId: { type: 'string' },
+                      respondentName: { type: 'string' },
+                      reason: { type: 'string' },
+                      status: { type: 'string' },
+                      createdAt: { type: 'string' }
+                    }
+                  }
+                },
+                total: { type: 'number' },
+                page: { type: 'number' },
+                pageSize: { type: 'number' },
+                totalPages: { type: 'number' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const { status, userId, page, pageSize } = request.query as DisputesQueryParams
 
     const pageNum = Math.max(1, Number(page) || 1)
@@ -183,7 +280,59 @@ export async function getDisputesRoute(fastify: FastifyInstance) {
  * POST /api/v1/disputes/:id/arbitrate - 仲裁裁决
  */
 export async function arbitrateDisputeRoute(fastify: FastifyInstance) {
-  fastify.post('/api/v1/disputes/:id/arbitrate', async (request, reply) => {
+  fastify.post<{
+    Params: { id: string }
+    Body: {
+      decision: 'SUSTAIN_INITIATOR' | 'OVERTURN_INITIATOR' | 'COMPROMISE'
+      decisionReason: string
+      refundAmount?: number
+      penaltyAmount?: number
+      arbitratorId?: string
+    }
+  }>('/api/v1/disputes/:id/arbitrate', {
+    schema: {
+      description: '仲裁裁决',
+      tags: ['dispute'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '争议ID' }
+        }
+      },
+      body: {
+        type: 'object',
+        required: ['decision', 'decisionReason'],
+        properties: {
+          decision: { type: 'string', enum: ['SUSTAIN_INITIATOR', 'OVERTURN_INITIATOR', 'COMPROMISE'], description: '裁决结果' },
+          decisionReason: { type: 'string', description: '裁决理由' },
+          refundAmount: { type: 'number', description: '退款金额' },
+          penaltyAmount: { type: 'number', description: '罚款金额' },
+          arbitratorId: { type: 'string', description: '仲裁员ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '仲裁成功',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                decision: { type: 'string' },
+                decisionReason: { type: 'string' },
+                refundAmount: { type: 'number' },
+                creditChanges: { type: 'object' },
+                status: { type: 'string' },
+                arbitratedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
     const disputeId = (request.params as { id: string }).id
     const { decision, decisionReason, refundAmount, penaltyAmount, arbitratorId } = request.body as {
       decision: 'SUSTAIN_INITIATOR' | 'OVERTURN_INITIATOR' | 'COMPROMISE'
