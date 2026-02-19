@@ -97,6 +97,10 @@ await fastify.register(aiAgentRoutes, { prefix: '/api/v1' })
 import githubOAuthRoutes from './routes/github-oauth'
 await fastify.register(githubOAuthRoutes, { prefix: '/api/v1' })
 
+// 注册JWT刷新路由
+import authRefreshRoutes from './routes/auth-refresh'
+await fastify.register(authRefreshRoutes, { prefix: '/api/v1/auth' })
+
 // 启动
 const start = async () => {
   try {
