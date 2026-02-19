@@ -77,6 +77,10 @@ await fastify.register(pointsRoutes, { prefix: '/api/v1' })
 import reviewRoutes from './routes/review'
 await fastify.register(reviewRoutes, { prefix: '/api/v1' })
 
+// 注册结算路由
+import settlementRoutes from './routes/settlement'
+await fastify.register(settlementRoutes, { prefix: '/api/v1' })
+
 // 启动
 const start = async () => {
   try {

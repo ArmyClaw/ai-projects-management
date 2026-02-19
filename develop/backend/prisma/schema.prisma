@@ -264,3 +264,50 @@ enum PointTransactionType {
   PLATFORM_FEE
   REFUND
 }
+
+// 结算表
+model Settlement {
+  id            String    @id @default(uuid())
+  userId        String
+  
+  // 关联
+  taskId        String?
+  projectId     String?
+  
+  // 金额
+  amount        Float
+  platformFee   Float     @default(0)
+  netAmount     Float
+  
+  // 货币
+  currency      String    @default("POINT")
+  
+  // 类型
+  type          SettlementType
+  description   String?
+  
+  // 状态
+  status        SettlementStatus @default(PENDING)
+  
+  // 时间
+  settledAt     DateTime?
+  createdAt     DateTime  @default(now())
+  
+  @@map("settlements")
+}
+
+enum SettlementType {
+  TASK_COMPLETE
+  REVIEW_REWARD
+  BONUS
+  PENALTY
+  PLATFORM_FEE
+  REFUND
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
