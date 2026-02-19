@@ -1,9 +1,0 @@
-{
-  "risk_tolerance": 0.12,
-  "stock_allocation": 0.35,
-  "bond_allocation": 0.3,
-  "hybrid_allocation": 0.2,
-  "money_market_allocation": 0.1,
-  "stop_loss_threshold": 0.08,
-  "take_profit_threshold": 0.15
-}
