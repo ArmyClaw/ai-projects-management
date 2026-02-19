@@ -1,0 +1,418 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # 核心服务
+  # ============================================
+  
+  api:
+    image: ai-market/api:latest
+    build: ./api
+    container_name: ai-market-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/ai_market
+      - REDIS_URL=redis://cache:6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - KAFKA_URL=kafka:9092
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - VECTOR_DB_URL=http://qdrant:6333
+    depends_on:
+      - db
+      - cache
+      - elasticsearch
+      - kafka
+      - minio
+      - qdrant
+    networks:
+      - ai-market-network
+    volumes:
+      - api_data:/app/data
+      - api_logs:/app/logs
+
+  web:
+    image: ai-market/web:latest
+    build: ./web
+    container_name: ai-market-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    networks:
+      - ai-market-network
+    volumes:
+      - web_data:/var/www/html
+
+  # ============================================
+  # 数据库服务
+  # ============================================
+  
+  db:
+    image: postgres:15-alpine
+    container_name: ai-market-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=ai_market
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai-market-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d ai_market"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # 缓存服务
+  # ============================================
+  
+  cache:
+    image: redis:7-alpine
+    container_name: ai-market-cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai-market-network
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # 搜索服务
+  # ============================================
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ai-market-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - ai-market-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # 向量数据库 (AI 搜索)
+  # ============================================
+  
+  qdrant:
+    image: qdrant/qdrant:v1.7.0
+    container_name: ai-market-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - ai-market-network
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT: 6333
+      - QDRANT__SERVICE__GRPC_PORT: 6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/cluster"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # 消息队列
+  # ============================================
+  
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: ai-market-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      "KAFKA_JMX_OPTS": "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    depends_on:
+      - zookeeper
+    networks:
+      - ai-market-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: ai-market-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - ai-market-network
+
+  # ============================================
+  # 对象存储
+  # ============================================
+  
+  minio:
+    image: minio/minio:RELEASE.2024-01-01T00-00-00Z
+    container_name: ai-market-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    networks:
+      - ai-market-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+
+  # ============================================
+  # 反向代理
+  # ============================================
+  
+  nginx:
+    image: nginx:alpine
+    container_name: ai-market-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - web_data:/var/www/html
+    depends_on:
+      - api
+      - web
+    networks:
+      - ai-market-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # 监控服务
+  # ============================================
+  
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: ai-market-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+    networks:
+      - ai-market-network
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: ai-market-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    networks:
+      - ai-market-network
+
+  # ============================================
+  # 日志服务
+  # ============================================
+  
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: ai-market-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - ai-market-network
+
+  fluentd:
+    image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch8-1
+    container_name: ai-market-fluentd
+    restart: unless-stopped
+    environment:
+      FLUENT_ELASTICSEARCH_HOST: elasticsearch
+      FLUENT_ELASTICSEARCH_PORT: 9200
+    volumes:
+      - ./monitoring/fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - ai-market-network
+
+  # ============================================
+  # 任务调度
+  # ============================================
+  
+  celery-worker:
+    image: ai-market/worker:latest
+    build: ./worker
+    container_name: ai-market-worker
+    restart: unless-stopped
+    command: celery -A worker worker -l info
+    volumes:
+      - worker_data:/app/data
+    depends_on:
+      - db
+      - cache
+      - kafka
+    networks:
+      - ai-market-network
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/ai_market
+      - REDIS_URL=redis://cache:6379
+      - KAFKA_URL=kafka:9092
+
+  celery-beat:
+    image: ai-market/worker:latest
+    container_name: ai-market-beat
+    restart: unless-stopped
+    command: celery -A worker beat -l info
+    depends_on:
+      - db
+      - cache
+      - celery-worker
+    networks:
+      - ai-market-network
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/ai_market
+      - REDIS_URL=redis://cache:6379
+
+  # ============================================
+  # AI 服务 (可选)
+  # ============================================
+  
+  # 如果需要本地部署 AI 模型，可以启用以下服务
+  
+  # openwebui:
+  #   image: ghcr.io/open-webui/open-webui:main
+  #   container_name: ai-market-openwebui
+  #   restart: unless-stopped
+  #   ports:
+  #     - "7860:7860"
+  #   volumes:
+  #     - openwebui_data:/app/backend/data
+  #   environment:
+  #     - OLLAMA_BASE_URL=http://ollama:11434
+  #   depends_on:
+  #     - ollama
+  #   networks:
+  #     - ai-market-network
+
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ai-market-ollama
+  #   restart: unless-stopped
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   networks:
+  #     - ai-market-network
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+networks:
+  ai-market-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  kafka_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  api_data:
+    driver: local
+  api_logs:
+    driver: local
+  web_data:
+    driver: local
+  worker_data:
+    driver: local
