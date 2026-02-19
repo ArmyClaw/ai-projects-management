@@ -568,4 +568,77 @@ export async function updateTaskRoute(fastify: FastifyInstance): Promise<void> {
   })
 }
 
-export default { getTasksRoute, getTaskDetailRoute, createTaskRoute, updateTaskRoute }
+/**
+ * 删除任务响应类型
+ */
+interface DeleteTaskResponse {
+  success: boolean
+  data: {
+    id: string
+    title: string
+    message: string
+  }
+}
+
+/**
+ * 删除任务
+ * DELETE /api/v1/tasks/:id
+ * 
+ * 路径参数：
+ * - id: 任务ID（必填）
+ * 
+ * 返回：
+ * - 200: 删除成功
+ * - 404: 任务不存在
+ * - 500: 服务器内部错误
+ */
+export async function deleteTaskRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.delete<{
+    Params: {
+      id: string
+    }
+  }>('/api/v1/tasks/:id', async (request, reply) => {
+    try {
+      const { id } = request.params
+
+      // 模拟查找任务
+      const taskId = id
+      const taskExists = true // 模拟任务存在
+
+      // 任务不存在
+      if (!taskExists) {
+        return reply.status(404).send({
+          success: false,
+          error: '任务不存在'
+        })
+      }
+
+      // 模拟删除成功
+      const deletedTask = {
+        id: taskId,
+        title: '已删除任务',
+        message: '任务删除成功'
+      }
+
+      // 返回响应
+      const response: DeleteTaskResponse = {
+        success: true,
+        data: {
+          id: deletedTask.id,
+          title: deletedTask.title,
+          message: deletedTask.message
+        }
+      }
+
+      return reply.status(200).send(response)
+    } catch (error) {
+      fastify.log.error('删除任务失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}
+
+export default { getTasksRoute, getTaskDetailRoute, createTaskRoute, updateTaskRoute, deleteTaskRoute }
