@@ -1,53 +1,61 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { NCard, NButton, NTag, NGrid, NGi, NEmpty, NSpin } from 'naive-ui'
-import axios from 'axios'
+import { useProjectStore, type Project } from '@/stores/project'
 
 /**
  * 项目列表视图
  * 
  * 功能：
- * - 从API获取项目列表
+ * - 从API获取项目列表（使用Project Store）
  * - 展示项目卡片
  * - 显示项目状态和进度
  */
 
-interface Project {
-  id: string
-  title: string
-  description: string
-  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
-  budget: number
-  progress: number
-  initiator: {
-    name: string
-  }
-  createdAt: string
-}
-
-const projects = ref<Project[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+const projectStore = useProjectStore()
 
 /**
- * 获取项目列表
+ * 计算项目进度（如果没有返回进度，则估算）
  */
-async function fetchProjects() {
-  loading.value = true
-  error.value = null
-  
-  try {
-    const response = await axios.get('http://localhost:4000/api/v1/projects')
-    if (response.data.success) {
-      projects.value = response.data.data.projects
-    }
-  } catch (err: any) {
-    error.value = err.message || '获取项目列表失败'
-    // 使用模拟数据
-    projects.value = mockProjects
-  } finally {
-    loading.value = false
+function calculateProgress(status: string): number {
+  const progressMap: Record<string, number> = {
+    DRAFT: 0,
+    ACTIVE: 50,
+    COMPLETED: 100,
+    CANCELLED: 0
   }
+  return progressMap[status] || 0
+}
+
+/**
+ * 获取状态标签类型
+ */
+function getStatusType(status: string): 'success' | 'info' | 'warning' | 'error' {
+  const map: Record<string, 'success' | 'info' | 'warning' | 'error'> = {
+    DRAFT: 'warning',
+    ACTIVE: 'info',
+    COMPLETED: 'success',
+    CANCELLED: 'error'
+  }
+  return map[status] || 'info'
+}
+
+/**
+ * 获取状态文本
+ */
+function getStatusText(status: string): string {
+  const map: Record<string, string> = {
+    DRAFT: '草稿',
+    ACTIVE: '进行中',
+    COMPLETED: '已完成',
+    CANCELLED: '已取消'
+  }
+  return map[status] || status
+}
+
+onMounted(() => {
+  projectStore.fetchProjects()
+})
 }
 
 /**
@@ -124,15 +132,15 @@ onMounted(() => {
       </div>
 
       <!-- 错误状态 -->
-      <div v-else-if="error" class="error">
-        <p>{{ error }}</p>
-        <n-button @click="fetchProjects">重试</n-button>
+      <div v-else-if="projectStore.error" class="error">
+        <p>{{ projectStore.error }}</p>
+        <n-button @click="projectStore.fetchProjects()">重试</n-button>
       </div>
 
       <!-- 项目列表 -->
-      <div v-else-if="projects.length > 0" class="projects-grid">
+      <div v-else-if="projectStore.projects.length > 0" class="projects-grid">
         <n-grid :cols="2" :x-gap="24" :y-gap="24">
-          <n-gi v-for="project in projects" :key="project.id">
+          <n-gi v-for="project in projectStore.projects" :key="project.id">
             <n-card hoverable class="project-card">
               <template #header>
                 <div class="project-header">
@@ -154,12 +162,12 @@ onMounted(() => {
                 <!-- 进度条 -->
                 <div class="progress-section">
                   <div class="progress-label">
-                    <span>进度：{{ project.progress }}%</span>
+                    <span>进度：{{ calculateProgress(project.status) }}%</span>
                   </div>
                   <div class="progress-bar">
                     <div 
                       class="progress-fill" 
-                      :style="{ width: project.progress + '%' }"
+                      :style="{ width: calculateProgress(project.status) + '%' }"
                     ></div>
                   </div>
                 </div>
