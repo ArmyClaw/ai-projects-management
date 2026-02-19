@@ -57,6 +57,10 @@ await createTaskRoute(fastify)
 await updateTaskRoute(fastify)
 await deleteTaskRoute(fastify)
 
+// 注册认证路由
+import authRoutes from './routes/auth.js'
+await fastify.register(authRoutes, { prefix: '/api/v1/auth' })
+
 // 启动
 const start = async () => {
   try {
