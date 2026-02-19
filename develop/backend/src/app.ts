@@ -93,6 +93,10 @@ await fastify.register(antiCheatRoutes, { prefix: '/api/v1' })
 import aiAgentRoutes from './routes/ai-agent'
 await fastify.register(aiAgentRoutes, { prefix: '/api/v1' })
 
+// 注册GitHub OAuth路由
+import githubOAuthRoutes from './routes/github-oauth'
+await fastify.register(githubOAuthRoutes, { prefix: '/api/v1' })
+
 // 启动
 const start = async () => {
   try {
