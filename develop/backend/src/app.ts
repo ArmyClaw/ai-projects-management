@@ -61,6 +61,18 @@ await deleteTaskRoute(fastify)
 import authRoutes from './routes/auth.js'
 await fastify.register(authRoutes, { prefix: '/api/v1/auth' })
 
+// 注册技能路由
+import { getSkillsRoute, getSkillByIdRoute, createSkillRoute, updateSkillRoute, deleteSkillRoute } from './routes/skills'
+await getSkillsRoute(fastify)
+await getSkillByIdRoute(fastify)
+await createSkillRoute(fastify)
+await updateSkillRoute(fastify)
+await deleteSkillRoute(fastify)
+
+// 注册积分路由
+import pointsRoutes from './routes/points'
+await fastify.register(pointsRoutes, { prefix: '/api/v1' })
+
 // 启动
 const start = async () => {
   try {
