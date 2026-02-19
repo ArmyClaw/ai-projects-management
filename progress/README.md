@@ -52,8 +52,8 @@
 ### 当前状态
 
 - **开发进度**：🟢 **CLI完成，后端API进行中**
-- **当前迭代**：v0.8-2026-02-19-0745（刚完成）
-- **下一步**：PUT /api/v1/tasks/:id（更新任务）
+- **当前迭代**：v0.8-2026-02-19-0915（刚完成）
+- **下一步**：用户认证API（JWT+GitHub OAuth）
 
 ### 迭代记录列表
 
@@ -80,6 +80,7 @@
 | **[v0.8-2026-02-19-0730](./iterations/v0.8-2026-02-19-0730.md)** | **07:30** | **✅ 完成** | **DELETE /api/v1/projects/:id 删除项目API** |
 | **[v0.8-2026-02-19-0745](./iterations/v0.8-2026-02-19-0745.md)** | **07:45** | **✅ 完成** | **POST /api/v1/tasks 创建任务API** |
 | **[v0.8-2026-02-19-0900](./iterations/v0.8-2026-02-19-0900.md)** | **09:00** | **✅ 完成** | **PUT /api/v1/tasks/:id 更新任务API** |
+| **[v0.8-2026-02-19-0915](./iterations/v0.8-2026-02-19-0915.md)** | **09:15** | **✅ 完成** | **DELETE /api/v1/tasks/:id 删除任务API** |
 
 ### 已完成功能（CLI）
 
@@ -112,7 +113,7 @@
 - ✅ 验收命令：review status
 - ✅ 交互模式：interactive
 
-**后端API**：70% 完成（7/10）🔄
+**后端API**：80% 完成（8/10）🔄
 - ✅ GET /api/v1/projects（项目列表）
 - ✅ GET /api/v1/tasks（任务列表）
 - ✅ GET /api/v1/tasks/:id（任务详情）
@@ -120,16 +121,16 @@
 - ✅ PUT /api/v1/projects/:id（更新项目）
 - ✅ DELETE /api/v1/projects/:id（删除项目）
 - ✅ POST /api/v1/tasks（创建任务）
-- ✅ PUT /api/v1/tasks/:id（更新任务）← **本次完成**
-- 🔄 待完成：DELETE /api/v1/tasks/:id、用户认证、积分系统、Skill管理
+- ✅ PUT /api/v1/tasks/:id（更新任务）
+- ✅ DELETE /api/v1/tasks/:id（删除任务）← **本次完成**
+- 🔄 待完成：用户认证、积分系统、Skill管理
 
 ### 待办列表（后端API）
 
 | 功能 | 优先级 | 预估工时 | 状态 |
 |------|--------|---------|------|
-| PUT /api/v1/tasks/:id | P0 | 15分钟 | ✅ 已完成 |
-| DELETE /api/v1/tasks/:id | P0 | 15分钟 | 下次迭代 |
-| 用户认证API | P1 | 60分钟 | 待规划 |
+| DELETE /api/v1/tasks/:id | P0 | 15分钟 | ✅ 已完成 |
+| 用户认证API（JWT+OAuth） | P1 | 60分钟 | 下次迭代 |
 | Skill管理API | P1 | 45分钟 | 待规划 |
 | 积分系统API | P1 | 45分钟 | 待规划 |
 
