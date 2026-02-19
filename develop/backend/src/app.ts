@@ -73,6 +73,10 @@ await deleteSkillRoute(fastify)
 import pointsRoutes from './routes/points'
 await fastify.register(pointsRoutes, { prefix: '/api/v1' })
 
+// 注册验收路由
+import reviewRoutes from './routes/review'
+await fastify.register(reviewRoutes, { prefix: '/api/v1' })
+
 // 启动
 const start = async () => {
   try {
