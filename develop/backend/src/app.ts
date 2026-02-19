@@ -7,8 +7,7 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
-import swagger from '@fastify/swagger'
-import swaggerUi from '@fastify/swagger-ui'
+import fastifyCompress from '@fastify/compress'
 import { PrismaClient } from '@prisma/client'
 import dotenv from 'dotenv'
 import { createWebSocketServer, setGlobalFastifyInstance } from './services/websocket.js'
@@ -16,19 +15,43 @@ import { createWebSocketServer, setGlobalFastifyInstance } from './services/webs
 dotenv.config()
 
 const fastify = Fastify({
-  logger: true
+  logger: true,
+  // 优化 JSON 序列化
+  serializerOpts: {
+    rounding: 'floor'
+  },
+  // 禁用不必要的日志
+  disableRequestLogging: process.env.NODE_ENV === 'production'
 })
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient({
+  // 优化 Prisma 日志
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']
+})
 
 // 插件注册
 await fastify.register(cors, {
   origin: true,
-  credentials: true
+  credentials: true,
+  // 优化 CORS 处理
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 })
 
 await fastify.register(jwt, {
   secret: process.env.JWT_SECRET || 'your-secret-key'
+})
+
+// 启用响应压缩
+await fastify.register(fastifyCompress, {
+  // 压缩阈值：小于 1KB 不压缩
+  threshold: 1024,
+  // 压缩算法优先级
+  brotliOptions: {
+    quality: 6
+  },
+  gzipOptions: {
+    level: 6
+  }
 })
 
 // Swagger文档配置
@@ -110,23 +133,63 @@ fastify.ready(() => {
   swaggerObj.security = [{ bearerAuth: [] }]
 })
 
-// 健康检查端点
-fastify.get('/health', async () => {
+// 健康检查端点 - 添加缓存
+fastify.get('/health', {
+  schema: {
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          status: { type: 'string' },
+          timestamp: { type: 'string' }
+        }
+      }
+    }
+  }
+}, async (request, reply) => {
+  // 缓存 60 秒
+  reply.header('Cache-Control', 'public, max-age=60')
   return { status: 'healthy', timestamp: new Date().toISOString() }
 })
 
 // 就绪检查端点
-fastify.get('/ready', async () => {
+fastify.get('/ready', {
+  schema: {
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          ready: { type: 'boolean' }
+        }
+      }
+    }
+  }
+}, async (request, reply) => {
   try {
     await prisma.$queryRaw`SELECT 1`
+    // 缓存 30 秒
+    reply.header('Cache-Control', 'public, max-age=30')
     return { ready: true }
   } catch {
+    reply.header('Cache-Control', 'no-store')
     return { ready: false }
   }
 })
 
 // API路由
-fastify.get('/api/v1/health', async () => {
+fastify.get('/api/v1/health', {
+  schema: {
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          status: { type: 'string' }
+        }
+      }
+    }
+  }
+}, async (request, reply) => {
+  reply.header('Cache-Control', 'public, max-age=60')
   return { status: 'ok' }
 })
 

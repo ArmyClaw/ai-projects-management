@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { NBadge, NButton, NDrawer, NDrawerContent, NIcon, NTag, NEmpty } from 'naive-ui'
+import { NBadge, NButton, NDrawer, NDrawerContent, NIcon, NTag, NEmpty, NSpin } from 'naive-ui'
 import { 
   Notifications, 
   Assignment, 
@@ -34,14 +34,11 @@ const message = useMessage()
 
 // 状态
 const showDrawer = ref(false)
-const currentPage = ref(1)
-const hasMore = ref(true)
 
 // 计算属性
 const notifications = computed(() => notificationStore.notifications)
 const unreadCount = computed(() => notificationStore.unreadCount)
 const loading = computed(() => notificationStore.loading)
-const hasUnread = computed(() => notificationStore.hasUnread)
 
 /**
  * 获取图标组件
@@ -130,10 +127,8 @@ async function handleNotificationClick(notification: Notification) {
     await notificationStore.markAsRead(notification.id)
   }
   
-  // 如果有关联数据，可以跳转到对应页面
-  if (notification.data && notification.data.link) {
-    // 跳转到对应页面
-    window.location.href = notification.data.link
+  if (notification.data && (notification.data as any).link) {
+    window.location.href = (notification.data as any).link
   }
 }
 
@@ -161,33 +156,19 @@ async function deleteNotification(id: string) {
  * 刷新通知列表
  */
 async function refresh() {
-  currentPage.value = 1
-  await notificationStore.fetchNotifications({ page: 1, pageSize: 20 })
-  hasMore.value = notifications.value.length < notificationStore.notifications.length
-}
-
-/**
- * 加载更多
- */
-async function loadMore() {
-  currentPage.value++
-  await notificationStore.fetchNotifications({ 
-    page: currentPage.value, 
-    pageSize: 20 
-  })
-  hasMore.value = notifications.value.length < notificationStore.notifications.length
+  await notificationStore.fetchNotifications({ page: 1, pageSize: 50 })
 }
 
 // 初始化
 onMounted(() => {
-  notificationStore.fetchNotifications({ page: 1, pageSize: 20 })
+  notificationStore.fetchNotifications({ page: 1, pageSize: 50 })
 })
 </script>
 
 <template>
   <div class="notification-center">
     <!-- 通知图标按钮 -->
-    <n-badge :value="unreadCount" :max="99" v-if="hasUnread">
+    <n-badge :value="unreadCount" :max="99" v-if="unreadCount > 0">
       <n-button quaternary circle @click="showDrawer = true">
         <template #icon>
           <n-icon>
@@ -201,75 +182,73 @@ onMounted(() => {
         <n-icon>
           <NotificationsIcon />
         </n-icon>
-      </n-button>
+      </template>
     </n-button>
 
-    <!-- 通知抽屉 - 带过渡动画 -->
+    <!-- 通知抽屉 -->
     <n-drawer v-model:show="showDrawer" :width="400" placement="right">
-      <Transition name="drawer-slide">
-        <n-drawer-content v-if="showDrawer" title="通知中心" closable>
-          <!-- 工具栏 -->
-          <div class="notification-toolbar">
-            <n-button size="small" @click="markAllAsRead" :disabled="unreadCount === 0">
-              全部已读
-            </n-button>
-            <n-button size="small" quaternary @click="refresh">
-              刷新
-            </n-button>
-          </div>
+      <n-drawer-content v-if="showDrawer" title="通知中心" closable>
+        <!-- 工具栏 -->
+        <div class="notification-toolbar">
+          <n-button 
+            size="small" 
+            @click="markAllAsRead" 
+            :disabled="unreadCount === 0"
+          >
+            全部已读
+          </n-button>
+          <n-button size="small" quaternary @click="refresh" :loading="loading">
+            刷新
+          </n-button>
+        </div>
 
-          <!-- 通知列表 -->
-          <div class="notification-list" v-if="notifications.length > 0">
-            <TransitionGroup name="notification-list">
-              <div
-                v-for="notification in notifications"
-                :key="notification.id"
-                class="notification-item"
-                :class="{ 'is-unread': !notification.isRead }"
-                @click="handleNotificationClick(notification)"
-              >
-                <!-- 通知图标 -->
-                <div class="notification-icon">
-                  <n-icon :size="24" :color="getIconColor(notification.type)">
-                    <component :is="getIconComponent(notification.type)" />
-                  </n-icon>
-                </div>
-
-                <!-- 通知内容 -->
-                <div class="notification-content">
-                  <div class="notification-header">
-                    <span class="notification-title">{{ notification.title }}</span>
-                    <n-tag size="small" :type="getTypeTag(notification.type)">
-                      {{ getTypeLabel(notification.type) }}
-                    </n-tag>
-                  </div>
-                  <div class="notification-message">{{ notification.message }}</div>
-                  <div class="notification-time">{{ formatTime(notification.createdAt) }}</div>
-                </div>
-
-                <!-- 删除按钮 -->
-                <div class="notification-actions">
-                  <n-button quaternary size="small" @click.stop="deleteNotification(notification.id)">
-                    <template #icon>
-                      <n-icon><DeleteIcon /></n-icon>
-                    </template>
-                  </n-button>
-                </div>
+        <!-- 通知列表 -->
+        <div class="notification-list" v-if="notifications.length > 0">
+          <div
+            v-for="notification in notifications"
+            :key="notification.id"
+            class="notification-item"
+            :class="{ 'is-unread': !notification.isRead }"
+            @click="handleNotificationClick(notification)"
+          >
+            <div class="notification-icon">
+              <n-icon :size="24" :color="getIconColor(notification.type)">
+                <component :is="getIconComponent(notification.type)" />
+              </n-icon>
+            </div>
+            <div class="notification-content">
+              <div class="notification-header">
+                <span class="notification-title">{{ notification.title }}</span>
+                <n-tag size="small" :type="getTypeTag(notification.type)">
+                  {{ getTypeLabel(notification.type) }}
+                </n-tag>
               </div>
-            </TransitionGroup>
+              <div class="notification-message">{{ notification.message }}</div>
+              <div class="notification-time">{{ formatTime(notification.createdAt) }}</div>
+            </div>
+            <div class="notification-actions">
+              <n-button 
+                quaternary 
+                size="small" 
+                @click.stop="deleteNotification(notification.id)"
+              >
+                <template #icon>
+                  <n-icon><DeleteIcon /></n-icon>
+                </template>
+              </n-button>
+            </div>
           </div>
+        </div>
 
-          <!-- 空状态 -->
-          <n-empty v-else description="暂无通知" />
+        <!-- 空状态 -->
+        <n-empty v-else-if="!loading" description="暂无通知" />
 
-          <!-- 加载更多 -->
-          <div class="load-more" v-if="hasMore">
-            <n-button size="small" :loading="loading" @click="loadMore">
-              加载更多
-            </n-button>
-          </div>
-        </n-drawer-content>
-      </Transition>
+        <!-- 加载状态 -->
+        <div v-else class="loading-state">
+          <n-spin size="small" />
+          <span>加载中...</span>
+        </div>
+      </n-drawer-content>
     </n-drawer>
   </div>
 </template>
@@ -280,63 +259,20 @@ onMounted(() => {
   align-items: center;
 }
 
-/* ========================
-   抽屉滑入动画
-   ======================== */
-.drawer-slide-enter-active,
-.drawer-slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.drawer-slide-enter-from,
-.drawer-slide-leave-to {
-  opacity: 0;
-  transform: translateX(100%);
-}
-
-.drawer-slide-enter-to,
-.drawer-slide-leave-from {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* ========================
-   通知列表动画
-   ======================== */
-.notification-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.notification-list-enter-active,
-.notification-list-leave-active {
-  transition: all 0.3s ease;
-}
-
-.notification-list-enter-from {
-  opacity: 0;
-  transform: translateX(-20px);
-}
-
-.notification-list-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.notification-list-move {
-  transition: transform 0.3s ease;
-}
-
-/* ========================
-   基础样式
-   ======================== */
 .notification-toolbar {
   display: flex;
   justify-content: space-between;
   padding: 12px 0;
   border-bottom: 1px solid #eee;
   margin-bottom: 12px;
+}
+
+.notification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 500px;
+  overflow-y: auto;
 }
 
 .notification-item {
@@ -363,11 +299,13 @@ onMounted(() => {
 .notification-icon {
   margin-right: 12px;
   padding-top: 2px;
+  flex-shrink: 0;
 }
 
 .notification-content {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .notification-header {
@@ -381,6 +319,9 @@ onMounted(() => {
   font-weight: 500;
   font-size: 14px;
   color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notification-message {
@@ -402,11 +343,16 @@ onMounted(() => {
 
 .notification-actions {
   margin-left: 8px;
+  flex-shrink: 0;
 }
 
-.load-more {
-  text-align: center;
-  padding: 16px;
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: #999;
 }
 
 /* 深色模式适配 */

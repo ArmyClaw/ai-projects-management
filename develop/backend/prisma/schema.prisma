@@ -30,6 +30,8 @@ model User {
   reviews       TaskReview[]
   
   @@map("users")
+  @@index([status])
+  @@index([role])
 }
 
 enum Role {
@@ -66,6 +68,11 @@ model Project {
   tasks         Task[]
   
   @@map("projects")
+  @@index([initiatorId])
+  @@index([status])
+  @@index([mode])
+  @@index([createdAt])
+  @@index([status, mode])
 }
 
 enum ProjectMode {
@@ -95,6 +102,8 @@ model Milestone {
   tasks         Task[]
   
   @@map("milestones")
+  @@index([projectId])
+  @@index([order])
 }
 
 // 任务表
@@ -131,6 +140,13 @@ model Task {
   reviews       TaskReview[]
   
   @@map("tasks")
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([createdAt])
+  @@index([projectId, status])
+  @@index([assigneeId, status])
 }
 
 enum TaskStatus {
@@ -253,6 +269,11 @@ model PointTransaction {
   createdAt     DateTime  @default(now())
   
   @@map("point_transactions")
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@index([projectId])
+  @@index([taskId])
 }
 
 enum PointTransactionType {
@@ -294,6 +315,12 @@ model Settlement {
   createdAt     DateTime  @default(now())
   
   @@map("settlements")
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([type])
+  @@index([taskId])
+  @@index([projectId])
 }
 
 enum SettlementType {
@@ -535,8 +562,11 @@ model Notification {
   // 时间
   createdAt     DateTime  @default(now())
 
+  @@index([userId])
   @@index([userId, isRead])
   @@index([userId, createdAt])
+  @@index([type])
+  @@index([createdAt])
   @@map("notifications")
 }
 

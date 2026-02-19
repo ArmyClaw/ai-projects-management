@@ -2,6 +2,7 @@
  * 通知Store
  * 
  * 管理用户通知状态
+ * 优化：添加缓存、节流、防重复请求
  */
 
 import { defineStore } from 'pinia'
@@ -50,6 +51,42 @@ export interface NotificationListResponse {
   }
 }
 
+// 缓存配置
+const CACHE_KEY = 'notification_cache'
+const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
+
+// 请求节流
+let fetchPromise: Promise<boolean> | null = null
+
+/**
+ * 缓存管理
+ */
+function getCachedData<T>(key: string): { data: T; timestamp: number } | null {
+  try {
+    const cached = localStorage.getItem(`${CACHE_KEY}_${key}`)
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      if (Date.now() - parsed.timestamp < CACHE_DURATION) {
+        return parsed
+      }
+    }
+  } catch {
+    // 忽略解析错误
+  }
+  return null
+}
+
+function setCachedData<T>(key: string, data: T): void {
+  try {
+    localStorage.setItem(
+      `${CACHE_KEY}_${key}`,
+      JSON.stringify({ data, timestamp: Date.now() })
+    )
+  } catch {
+    // 忽略存储错误
+  }
+}
+
 /**
  * 使用通知Store
  */
@@ -60,11 +97,10 @@ export const useNotificationStore = defineStore('notification', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const wsConnected = ref(false)
+  const lastFetchTime = ref(0)
 
   // 计算属性
   const hasUnread = computed(() => unreadCount.value > 0)
-  const readNotifications = computed(() => notifications.value.filter(n => n.isRead))
-  const unreadNotifications = computed(() => notifications.value.filter(n => !n.isRead))
 
   // 初始化WebSocket连接
   function initWebSocket(): void {
@@ -74,7 +110,7 @@ export const useNotificationStore = defineStore('notification', () => {
       console.log('WebSocket连接状态:', connected)
     })
 
-    // 监听实时通知
+    // 设置通知监听器
     setupNotificationListeners()
 
     // 创建连接
@@ -116,7 +152,7 @@ export const useNotificationStore = defineStore('notification', () => {
   }
 
   /**
-   * 获取通知列表
+   * 获取通知列表（带缓存）
    */
   async function fetchNotifications(params?: {
     page?: number
@@ -130,35 +166,66 @@ export const useNotificationStore = defineStore('notification', () => {
       return false
     }
 
+    const page = params?.page || 1
+    const pageSize = params?.pageSize || 20
+    const cacheKey = `list_${page}_${pageSize}`
+
+    // 检查缓存（第一页使用缓存）
+    if (page === 1) {
+      const cached = getCachedData<NotificationListResponse>(cacheKey)
+      if (cached && !loading.value) {
+        notifications.value = cached.data.data.notifications
+        unreadCount.value = cached.data.data.unreadCount
+        lastFetchTime.value = cached.timestamp
+        return true
+      }
+    }
+
+    // 请求节流
+    if (fetchPromise) {
+      return fetchPromise
+    }
+
     loading.value = true
     error.value = null
 
     try {
-      const response = await axios.get<NotificationListResponse>('/api/v1/notifications', {
+      fetchPromise = axios.get<NotificationListResponse>('/api/v1/notifications', {
         headers: {
           Authorization: `Bearer ${token}`
         },
         params: {
-          page: params?.page || 1,
-          pageSize: params?.pageSize || 10,
+          page,
+          pageSize,
           type: params?.type,
           isRead: params?.isRead !== undefined ? String(params?.isRead) : undefined
         }
+      }).then(response => {
+        if (response.data.success) {
+          notifications.value = response.data.data.notifications
+          unreadCount.value = response.data.data.unreadCount
+          
+          // 缓存第一页数据
+          if (page === 1) {
+            setCachedData(cacheKey, response.data)
+          }
+          
+          lastFetchTime.value = Date.now()
+          return true
+        } else {
+          error.value = response.data.error || '获取通知失败'
+          return false
+        }
+      }).catch(err => {
+        const axiosError = err as { response?: { data?: { error?: string } } }
+        error.value = axiosError.response?.data?.error ?? '获取通知失败'
+        return false
       })
 
-      if (response.data.success) {
-        notifications.value = response.data.data.notifications
-        unreadCount.value = response.data.data.unreadCount
-        return true
-      } else {
-        error.value = response.data.error || '获取通知失败'
-        return false
-      }
-    } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { error?: string } } }
-      error.value = axiosError.response?.data?.error ?? '获取通知失败'
-      return false
+      const result = await fetchPromise
+      return result
     } finally {
+      fetchPromise = null
       loading.value = false
     }
   }
@@ -208,10 +275,13 @@ export const useNotificationStore = defineStore('notification', () => {
       if (response.data.success) {
         // 更新本地状态
         const notification = notifications.value.find(n => n.id === id)
-        if (notification) {
+        if (notification && !notification.isRead) {
           notification.isRead = true
           notification.readAt = new Date().toISOString()
           unreadCount.value = Math.max(0, unreadCount.value - 1)
+          
+          // 清除相关缓存
+          localStorage.removeItem(`${CACHE_KEY}_list_1_20`)
         }
         return true
       }
@@ -244,6 +314,9 @@ export const useNotificationStore = defineStore('notification', () => {
           n.readAt = new Date().toISOString()
         })
         unreadCount.value = 0
+        
+        // 清除缓存
+        localStorage.removeItem(`${CACHE_KEY}_list_1_20`)
         return true
       }
       return false
@@ -303,6 +376,12 @@ export const useNotificationStore = defineStore('notification', () => {
     notifications.value = []
     unreadCount.value = 0
     error.value = null
+    lastFetchTime.value = 0
+    
+    // 清除缓存
+    Object.keys(localStorage)
+      .filter(key => key.startsWith(CACHE_KEY))
+      .forEach(key => localStorage.removeItem(key))
   }
 
   return {
@@ -312,11 +391,10 @@ export const useNotificationStore = defineStore('notification', () => {
     loading,
     error,
     wsConnected,
+    lastFetchTime,
 
     // 计算属性
     hasUnread,
-    readNotifications,
-    unreadNotifications,
 
     // 方法
     initWebSocket,
