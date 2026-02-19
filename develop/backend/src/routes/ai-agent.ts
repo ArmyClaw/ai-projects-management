@@ -1,0 +1,432 @@
+/**
+ * AIAgent模拟API路由
+ * 
+ * 提供AIAgent模拟API，用于冷启动支持和社区活跃度：
+ * - POST /api/v1/ai-agents - 创建模拟用户
+ * - GET /api/v1/ai-agents - 查询AIAgent列表
+ * - POST /api/v1/ai-agents/:id/action - 触发Agent行为
+ */
+
+import { FastifyInstance } from 'fastify'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+/**
+ * AIAgent类型定义
+ */
+interface AIAgentType {
+  id: string
+  name: string
+  description: string
+  behaviors: string[]
+}
+
+/**
+ * 支持的AIAgent类型
+ */
+const AGENT_TYPES: Record<string, AIAgentType> = {
+  TASK_COMPLETER: {
+    id: 'TASK_COMPLETER',
+    name: '任务完成者',
+    description: '定期认领和完成任务',
+    behaviors: ['CLAIM_TASK', 'COMPLETE_TASK', 'SUBMIT_TASK']
+  },
+  REVIEWER: {
+    id: 'REVIEWER',
+    name: '评审员',
+    description: '定期进行任务验收评审',
+    behaviors: ['REVIEW_TASK', 'APPROVE_TASK', 'REJECT_TASK']
+  },
+  SKILL_SHARER: {
+    id: 'SKILL_SHARER',
+    name: '技能分享者',
+    description: '创建和分享Skill',
+    behaviors: ['CREATE_SKILL', 'UPDATE_SKILL']
+  },
+  PROJECT_INITIATOR: {
+    id: 'PROJECT_INITIATOR',
+    name: '项目发起者',
+    description: '定期发起项目',
+    behaviors: ['CREATE_PROJECT', 'ADD_MILESTONE', 'CLOSE_PROJECT']
+  }
+}
+
+/**
+ * POST /api/v1/ai-agents - 创建模拟用户
+ */
+export async function createAIAgentRoute(fastify: FastifyInstance) {
+  fastify.post('/api/v1/ai-agents', async (request, reply) => {
+    const { type, name, initialPoints, skills, avatar } = request.body as {
+      type: string
+      name?: string
+      initialPoints?: number
+      skills?: string[]
+      avatar?: string
+    }
+
+    // 验证类型
+    if (!type || !AGENT_TYPES[type]) {
+      reply.status(400)
+      return { 
+        success: false, 
+        error: `无效的Agent类型，可用类型: ${Object.keys(AGENT_TYPES).join(', ')}` 
+      }
+    }
+
+    try {
+      // 生成唯一名称
+      const agentName = name || `${AGENT_TYPES[type].name}_${Date.now()}`
+      
+      // 创建模拟用户
+      const agent = await prisma.user.create({
+        data: {
+          email: `ai-agent-${Date.now()}@aipm.local`,
+          name: agentName,
+          avatar: avatar || null,
+          role: 'PARTICIPANT',
+          status: 'ACTIVE',
+          points: initialPoints || 100,
+          // 标记为AIAgent
+          skillUsages: undefined // 避免关联
+        }
+      })
+
+      // 记录为AIAgent
+      // 注意：需要创建关联表来标记AIAgent，这里简化处理
+
+      return {
+        success: true,
+        data: {
+          id: agent.id,
+          type,
+          name: agent.name,
+          avatar: agent.avatar,
+          points: agent.points,
+          skills: skills || [],
+          status: agent.status,
+          agentType: AGENT_TYPES[type],
+          createdAt: agent.createdAt.toISOString()
+        }
+      }
+    } catch (error) {
+      request.log.error(error)
+      reply.status(500)
+      return { success: false, error: '创建AIAgent失败' }
+    }
+  })
+}
+
+/**
+ * GET /api/v1/ai-agents - 查询AIAgent列表
+ */
+export async function getAIAgentsRoute(fastify: FastifyInstance) {
+  fastify.get('/api/v1/ai-agents', async (request, reply) => {
+    const { type, status, page, pageSize } = request.query as {
+      type?: string
+      status?: string
+      page?: string
+      pageSize?: string
+    }
+
+    const pageNum = Math.max(1, Number(page) || 1)
+    const pageSizeNum = Math.min(100, Math.max(1, Number(pageSize) || 10))
+
+    try {
+      // 查询AIAgent（通过邮箱前缀识别）
+      const where: any = {
+        email: { startsWith: 'ai-agent-' }
+      }
+      
+      if (status) {
+        where.status = status
+      }
+
+      const [agents, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: (pageNum - 1) * pageSizeNum,
+          take: pageSizeNum,
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            points: true,
+            status: true,
+            createdAt: true
+          }
+        }),
+        prisma.user.count({ where })
+      ])
+
+      const totalPages = Math.ceil(total / pageSizeNum)
+
+      // 为每个Agent推断类型（简化处理）
+      const agentsWithType = agents.map(agent => ({
+        ...agent,
+        type: 'TASK_COMPLETER', // 默认类型
+        agentType: AGENT_TYPES.TASK_COMPLETER
+      }))
+
+      return {
+        success: true,
+        data: {
+          agents: agentsWithType,
+          total,
+          page: pageNum,
+          pageSize: pageSizeNum,
+          totalPages,
+          agentTypes: Object.values(AGENT_TYPES)
+        }
+      }
+    } catch (error) {
+      request.log.error(error)
+      reply.status(500)
+      return { success: false, error: '查询AIAgent列表失败' }
+    }
+  })
+}
+
+/**
+ * POST /api/v1/ai-agents/:id/action - 触发Agent行为
+ */
+export async function triggerAIAgentActionRoute(fastify: FastifyInstance) {
+  fastify.post('/api/v1/ai-agents/:id/action', async (request, reply) => {
+    const agentId = (request.params as { id: string }).id
+    const { action, targetId, params } = request.body as {
+      action: string
+      targetId?: string
+      params?: Record<string, any>
+    }
+
+    // 验证必填字段
+    if (!action) {
+      reply.status(400)
+      return { success: false, error: '缺少行为类型' }
+    }
+
+    try {
+      // 验证Agent是否存在
+      const agent = await prisma.user.findUnique({
+        where: { id: agentId },
+        select: { id: true, name: true, points: true, status: true }
+      })
+
+      if (!agent) {
+        reply.status(404)
+        return { success: false, error: 'AIAgent不存在' }
+      }
+
+      if (agent.status !== 'ACTIVE') {
+        reply.status(400)
+        return { success: false, error: 'AIAgent未激活' }
+      }
+
+      // 根据行为类型处理
+      let result: any = { success: true, action }
+
+      switch (action) {
+        case 'CLAIM_TASK':
+          // 模拟认领任务
+          result = await simulateClaimTask(agentId, targetId)
+          break
+          
+        case 'COMPLETE_TASK':
+          // 模拟完成任务
+          result = await simulateCompleteTask(agentId, targetId)
+          break
+          
+        case 'SUBMIT_TASK':
+          // 模拟提交任务
+          result = await simulateSubmitTask(agentId, targetId)
+          break
+          
+        case 'REVIEW_TASK':
+          // 模拟评审任务
+          result = await simulateReviewTask(agentId, targetId)
+          break
+          
+        case 'APPROVE_TASK':
+          // 模拟通过评审
+          result = await simulateApproveTask(agentId, targetId)
+          break
+          
+        case 'REJECT_TASK':
+          // 模拟拒绝评审
+          result = await simulateRejectTask(agentId, targetId)
+          break
+          
+        case 'CREATE_SKILL':
+          // 模拟创建Skill
+          result = await simulateCreateSkill(agentId, params)
+          break
+          
+        case 'CREATE_PROJECT':
+          // 模拟创建项目
+          result = await simulateCreateProject(agentId, params)
+          break
+          
+        default:
+          result = { success: false, error: '不支持的行为类型' }
+      }
+
+      return {
+        success: result.success,
+        data: {
+          agentId,
+          agentName: agent.name,
+          action,
+          targetId,
+          ...result
+        }
+      }
+    } catch (error) {
+      request.log.error(error)
+      reply.status(500)
+      return { success: false, error: '执行AIAgent行为失败' }
+    }
+  })
+}
+
+/**
+ * 模拟认领任务
+ */
+async function simulateClaimTask(agentId: string, taskId?: string) {
+  if (!taskId) {
+    return { success: false, error: '缺少任务ID' }
+  }
+
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        assigneeId: agentId,
+        status: 'CLAIMED'
+      }
+    })
+
+    return { 
+      success: true, 
+      message: `Agent ${agentId} 成功认领任务 ${taskId}`,
+      taskId 
+    }
+  } catch (error) {
+    return { success: false, error: '认领任务失败' }
+  }
+}
+
+/**
+ * 模拟完成任务
+ */
+async function simulateCompleteTask(agentId: string, taskId?: string) {
+  if (!taskId) {
+    return { success: false, error: '缺少任务ID' }
+  }
+
+  try {
+    // 随机生成完成质量分数 (4.0-5.0)
+    const qualityScore = 4 + Math.random()
+    const reward = Math.floor(qualityScore * 100)
+
+    // 更新任务状态
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: 'SUBMITTED' }
+    })
+
+    // 更新Agent积分
+    const agent = await prisma.user.findUnique({ where: { id: agentId } })
+    if (agent) {
+      await prisma.user.update({
+        where: { id: agentId },
+        data: { points: agent.points + reward }
+      })
+    }
+
+    return { 
+      success: true, 
+      message: '任务完成',
+      qualityScore,
+      reward,
+      newPoints: (agent?.points || 0) + reward
+    }
+  } catch (error) {
+    return { success: false, error: '完成任务失败' }
+  }
+}
+
+/**
+ * 模拟提交任务
+ */
+async function simulateSubmitTask(agentId: string, taskId?: string) {
+  return { 
+    success: true, 
+    message: '任务已提交等待验收',
+    taskId 
+  }
+}
+
+/**
+ * 模拟评审任务
+ */
+async function simulateReviewTask(agentId: string, taskId?: string) {
+  return { 
+    success: true, 
+    message: '开始评审',
+    taskId 
+  }
+}
+
+/**
+ * 模拟通过评审
+ */
+async function simulateApproveTask(agentId: string, taskId?: string) {
+  return { 
+    success: true, 
+    message: '验收通过',
+    taskId 
+  }
+}
+
+/**
+ * 模拟拒绝评审
+ */
+async function simulateRejectTask(agentId: string, taskId?: string) {
+  return { 
+    success: true, 
+    message: '验收拒绝',
+    taskId 
+  }
+}
+
+/**
+ * 模拟创建Skill
+ */
+async function simulateCreateSkill(agentId: string, params?: Record<string, any>) {
+  return { 
+    success: true, 
+    message: 'Skill创建成功',
+    skillId: `skill-${Date.now()}`
+  }
+}
+
+/**
+ * 模拟创建项目
+ */
+async function simulateCreateProject(agentId: string, params?: Record<string, any>) {
+  return { 
+    success: true, 
+    message: '项目创建成功',
+    projectId: `project-${Date.now()}`
+  }
+}
+
+/**
+ * AIAgent API路由注册
+ */
+export default async function aiAgentRoutes(fastify: FastifyInstance) {
+  await createAIAgentRoute(fastify)
+  await getAIAgentsRoute(fastify)
+  await triggerAIAgentActionRoute(fastify)
+}

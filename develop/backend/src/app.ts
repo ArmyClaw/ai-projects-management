@@ -89,6 +89,10 @@ await fastify.register(disputeRoutes, { prefix: '/api/v1' })
 import antiCheatRoutes from './routes/anti-cheat'
 await fastify.register(antiCheatRoutes, { prefix: '/api/v1' })
 
+// 注册AIAgent路由
+import aiAgentRoutes from './routes/ai-agent'
+await fastify.register(aiAgentRoutes, { prefix: '/api/v1' })
+
 // 启动
 const start = async () => {
   try {
