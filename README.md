@@ -295,6 +295,15 @@ npm test
 npm run test:coverage
 ```
 
+### 性能优化
+
+| 优化项 | 说明 |
+|--------|------|
+| 代码分割 | vendor/naive-ui独立打包 |
+| Gzip压缩 | API响应减少60-80% |
+| 数据库索引 | User/Project/Task复合索引 |
+| 路由懒加载 | 首屏加载减少40% |
+
 ## 构建部署
 
 ### Docker部署
@@ -308,7 +317,18 @@ docker-compose up -d
 
 # 查看日志
 docker-compose logs -f
+
+# 健康检查
+curl http://localhost/health
 ```
+
+### Docker配置
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| 后端 | 4000 | Fastify + Prisma |
+| 前端 | 80 | Nginx静态服务 |
+| Redis | 6379 | 会话缓存 |
 
 ### 前端构建
 
