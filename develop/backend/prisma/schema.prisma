@@ -221,11 +221,7 @@ model Skill {
   license       String     @default("MIT")
   
   // 统计
-  stats {
-    usageCount     Int   @default(0)
-    successRate    Float @default(0)
-    avgScore       Float @default(0)
-  }
+  stats         Json       @default("{\"usageCount\": 0, \"successRate\": 0, \"avgScore\": 0}")
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
