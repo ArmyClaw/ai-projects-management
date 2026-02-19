@@ -243,6 +243,92 @@ const createTestApp = async () => {
     })
   })
 
+  // 更新任务路由（模拟）
+  const updateTaskMock = {
+    id: 'task-1',
+    title: '实现用户认证模块',
+    description: '需要实现用户登录注册功能',
+    status: 'OPEN',
+    budget: 500,
+    projectId: 'project-1',
+    projectTitle: 'AI代码审查工具',
+    assigneeName: null,
+    skills: ['TypeScript', 'Fastify'],
+    deadline: new Date('2026-02-25'),
+    createdAt: new Date('2026-02-15'),
+    updatedAt: new Date('2026-02-15')
+  }
+
+  fastify.put<{
+    Params: { id: string }
+    Body: {
+      title?: string
+      description?: string
+      budget?: number
+      skills?: string[]
+      deadline?: string
+    }
+  }>('/api/v1/tasks/:id', async (request, reply) => {
+    const { id } = request.params
+    const { title, description, budget, skills, deadline } = request.body
+
+    // 验证任务是否存在
+    if (id !== 'task-1') {
+      return reply.status(404).send({
+        success: false,
+        error: '任务不存在'
+      })
+    }
+
+    // 验证预算不能为负数
+    if (budget !== undefined && budget < 0) {
+      return reply.status(400).send({
+        success: false,
+        error: '预算金额不能为负数'
+      })
+    }
+
+    // 验证 deadline 格式（如果提供）
+    if (deadline) {
+      const deadlineDate = new Date(deadline)
+      if (isNaN(deadlineDate.getTime())) {
+        return reply.status(400).send({
+          success: false,
+          error: '截止日期格式无效，请使用 ISO 8601 格式'
+        })
+      }
+    }
+
+    // 更新任务数据
+    const updatedTask = {
+      ...updateTaskMock,
+      title: title || updateTaskMock.title,
+      description: description || updateTaskMock.description,
+      budget: budget !== undefined ? budget : updateTaskMock.budget,
+      skills: skills || updateTaskMock.skills,
+      deadline: deadline ? new Date(deadline) : updateTaskMock.deadline,
+      updatedAt: new Date()
+    }
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        id: updatedTask.id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        status: updatedTask.status,
+        budget: updatedTask.budget,
+        projectId: updatedTask.projectId,
+        projectTitle: updatedTask.projectTitle,
+        assigneeName: updatedTask.assigneeName,
+        skills: updatedTask.skills,
+        deadline: updatedTask.deadline?.toISOString() || null,
+        createdAt: updatedTask.createdAt.toISOString(),
+        updatedAt: updatedTask.updatedAt.toISOString()
+      }
+    })
+  })
+
   return fastify
 }
 
@@ -561,6 +647,160 @@ describe('Task Routes - /api/v1/tasks', () => {
 
       expect(response.body.success).toBe(true)
       expect(response.body.data.budget).toBe(0)
+    })
+  })
+
+  /**
+   * PUT /api/v1/tasks/:id 更新任务 API 测试
+   */
+  describe('PUT /api/v1/tasks/:id', () => {
+    it('应该成功更新任务标题', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          title: '更新后的任务标题'
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.title).toBe('更新后的任务标题')
+      expect(response.body.data.status).toBe('OPEN')
+    })
+
+    it('应该成功更新任务描述', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          description: '更新后的任务描述'
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.description).toBe('更新后的任务描述')
+    })
+
+    it('应该成功更新任务预算', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          budget: 1000
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.budget).toBe(1000)
+    })
+
+    it('应该成功更新任务技能列表', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          skills: ['Vue.js', 'Node.js']
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.skills).toEqual(['Vue.js', 'Node.js'])
+    })
+
+    it('应该成功更新任务截止日期', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          deadline: '2026-03-31T23:59:59Z'
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.deadline).toContain('2026-03-31')
+    })
+
+    it('应该支持批量更新多个字段', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          title: '批量更新任务',
+          description: '这是批量更新的描述',
+          budget: 1500,
+          skills: ['Python', 'FastAPI', 'PostgreSQL']
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.title).toBe('批量更新任务')
+      expect(response.body.data.description).toBe('这是批量更新的描述')
+      expect(response.body.data.budget).toBe(1500)
+      expect(response.body.data.skills).toEqual(['Python', 'FastAPI', 'PostgreSQL'])
+    })
+
+    it('应该验证预算不能为负数', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          budget: -100
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('预算')
+    })
+
+    it('应该验证截止日期格式无效', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          deadline: 'invalid-date'
+        })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('截止日期')
+    })
+
+    it('应该返回404当任务不存在', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/invalid-id')
+        .send({
+          title: '不存在的任务'
+        })
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toContain('不存在')
+    })
+
+    it('更新后应该返回完整的任务信息', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({
+          title: '完整更新测试'
+        })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data).toHaveProperty('id')
+      expect(response.body.data).toHaveProperty('title')
+      expect(response.body.data).toHaveProperty('description')
+      expect(response.body.data).toHaveProperty('status')
+      expect(response.body.data).toHaveProperty('budget')
+      expect(response.body.data).toHaveProperty('projectId')
+      expect(response.body.data).toHaveProperty('projectTitle')
+      expect(response.body.data).toHaveProperty('assigneeName')
+      expect(response.body.data).toHaveProperty('skills')
+      expect(response.body.data).toHaveProperty('deadline')
+      expect(response.body.data).toHaveProperty('createdAt')
+      expect(response.body.data).toHaveProperty('updatedAt')
+    })
+
+    it('不更新任何字段应该返回原数据', async () => {
+      const response = await supertest(server)
+        .put('/api/v1/tasks/task-1')
+        .send({})
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.title).toBe('实现用户认证模块')
+      expect(response.body.data.budget).toBe(500)
     })
   })
 })

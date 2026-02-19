@@ -50,10 +50,11 @@ await updateProjectRoute(fastify)
 await deleteProjectRoute(fastify)
 
 // 注册任务路由
-import { getTasksRoute, getTaskDetailRoute, createTaskRoute } from './routes/tasks'
+import { getTasksRoute, getTaskDetailRoute, createTaskRoute, updateTaskRoute } from './routes/tasks'
 await getTasksRoute(fastify)
 await getTaskDetailRoute(fastify)
 await createTaskRoute(fastify)
+await updateTaskRoute(fastify)
 
 // 启动
 const start = async () => {
