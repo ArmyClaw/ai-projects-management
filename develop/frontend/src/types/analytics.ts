@@ -144,3 +144,34 @@ export interface BurndownPoint {
   remaining: number
   ideal: number
 }
+
+/**
+ * 信用趋势数据点
+ */
+export interface CreditTrendPoint {
+  date: string
+  score: number
+  change: number
+}
+
+/**
+ * 信用影响因素
+ */
+export interface CreditFactor {
+  name: string
+  score: number
+  weight: number
+  trend: 'up' | 'down' | 'stable'
+}
+
+/**
+ * 用户信用趋势响应
+ */
+export interface UserCreditTrend {
+  userId: string
+  userName: string
+  currentCreditScore: number
+  creditLevel: string
+  history: CreditTrendPoint[]
+  factors: CreditFactor[]
+}

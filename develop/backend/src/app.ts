@@ -8,6 +8,8 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import fastifyCompress from '@fastify/compress'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
 import { PrismaClient } from '@prisma/client'
 import dotenv from 'dotenv'
 import { createWebSocketServer, setGlobalFastifyInstance } from './services/websocket.js'
@@ -266,7 +268,8 @@ import {
   getUserContributionsRoute,
   getUserFinanceRoute,
   getDashboardRoute,
-  getProjectsCompareRoute
+  getProjectsCompareRoute,
+  getUserCreditTrendRoute
 } from './routes/analytics'
 await getProjectProgressRoute(fastify)
 await getProjectGanttRoute(fastify)
@@ -276,6 +279,7 @@ await getUserContributionsRoute(fastify)
 await getUserFinanceRoute(fastify)
 await getDashboardRoute(fastify)
 await getProjectsCompareRoute(fastify)
+await getUserCreditTrendRoute(fastify)
 
 // 初始化WebSocket服务
 createWebSocketServer(fastify.server, {

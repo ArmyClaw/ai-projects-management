@@ -1010,3 +1010,178 @@ export async function getProjectsCompareRoute(fastify: FastifyInstance): Promise
     }
   })
 }
+
+/**
+ * 获取用户信用趋势
+ * GET /api/v1/users/:id/credit-trend
+ */
+export async function getUserCreditTrendRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.get<{
+    Params: {
+      id: string
+    }
+    Querystring: {
+      days?: number
+    }
+  }>('/api/v1/users/:id/credit-trend', {
+    schema: {
+      description: '获取用户信用趋势数据',
+      tags: ['analytics'],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', description: '用户ID' }
+        }
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          days: { type: 'number', description: '查询天数（默认30天）', minimum: 7, maximum: 365 }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                userId: { type: 'string' },
+                userName: { type: 'string' },
+                currentCreditScore: { type: 'number' },
+                creditLevel: { type: 'string' },
+                history: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      date: { type: 'string' },
+                      score: { type: 'number' },
+                      change: { type: 'number' }
+                    }
+                  }
+                },
+                factors: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      score: { type: 'number' },
+                      weight: { type: 'number' },
+                      trend: { type: 'string', enum: ['up', 'down', 'stable'] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { id } = request.params
+      const { days = 30 } = request.query
+
+      // 验证用户是否存在
+      const user = await prisma.user.findUnique({
+        where: { id }
+      })
+
+      if (!user) {
+        return reply.status(404).send({
+          success: false,
+          error: '用户不存在'
+        })
+      }
+
+      // 生成模拟的信用趋势数据
+      // 实际项目中应该从数据库读取历史信用记录
+      const history = []
+      const baseScore = 650 // 基础信用分
+      const today = new Date()
+      
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today)
+        date.setDate(date.getDate() - i)
+        const dateStr = date.toISOString().split('T')[0]
+        
+        // 模拟分数波动
+        const randomChange = Math.round((Math.random() - 0.5) * 10)
+        const dayScore = baseScore + randomChange + (days - i) * 0.5 // 总体趋势向上
+        
+        history.push({
+          date: dateStr,
+          score: Math.min(850, Math.max(300, Math.round(dayScore))),
+          change: i === days - 1 ? 0 : Math.round(dayScore - (baseScore + (days - i - 1) * 0.5))
+        })
+      }
+
+      const currentScore = history[history.length - 1].score
+      
+      // 计算信用等级
+      const getCreditLevel = (score: number): string => {
+        if (score >= 800) return '优秀'
+        if (score >= 700) return '良好'
+        if (score >= 600) return '一般'
+        if (score >= 500) return '较差'
+        return '极差'
+      }
+
+      // 信用影响因素
+      const factors = [
+        {
+          name: '任务完成率',
+          score: 85,
+          weight: 0.25,
+          trend: 'up' as const
+        },
+        {
+          name: '准时交付率',
+          score: 78,
+          weight: 0.20,
+          trend: 'stable' as const
+        },
+        {
+          name: '项目质量评分',
+          score: 90,
+          weight: 0.20,
+          trend: 'up' as const
+        },
+        {
+          name: '协作评价',
+          score: 72,
+          weight: 0.15,
+          trend: 'down' as const
+        },
+        {
+          name: '信用历史',
+          score: 65,
+          weight: 0.20,
+          trend: 'stable' as const
+        }
+      ]
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          userId: user.id,
+          userName: user.name,
+          currentCreditScore: currentScore,
+          creditLevel: getCreditLevel(currentScore),
+          history,
+          factors
+        }
+      })
+    } catch (error) {
+      fastify.log.error('获取用户信用趋势失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}

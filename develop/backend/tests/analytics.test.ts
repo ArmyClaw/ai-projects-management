@@ -341,3 +341,342 @@ describe('项目对比分析 API', () => {
     })
   })
 })
+
+/**
+ * 用户信用趋势 API 测试
+ * 测试 /api/v1/users/:id/credit-trend 接口
+ */
+
+// 创建测试用的 Fastify 实例
+const createTestAppWithCreditTrend = async () => {
+  const fastify = Fastify({
+    logger: false
+  })
+
+  // 注册 CORS
+  await fastify.register(require('@fastify/cors'), {
+    origin: true,
+    credentials: true
+  })
+
+  // 健康检查
+  fastify.get('/health', async () => {
+    return { status: 'healthy' }
+  })
+
+  // 模拟用户数据
+  const mockUsers = [
+    {
+      id: 'user-1',
+      name: '张三',
+      email: 'zhangsan@example.com',
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date()
+    },
+    {
+      id: 'user-2',
+      name: '李四',
+      email: 'lisi@example.com',
+      createdAt: new Date('2024-02-01'),
+      updatedAt: new Date()
+    }
+  ]
+
+  // 用户信用趋势路由
+  fastify.get<{
+    Params: {
+      id: string
+    }
+    Querystring: {
+      days?: number
+    }
+  }>('/api/v1/users/:id/credit-trend', async (request, reply) => {
+    const { id } = request.params
+    const { days = 30 } = request.query
+
+    // 验证用户是否存在
+    const user = mockUsers.find(u => u.id === id)
+    if (!user) {
+      return reply.status(404).send({
+        success: false,
+        error: '用户不存在'
+      })
+    }
+
+    // 生成模拟的信用趋势数据
+    const history = []
+    const baseScore = 650
+    const today = new Date()
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      const dateStr = date.toISOString().split('T')[0]
+      
+      const randomChange = Math.round((Math.random() - 0.5) * 10)
+      const dayScore = baseScore + randomChange + (days - i) * 0.5
+      
+      history.push({
+        date: dateStr,
+        score: Math.min(850, Math.max(300, Math.round(dayScore))),
+        change: i === days - 1 ? 0 : Math.round(dayScore - (baseScore + (days - i - 1) * 0.5))
+      })
+    }
+
+    const currentScore = history[history.length - 1].score
+    
+    // 计算信用等级
+    const getCreditLevel = (score: number): string => {
+      if (score >= 800) return '优秀'
+      if (score >= 700) return '良好'
+      if (score >= 600) return '一般'
+      if (score >= 500) return '较差'
+      return '极差'
+    }
+
+    const factors = [
+      {
+        name: '任务完成率',
+        score: 85,
+        weight: 0.25,
+        trend: 'up' as const
+      },
+      {
+        name: '准时交付率',
+        score: 78,
+        weight: 0.20,
+        trend: 'stable' as const
+      },
+      {
+        name: '项目质量评分',
+        score: 90,
+        weight: 0.20,
+        trend: 'up' as const
+      },
+      {
+        name: '协作评价',
+        score: 72,
+        weight: 0.15,
+        trend: 'down' as const
+      },
+      {
+        name: '信用历史',
+        score: 65,
+        weight: 0.20,
+        trend: 'stable' as const
+      }
+    ]
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        userId: user.id,
+        userName: user.name,
+        currentCreditScore: currentScore,
+        creditLevel: getCreditLevel(currentScore),
+        history,
+        factors
+      }
+    })
+  })
+
+  return fastify
+}
+
+describe('用户信用趋势 API', () => {
+  let app: FastifyInstance
+  let request: supertest.SuperTest<supertest.Test>
+
+  beforeAll(async () => {
+    app = await createTestAppWithCreditTrend()
+    await app.ready()
+    request = supertest(app.server)
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  describe('GET /api/v1/users/:id/credit-trend', () => {
+    it('应该返回404当用户不存在', async () => {
+      const response = await request
+        .get('/api/v1/users/non-existent/credit-trend')
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('用户不存在')
+    })
+
+    it('应该成功返回用户信用趋势数据（默认30天）', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend')
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.userId).toBe('user-1')
+      expect(response.body.data.userName).toBe('张三')
+      expect(response.body.data.currentCreditScore).toBeDefined()
+      expect(response.body.data.creditLevel).toBeDefined()
+      expect(response.body.data.history).toHaveLength(30)
+      expect(response.body.data.factors).toHaveLength(5)
+    })
+
+    it('应该正确返回7天的历史数据', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend?days=7')
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.history).toHaveLength(7)
+    })
+
+    it('应该正确返回90天的历史数据', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend?days=90')
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.history).toHaveLength(90)
+    })
+
+    it('应该正确计算信用等级', async () => {
+      // 测试"优秀"等级（分数>=800）
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend')
+        .expect(200)
+
+      const score = response.body.data.currentCreditScore
+      const level = response.body.data.creditLevel
+      
+      if (score >= 800) {
+        expect(level).toBe('优秀')
+      } else if (score >= 700) {
+        expect(level).toBe('良好')
+      } else if (score >= 600) {
+        expect(level).toBe('一般')
+      } else if (score >= 500) {
+        expect(level).toBe('较差')
+      } else {
+        expect(level).toBe('极差')
+      }
+    })
+
+    it('应该正确返回所有信用因素', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend')
+        .expect(200)
+
+      const factors = response.body.data.factors
+      expect(factors).toHaveLength(5)
+      
+      const factorNames = factors.map((f: any) => f.name)
+      expect(factorNames).toContain('任务完成率')
+      expect(factorNames).toContain('准时交付率')
+      expect(factorNames).toContain('项目质量评分')
+      expect(factorNames).toContain('协作评价')
+      expect(factorNames).toContain('信用历史')
+    })
+
+    it('应该正确返回因素的权重和趋势', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend')
+        .expect(200)
+
+      const factors = response.body.data.factors
+      
+      factors.forEach((factor: any) => {
+        expect(factor).toHaveProperty('name')
+        expect(factor).toHaveProperty('score')
+        expect(factor).toHaveProperty('weight')
+        expect(factor).toHaveProperty('trend')
+        
+        expect(typeof factor.score).toBe('number')
+        expect(factor.score).toBeGreaterThanOrEqual(0)
+        expect(factor.score).toBeLessThanOrEqual(100)
+        expect(factor.weight).toBeGreaterThan(0)
+        expect(factor.weight).toBeLessThanOrEqual(1)
+        expect(['up', 'down', 'stable']).toContain(factor.trend)
+      })
+    })
+
+    it('应该正确返回历史数据的change字段', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend?days=10')
+        .expect(200)
+
+      const history = response.body.data.history
+      
+      // 第一天的change应该为0
+      expect(history[0].change).toBe(0)
+      
+      // 其他天的change应该是数字
+      for (let i = 1; i < history.length; i++) {
+        expect(typeof history[i].change).toBe('number')
+      }
+    })
+
+    it('应该正确返回不同用户的数据', async () => {
+      const response1 = await request
+        .get('/api/v1/users/user-1/credit-trend')
+        .expect(200)
+
+      const response2 = await request
+        .get('/api/v1/users/user-2/credit-trend')
+        .expect(200)
+
+      expect(response1.body.data.userId).toBe('user-1')
+      expect(response2.body.data.userId).toBe('user-2')
+      expect(response1.body.data.userName).toBe('张三')
+      expect(response2.body.data.userName).toBe('李四')
+    })
+
+    it('应该正确处理最大天数限制（365天）', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend?days=365')
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.history).toHaveLength(365)
+    })
+
+    it('应该正确处理最小天数限制（7天）', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend?days=7')
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.history).toHaveLength(7)
+    })
+
+    it('应该正确处理积分计算', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend')
+        .expect(200)
+
+      const { history, currentCreditScore } = response.body.data
+      
+      // 验证分数范围
+      expect(currentCreditScore).toBeGreaterThanOrEqual(300)
+      expect(currentCreditScore).toBeLessThanOrEqual(850)
+      
+      // 验证历史分数范围
+      history.forEach((point: any) => {
+        expect(point.score).toBeGreaterThanOrEqual(300)
+        expect(point.score).toBeLessThanOrEqual(850)
+      })
+    })
+
+    it('应该正确返回日期格式', async () => {
+      const response = await request
+        .get('/api/v1/users/user-1/credit-trend?days=5')
+        .expect(200)
+
+      const history = response.body.data.history
+      
+      history.forEach((point: any) => {
+        // 验证日期格式 YYYY-MM-DD
+        expect(point.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      })
+    })
+  })
+})

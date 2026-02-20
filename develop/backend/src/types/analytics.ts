@@ -167,3 +167,41 @@ export interface ProjectCompareResponse {
 export interface ProjectCompareQuery {
   projects: string // 逗号分隔的项目ID列表
 }
+
+/**
+ * 信用趋势数据点
+ */
+export interface CreditTrendPoint {
+  date: string
+  score: number
+  change: number
+}
+
+/**
+ * 信用影响因素
+ */
+export interface CreditFactor {
+  name: string
+  score: number
+  weight: number
+  trend: 'up' | 'down' | 'stable'
+}
+
+/**
+ * 用户信用趋势响应
+ */
+export interface UserCreditTrend {
+  userId: string
+  userName: string
+  currentCreditScore: number
+  creditLevel: string
+  history: CreditTrendPoint[]
+  factors: CreditFactor[]
+}
+
+/**
+ * 信用趋势查询参数
+ */
+export interface CreditTrendQuery {
+  days?: number // 查询天数，默认30天
+}

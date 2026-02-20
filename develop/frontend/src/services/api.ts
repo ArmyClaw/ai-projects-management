@@ -379,6 +379,37 @@ export interface ProjectCompareResponse {
 }
 
 /**
+ * 信用趋势数据点
+ */
+export interface CreditTrendPoint {
+  date: string
+  score: number
+  change: number
+}
+
+/**
+ * 信用影响因素
+ */
+export interface CreditFactor {
+  name: string
+  score: number
+  weight: number
+  trend: 'up' | 'down' | 'stable'
+}
+
+/**
+ * 用户信用趋势响应
+ */
+export interface UserCreditTrend {
+  userId: string
+  userName: string
+  currentCreditScore: number
+  creditLevel: string
+  history: CreditTrendPoint[]
+  factors: CreditFactor[]
+}
+
+/**
  * 获取项目进度
  * GET /api/v1/projects/:id/progress
  */
@@ -482,6 +513,24 @@ export async function getProjectsCompare(projectIds: string[]): Promise<ProjectC
     {
       params: {
         projects: projectIds.join(',')
+      }
+    }
+  )
+  return response.data.data
+}
+
+/**
+ * 获取用户信用趋势
+ * GET /api/v1/users/:id/credit-trend
+ * @param userId - 用户ID
+ * @param days - 查询天数（默认30天）
+ */
+export async function getUserCreditTrend(userId: string, days: number = 30): Promise<UserCreditTrend> {
+  const response = await api.get<{ success: boolean; data: UserCreditTrend }>(
+    `/users/${userId}/credit-trend`,
+    {
+      params: {
+        days
       }
     }
   )
