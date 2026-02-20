@@ -134,3 +134,36 @@ export interface BurndownPoint {
   remaining: number
   ideal: number
 }
+
+/**
+ * 项目对比数据项
+ */
+export interface ProjectCompareItem {
+  id: string
+  title: string
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  totalTasks: number
+  completedTasks: number
+  completionRate: number
+  averageCycleDays: number
+  budget: number
+  budgetDeviation: number
+  satisfaction: number | null
+  startDate: string | null
+  endDate: string | null
+}
+
+/**
+ * 项目对比响应
+ */
+export interface ProjectCompareResponse {
+  projects: ProjectCompareItem[]
+  comparedAt: string
+}
+
+/**
+ * 项目对比查询参数
+ */
+export interface ProjectCompareQuery {
+  projects: string // 逗号分隔的项目ID列表
+}

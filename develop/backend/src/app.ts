@@ -265,7 +265,8 @@ import {
   createProjectMilestoneRoute,
   getUserContributionsRoute,
   getUserFinanceRoute,
-  getDashboardRoute
+  getDashboardRoute,
+  getProjectsCompareRoute
 } from './routes/analytics'
 await getProjectProgressRoute(fastify)
 await getProjectGanttRoute(fastify)
@@ -274,6 +275,7 @@ await createProjectMilestoneRoute(fastify)
 await getUserContributionsRoute(fastify)
 await getUserFinanceRoute(fastify)
 await getDashboardRoute(fastify)
+await getProjectsCompareRoute(fastify)
 
 // 初始化WebSocket服务
 createWebSocketServer(fastify.server, {

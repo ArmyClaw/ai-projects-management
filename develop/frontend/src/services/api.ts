@@ -353,6 +353,32 @@ export interface DashboardStats {
 }
 
 /**
+ * 项目对比数据项
+ */
+export interface ProjectCompareItem {
+  id: string
+  title: string
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  totalTasks: number
+  completedTasks: number
+  completionRate: number
+  averageCycleDays: number
+  budget: number
+  budgetDeviation: number
+  satisfaction: number | null
+  startDate: string | null
+  endDate: string | null
+}
+
+/**
+ * 项目对比响应
+ */
+export interface ProjectCompareResponse {
+  projects: ProjectCompareItem[]
+  comparedAt: string
+}
+
+/**
  * 获取项目进度
  * GET /api/v1/projects/:id/progress
  */
@@ -434,6 +460,30 @@ export async function getUserFinance(userId: string): Promise<UserFinance> {
 export async function getDashboardStats(): Promise<DashboardStats> {
   const response = await api.get<{ success: boolean; data: DashboardStats }>(
     '/analytics/dashboard'
+  )
+  return response.data.data
+}
+
+/**
+ * 项目对比分析
+ * GET /api/v1/analytics/projects/compare
+ * @param projectIds - 项目ID数组（最多5个）
+ */
+export async function getProjectsCompare(projectIds: string[]): Promise<ProjectCompareResponse> {
+  if (projectIds.length > 5) {
+    throw new Error('最多支持5个项目对比')
+  }
+  if (projectIds.length === 0) {
+    throw new Error('请提供至少一个项目ID')
+  }
+
+  const response = await api.get<{ success: boolean; data: ProjectCompareResponse }>(
+    '/analytics/projects/compare',
+    {
+      params: {
+        projects: projectIds.join(',')
+      }
+    }
   )
   return response.data.data
 }
