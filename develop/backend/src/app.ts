@@ -269,7 +269,9 @@ import {
   getUserFinanceRoute,
   getDashboardRoute,
   getProjectsCompareRoute,
-  getUserCreditTrendRoute
+  getUserCreditTrendRoute,
+  exportPdfRoute,
+  exportExcelRoute
 } from './routes/analytics'
 await getProjectProgressRoute(fastify)
 await getProjectGanttRoute(fastify)
@@ -280,6 +282,8 @@ await getUserFinanceRoute(fastify)
 await getDashboardRoute(fastify)
 await getProjectsCompareRoute(fastify)
 await getUserCreditTrendRoute(fastify)
+await exportPdfRoute(fastify)
+await exportExcelRoute(fastify)
 
 // 初始化WebSocket服务
 createWebSocketServer(fastify.server, {

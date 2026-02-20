@@ -537,6 +537,92 @@ export async function getUserCreditTrend(userId: string, days: number = 30): Pro
   return response.data.data
 }
 
+// ========== 报表导出 ==========
+
+/**
+ * 导出类型
+ */
+export type ExportType = 
+  | 'project-progress' 
+  | 'project-compare' 
+  | 'dashboard' 
+  | 'user-contribution'
+
+/**
+ * 导出请求参数
+ */
+export interface ExportParams {
+  type: ExportType
+  projectId?: string
+  projectIds?: string[]
+  userId?: string
+  filename?: string
+}
+
+/**
+ * 导出为PDF
+ * POST /api/v1/analytics/export/pdf
+ */
+export async function exportToPdf(params: ExportParams): Promise<void> {
+  const { type, projectId, projectIds, userId, filename = 'report' } = params
+
+  const response = await api.post(
+    '/analytics/export/pdf',
+    {
+      type,
+      projectId,
+      projectIds,
+      userId
+    },
+    {
+      responseType: 'blob'
+    }
+  )
+
+  // 下载PDF文件
+  const blob = response.data as Blob
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${filename}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * 导出为Excel
+ * POST /api/v1/analytics/export/excel
+ */
+export async function exportToExcel(params: ExportParams): Promise<void> {
+  const { type, projectId, projectIds, userId, filename = 'report' } = params
+
+  const response = await api.post(
+    '/analytics/export/excel',
+    {
+      type,
+      projectId,
+      projectIds,
+      userId
+    },
+    {
+      responseType: 'blob'
+    }
+  )
+
+  // 下载Excel文件
+  const blob = response.data as Blob
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${filename}.xlsx`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 export default api
 
 // 类型声明

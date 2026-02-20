@@ -1185,3 +1185,693 @@ export async function getUserCreditTrendRoute(fastify: FastifyInstance): Promise
     }
   })
 }
+
+/**
+ * 导出报表为PDF
+ * POST /api/v1/analytics/export/pdf
+ */
+export async function exportPdfRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.post<{
+    Body: {
+      type: 'project-progress' | 'project-compare' | 'dashboard' | 'user-contribution'
+      projectId?: string
+      projectIds?: string[]
+      userId?: string
+    }
+  }>('/api/v1/analytics/export/pdf', {
+    schema: {
+      description: '导出报表为PDF',
+      tags: ['analytics'],
+      body: {
+        type: 'object',
+        required: ['type'],
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['project-progress', 'project-compare', 'dashboard', 'user-contribution'],
+            description: '报表类型'
+          },
+          projectId: { type: 'string', description: '项目ID（project-progress类型必填）' },
+          projectIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '项目ID数组（project-compare类型必填）'
+          },
+          userId: { type: 'string', description: '用户ID（user-contribution类型必填）' }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            filename: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { type, projectId, projectIds, userId } = request.body
+
+      // 动态导入PDF导出服务
+      const { exportProjectProgressToPdf, exportProjectCompareToPdf, exportDashboardToPdf, downloadPdf } = await import('../services/pdf-export')
+
+      let filename = ''
+      let pdfBlob: Blob | null = null
+
+      switch (type) {
+        case 'project-progress': {
+          if (!projectId) {
+            return reply.status(400).send({
+              success: false,
+              error: 'projectId是必填参数'
+            })
+          }
+
+          // 获取项目进度数据
+          const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            include: {
+              tasks: true,
+              milestones: true
+            }
+          })
+
+          if (!project) {
+            return reply.status(404).send({
+              success: false,
+              error: '项目不存在'
+            })
+          }
+
+          const totalTasks = project.tasks.length
+          const completedTasks = project.tasks.filter(t => t.status === 'COMPLETED').length
+          const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+          const totalMilestones = project.milestones.length
+          const completedMilestones = project.milestones.filter(m => m.status === 'COMPLETED').length
+
+          let daysRemaining: number | null = null
+          if (project.endDate) {
+            const endDate = new Date(project.endDate)
+            const now = new Date()
+            const diffTime = endDate.getTime() - now.getTime()
+            daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          }
+
+          const progressData = {
+            id: project.id,
+            title: project.title,
+            status: project.status,
+            totalTasks,
+            completedTasks,
+            progressPercentage,
+            totalMilestones,
+            completedMilestones,
+            startDate: project.startDate?.toISOString() || null,
+            endDate: project.endDate?.toISOString() || null,
+            daysRemaining
+          }
+
+          pdfBlob = exportProjectProgressToPdf(progressData)
+          filename = `project-progress-${projectId}`
+          break
+        }
+
+        case 'project-compare': {
+          if (!projectIds || projectIds.length === 0) {
+            return reply.status(400).send({
+              success: false,
+              error: 'projectIds是必填参数'
+            })
+          }
+
+          // 获取项目数据
+          const projects = await Promise.all(
+            projectIds.map(id => prisma.project.findUnique({
+              where: { id },
+              include: { tasks: true, reviews: true }
+            }))
+          )
+
+          const existingProjects = projects.filter(p => p !== null)
+
+          if (existingProjects.length === 0) {
+            return reply.status(404).send({
+              success: false,
+              error: '未找到指定的项目'
+            })
+          }
+
+          const compareData = existingProjects.map(project => {
+            if (!project) return null
+
+            const totalTasks = project.tasks.length
+            const completedTasks = project.tasks.filter(t => t.status === 'COMPLETED').length
+            const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+            let averageCycleDays = 0
+            const completedTasksWithDates = project.tasks.filter(
+              t => t.status === 'COMPLETED' && t.startDate && t.endDate
+            )
+            if (completedTasksWithDates.length > 0) {
+              const totalDays = completedTasksWithDates.reduce((sum, t) => {
+                const start = new Date(t.startDate!).getTime()
+                const end = new Date(t.endDate!).getTime()
+                return sum + (end - start) / (1000 * 60 * 60 * 24)
+              }, 0)
+              averageCycleDays = Math.round(totalDays / completedTasksWithDates.length)
+            }
+
+            let satisfaction: number | null = null
+            if (project.reviews.length > 0) {
+              const totalScore = project.reviews.reduce((sum, r) => sum + (r.rating || 0), 0)
+              satisfaction = Math.round((totalScore / project.reviews.length) * 20)
+            }
+
+            return {
+              id: project.id,
+              title: project.title,
+              status: project.status,
+              totalTasks,
+              completedTasks,
+              completionRate,
+              averageCycleDays,
+              budget: project.budget || 0,
+              budgetDeviation: 0,
+              satisfaction,
+              startDate: project.startDate?.toISOString() || null,
+              endDate: project.endDate?.toISOString() || null
+            }
+          }).filter(Boolean) as any[]
+
+          pdfBlob = exportProjectCompareToPdf(compareData)
+          filename = 'project-comparison'
+          break
+        }
+
+        case 'dashboard': {
+          // 获取看板数据
+          const [totalProjects, activeProjects, completedProjects, totalTasks, completedTasks, totalUsers, activeUsers] = await Promise.all([
+            prisma.project.count(),
+            prisma.project.count({ where: { status: 'ACTIVE' } }),
+            prisma.project.count({ where: { status: 'COMPLETED' } }),
+            prisma.task.count(),
+            prisma.task.count({ where: { status: 'COMPLETED' } }),
+            prisma.user.count(),
+            prisma.user.count({
+              where: {
+                updatedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+              }
+            })
+          ])
+
+          const pointsAgg = await prisma.point.aggregate({
+            _sum: { amount: true }
+          })
+          const totalPoints = pointsAgg._sum.amount || 0
+
+          // 生成最近7天活动数据
+          const recentActivity = []
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date()
+            date.setDate(date.getDate() - i)
+            const dateStr = date.toISOString().split('T')[0]
+            
+            const dayStart = new Date(dateStr)
+            const dayEnd = new Date(dateStr)
+            dayEnd.setDate(dayEnd.getDate() + 1)
+
+            const [projectCount, taskCount] = await Promise.all([
+              prisma.project.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+              prisma.task.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } })
+            ])
+
+            recentActivity.push({ date: dateStr, projectCount, taskCount })
+          }
+
+          const dashboardData = {
+            totalProjects,
+            activeProjects,
+            completedProjects,
+            totalTasks,
+            completedTasks,
+            totalUsers,
+            activeUsers,
+            totalPoints,
+            recentActivity
+          }
+
+          pdfBlob = exportDashboardToPdf(dashboardData)
+          filename = 'dashboard-report'
+          break
+        }
+
+        case 'user-contribution': {
+          if (!userId) {
+            return reply.status(400).send({
+              success: false,
+              error: 'userId是必填参数'
+            })
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { id: userId }
+          })
+
+          if (!user) {
+            return reply.status(404).send({
+              success: false,
+              error: '用户不存在'
+            })
+          }
+
+          const tasks = await prisma.task.findMany({
+            where: { assigneeId: userId }
+          })
+
+          const totalTasks = tasks.length
+          const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length
+          const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+          const points = await prisma.point.findFirst({
+            where: { userId }
+          })
+          const totalPoints = points?.amount || 0
+
+          const allPoints = await prisma.point.findMany({
+            select: { userId: true, amount: true }
+          })
+          const sortedPoints = allPoints.sort((a, b) => b.amount - a.amount)
+          const rank = sortedPoints.findIndex(p => p.userId === userId) + 1
+
+          const weeklyActivity = []
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date()
+            date.setDate(date.getDate() - i)
+            const dateStr = date.toISOString().split('T')[0]
+            
+            const dayTasks = tasks.filter(t => t.createdAt.toISOString().split('T')[0] === dateStr)
+
+            weeklyActivity.push({
+              date: dateStr,
+              taskCount: dayTasks.length
+            })
+          }
+
+          const contributionData = {
+            userId: user.id,
+            userName: user.name,
+            totalTasks,
+            completedTasks,
+            completionRate,
+            totalPoints,
+            rank,
+            weeklyActivity
+          }
+
+          // 动态导入简化的PDF生成
+          const { jsPDF } = await import('jspdf')
+          const doc = new jsPDF()
+          doc.setFontSize(20)
+          doc.text('个人贡献报告', 105, 20, { align: 'center' })
+          
+          doc.setFontSize(12)
+          doc.text(`用户名: ${contributionData.userName}`, 20, 40)
+          doc.text(`总任务: ${contributionData.totalTasks}`, 20, 50)
+          doc.text(`已完成: ${contributionData.completedTasks}`, 20, 60)
+          doc.text(`完成率: ${contributionData.completionRate}%`, 20, 70)
+          doc.text(`总积分: ${contributionData.totalPoints}`, 20, 80)
+          doc.text(`排名: #${contributionData.rank}`, 20, 90)
+
+          pdfBlob = doc.output('blob')
+          filename = `user-contribution-${userId}`
+          break
+        }
+
+        default:
+          return reply.status(400).send({
+            success: false,
+            error: '不支持的报表类型'
+          })
+      }
+
+      if (pdfBlob) {
+        // 设置响应头
+        reply.header('Content-Type', 'application/pdf')
+        reply.header('Content-Disposition', `attachment; filename="${filename}.pdf"`)
+        
+        return reply.status(200).send(pdfBlob)
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: '生成PDF失败'
+      })
+    } catch (error) {
+      fastify.log.error('导出PDF失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}
+
+/**
+ * 导出报表为Excel
+ * POST /api/v1/analytics/export/excel
+ */
+export async function exportExcelRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.post<{
+    Body: {
+      type: 'project-progress' | 'project-compare' | 'dashboard' | 'user-contribution'
+      projectId?: string
+      projectIds?: string[]
+      userId?: string
+    }
+  }>('/api/v1/analytics/export/excel', {
+    schema: {
+      description: '导出报表为Excel',
+      tags: ['analytics'],
+      body: {
+        type: 'object',
+        required: ['type'],
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['project-progress', 'project-compare', 'dashboard', 'user-contribution'],
+            description: '报表类型'
+          },
+          projectId: { type: 'string', description: '项目ID（project-progress类型必填）' },
+          projectIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '项目ID数组（project-compare类型必填）'
+          },
+          userId: { type: 'string', description: '用户ID（user-contribution类型必填）' }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            filename: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { type, projectId, projectIds, userId } = request.body
+
+      // 动态导入Excel导出服务
+      const { 
+        exportProjectProgressToExcel, 
+        exportProjectCompareToExcel, 
+        exportDashboardToExcel,
+        exportUserContributionToExcel 
+      } = await import('../services/excel-export')
+
+      let filename = ''
+      let excelBlob: Blob | null = null
+
+      switch (type) {
+        case 'project-progress': {
+          if (!projectId) {
+            return reply.status(400).send({
+              success: false,
+              error: 'projectId是必填参数'
+            })
+          }
+
+          const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            include: {
+              tasks: true,
+              milestones: true
+            }
+          })
+
+          if (!project) {
+            return reply.status(404).send({
+              success: false,
+              error: '项目不存在'
+            })
+          }
+
+          const totalTasks = project.tasks.length
+          const completedTasks = project.tasks.filter(t => t.status === 'COMPLETED').length
+          const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+          const totalMilestones = project.milestones.length
+          const completedMilestones = project.milestones.filter(m => m.status === 'COMPLETED').length
+
+          let daysRemaining: number | null = null
+          if (project.endDate) {
+            const endDate = new Date(project.endDate)
+            const now = new Date()
+            const diffTime = endDate.getTime() - now.getTime()
+            daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          }
+
+          const progressData = {
+            id: project.id,
+            title: project.title,
+            status: project.status,
+            totalTasks,
+            completedTasks,
+            progressPercentage,
+            totalMilestones,
+            completedMilestones,
+            startDate: project.startDate?.toISOString() || null,
+            endDate: project.endDate?.toISOString() || null,
+            daysRemaining
+          }
+
+          excelBlob = exportProjectProgressToExcel(progressData)
+          filename = `project-progress-${projectId}`
+          break
+        }
+
+        case 'project-compare': {
+          if (!projectIds || projectIds.length === 0) {
+            return reply.status(400).send({
+              success: false,
+              error: 'projectIds是必填参数'
+            })
+          }
+
+          const projects = await Promise.all(
+            projectIds.map(id => prisma.project.findUnique({
+              where: { id },
+              include: { tasks: true, reviews: true }
+            }))
+          )
+
+          const existingProjects = projects.filter(p => p !== null)
+
+          if (existingProjects.length === 0) {
+            return reply.status(404).send({
+              success: false,
+              error: '未找到指定的项目'
+            })
+          }
+
+          const compareData = existingProjects.map(project => {
+            if (!project) return null
+
+            const totalTasks = project.tasks.length
+            const completedTasks = project.tasks.filter(t => t.status === 'COMPLETED').length
+            const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+            let averageCycleDays = 0
+            const completedTasksWithDates = project.tasks.filter(
+              t => t.status === 'COMPLETED' && t.startDate && t.endDate
+            )
+            if (completedTasksWithDates.length > 0) {
+              const totalDays = completedTasksWithDates.reduce((sum, t) => {
+                const start = new Date(t.startDate!).getTime()
+                const end = new Date(t.endDate!).getTime()
+                return sum + (end - start) / (1000 * 60 * 60 * 24)
+              }, 0)
+              averageCycleDays = Math.round(totalDays / completedTasksWithDates.length)
+            }
+
+            let satisfaction: number | null = null
+            if (project.reviews.length > 0) {
+              const totalScore = project.reviews.reduce((sum, r) => sum + (r.rating || 0), 0)
+              satisfaction = Math.round((totalScore / project.reviews.length) * 20)
+            }
+
+            return {
+              id: project.id,
+              title: project.title,
+              status: project.status,
+              totalTasks,
+              completedTasks,
+              completionRate,
+              averageCycleDays,
+              budget: project.budget || 0,
+              budgetDeviation: 0,
+              satisfaction,
+              startDate: project.startDate?.toISOString() || null,
+              endDate: project.endDate?.toISOString() || null
+            }
+          }).filter(Boolean) as any[]
+
+          excelBlob = exportProjectCompareToExcel(compareData)
+          filename = 'project-comparison'
+          break
+        }
+
+        case 'dashboard': {
+          const [totalProjects, activeProjects, completedProjects, totalTasks, completedTasks, totalUsers, activeUsers] = await Promise.all([
+            prisma.project.count(),
+            prisma.project.count({ where: { status: 'ACTIVE' } }),
+            prisma.project.count({ where: { status: 'COMPLETED' } }),
+            prisma.task.count(),
+            prisma.task.count({ where: { status: 'COMPLETED' } }),
+            prisma.user.count(),
+            prisma.user.count({
+              where: {
+                updatedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+              }
+            })
+          ])
+
+          const pointsAgg = await prisma.point.aggregate({
+            _sum: { amount: true }
+          })
+          const totalPoints = pointsAgg._sum.amount || 0
+
+          const recentActivity = []
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date()
+            date.setDate(date.getDate() - i)
+            const dateStr = date.toISOString().split('T')[0]
+            
+            const dayStart = new Date(dateStr)
+            const dayEnd = new Date(dateStr)
+            dayEnd.setDate(dayEnd.getDate() + 1)
+
+            const [projectCount, taskCount] = await Promise.all([
+              prisma.project.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+              prisma.task.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } })
+            ])
+
+            recentActivity.push({ date: dateStr, projectCount, taskCount })
+          }
+
+          const dashboardData = {
+            totalProjects,
+            activeProjects,
+            completedProjects,
+            totalTasks,
+            completedTasks,
+            totalUsers,
+            activeUsers,
+            totalPoints,
+            recentActivity
+          }
+
+          excelBlob = exportDashboardToExcel(dashboardData)
+          filename = 'dashboard-report'
+          break
+        }
+
+        case 'user-contribution': {
+          if (!userId) {
+            return reply.status(400).send({
+              success: false,
+              error: 'userId是必填参数'
+            })
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { id: userId }
+          })
+
+          if (!user) {
+            return reply.status(404).send({
+              success: false,
+              error: '用户不存在'
+            })
+          }
+
+          const tasks = await prisma.task.findMany({
+            where: { assigneeId: userId }
+          })
+
+          const totalTasks = tasks.length
+          const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length
+          const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+          const points = await prisma.point.findFirst({
+            where: { userId }
+          })
+          const totalPoints = points?.amount || 0
+
+          const allPoints = await prisma.point.findMany({
+            select: { userId: true, amount: true }
+          })
+          const sortedPoints = allPoints.sort((a, b) => b.amount - a.amount)
+          const rank = sortedPoints.findIndex(p => p.userId === userId) + 1
+
+          const weeklyActivity = []
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date()
+            date.setDate(date.getDate() - i)
+            const dateStr = date.toISOString().split('T')[0]
+            
+            const dayTasks = tasks.filter(t => t.createdAt.toISOString().split('T')[0] === dateStr)
+
+            weeklyActivity.push({
+              date: dateStr,
+              taskCount: dayTasks.length
+            })
+          }
+
+          const contributionData = {
+            userId: user.id,
+            userName: user.name,
+            totalTasks,
+            completedTasks,
+            completionRate,
+            totalPoints,
+            rank,
+            weeklyActivity
+          }
+
+          excelBlob = exportUserContributionToExcel(contributionData)
+          filename = `user-contribution-${userId}`
+          break
+        }
+
+        default:
+          return reply.status(400).send({
+            success: false,
+            error: '不支持的报表类型'
+          })
+      }
+
+      if (excelBlob) {
+        reply.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        reply.header('Content-Disposition', `attachment; filename="${filename}.xlsx"`)
+        
+        return reply.status(200).send(excelBlob)
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: '生成Excel失败'
+      })
+    } catch (error) {
+      fastify.log.error('导出Excel失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}

@@ -680,3 +680,481 @@ describe('用户信用趋势 API', () => {
     })
   })
 })
+
+/**
+ * 报表导出 API 测试
+ * 测试 /api/v1/analytics/export/pdf 和 /api/v1/analytics/export/excel 接口
+ */
+
+// 创建测试用的 Fastify 实例
+const createTestAppWithExport = async () => {
+  const fastify = Fastify({
+    logger: false
+  })
+
+  // 注册 CORS
+  await fastify.register(require('@fastify/cors'), {
+    origin: true,
+    credentials: true
+  })
+
+  // 健康检查
+  fastify.get('/health', async () => {
+    return { status: 'healthy' }
+  })
+
+  // 模拟项目数据
+  const mockProjects = [
+    {
+      id: 'project-1',
+      title: 'AI 项目管理系统',
+      description: 'AI驱动的项目管理平台',
+      mode: 'ENTERPRISE' as const,
+      status: 'ACTIVE' as const,
+      budget: 100000,
+      initiatorId: 'user-1',
+      startDate: new Date('2024-01-01'),
+      endDate: new Date('2024-12-31'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      tasks: [
+        { id: 'task-1', title: '需求分析', status: 'COMPLETED', startDate: new Date('2024-01-01'), endDate: new Date('2024-01-15') },
+        { id: 'task-2', title: '系统设计', status: 'COMPLETED', startDate: new Date('2024-01-16'), endDate: new Date('2024-01-31') },
+        { id: 'task-3', title: '开发任务', status: 'IN_PROGRESS', startDate: new Date('2024-02-01'), endDate: new Date('2024-06-30') }
+      ],
+      reviews: [
+        { id: 'review-1', rating: 5 },
+        { id: 'review-2', rating: 4 }
+      ],
+      milestones: [
+        { id: 'milestone-1', name: '需求评审', status: 'COMPLETED', dueDate: new Date('2024-01-20') },
+        { id: 'milestone-2', name: '设计评审', status: 'COMPLETED', dueDate: new Date('2024-02-05') }
+      ]
+    },
+    {
+      id: 'project-2',
+      title: '智能客服系统',
+      description: '基于LLM的智能客服',
+      mode: 'ENTERPRISE' as const,
+      status: 'COMPLETED' as const,
+      budget: 50000,
+      initiatorId: 'user-2',
+      startDate: new Date('2024-03-01'),
+      endDate: new Date('2024-08-31'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      tasks: [
+        { id: 'task-4', title: '需求调研', status: 'COMPLETED', startDate: new Date('2024-03-01'), endDate: new Date('2024-03-15') },
+        { id: 'task-5', title: '模型训练', status: 'COMPLETED', startDate: new Date('2024-03-16'), endDate: new Date('2024-05-15') },
+        { id: 'task-6', title: '系统部署', status: 'COMPLETED', startDate: new Date('2024-05-16'), endDate: new Date('2024-06-30') }
+      ],
+      reviews: [
+        { id: 'review-3', rating: 5 }
+      ],
+      milestones: []
+    }
+  ]
+
+  // 模拟用户数据
+  const mockUsers = [
+    {
+      id: 'user-1',
+      name: '张三',
+      email: 'zhangsan@example.com',
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date()
+    }
+  ]
+
+  // PDF导出路由
+  fastify.post<{
+    Body: {
+      type: string
+      projectId?: string
+      projectIds?: string[]
+      userId?: string
+    }
+  }>('/api/v1/analytics/export/pdf', async (request, reply) => {
+    const { type, projectId, projectIds, userId } = request.body
+
+    switch (type) {
+      case 'project-progress': {
+        if (!projectId) {
+          return reply.status(400).send({
+            success: false,
+            error: 'projectId是必填参数'
+          })
+        }
+
+        const project = mockProjects.find(p => p.id === projectId)
+        if (!project) {
+          return reply.status(404).send({
+            success: false,
+            error: '项目不存在'
+          })
+        }
+
+        // 返回模拟PDF数据
+        return reply.status(200).send({
+          success: true,
+          filename: `project-progress-${projectId}`
+        })
+      }
+
+      case 'project-compare': {
+        if (!projectIds || projectIds.length === 0) {
+          return reply.status(400).send({
+            success: false,
+            error: 'projectIds是必填参数'
+          })
+        }
+
+        return reply.status(200).send({
+          success: true,
+          filename: 'project-comparison'
+        })
+      }
+
+      case 'dashboard': {
+        return reply.status(200).send({
+          success: true,
+          filename: 'dashboard-report'
+        })
+      }
+
+      case 'user-contribution': {
+        if (!userId) {
+          return reply.status(400).send({
+            success: false,
+            error: 'userId是必填参数'
+          })
+        }
+
+        const user = mockUsers.find(u => u.id === userId)
+        if (!user) {
+          return reply.status(404).send({
+            success: false,
+            error: '用户不存在'
+          })
+        }
+
+        return reply.status(200).send({
+          success: true,
+          filename: `user-contribution-${userId}`
+        })
+      }
+
+      default:
+        return reply.status(400).send({
+          success: false,
+          error: '不支持的报表类型'
+        })
+    }
+  })
+
+  // Excel导出路由
+  fastify.post<{
+    Body: {
+      type: string
+      projectId?: string
+      projectIds?: string[]
+      userId?: string
+    }
+  }>('/api/v1/analytics/export/excel', async (request, reply) => {
+    const { type, projectId, projectIds, userId } = request.body
+
+    switch (type) {
+      case 'project-progress': {
+        if (!projectId) {
+          return reply.status(400).send({
+            success: false,
+            error: 'projectId是必填参数'
+          })
+        }
+
+        const project = mockProjects.find(p => p.id === projectId)
+        if (!project) {
+          return reply.status(404).send({
+            success: false,
+            error: '项目不存在'
+          })
+        }
+
+        return reply.status(200).send({
+          success: true,
+          filename: `project-progress-${projectId}`
+        })
+      }
+
+      case 'project-compare': {
+        if (!projectIds || projectIds.length === 0) {
+          return reply.status(400).send({
+            success: false,
+            error: 'projectIds是必填参数'
+          })
+        }
+
+        return reply.status(200).send({
+          success: true,
+          filename: 'project-comparison'
+        })
+      }
+
+      case 'dashboard': {
+        return reply.status(200).send({
+          success: true,
+          filename: 'dashboard-report'
+        })
+      }
+
+      case 'user-contribution': {
+        if (!userId) {
+          return reply.status(400).send({
+            success: false,
+            error: 'userId是必填参数'
+          })
+        }
+
+        const user = mockUsers.find(u => u.id === userId)
+        if (!user) {
+          return reply.status(404).send({
+            success: false,
+            error: '用户不存在'
+          })
+        }
+
+        return reply.status(200).send({
+          success: true,
+          filename: `user-contribution-${userId}`
+        })
+      }
+
+      default:
+        return reply.status(400).send({
+          success: false,
+          error: '不支持的报表类型'
+        })
+    }
+  })
+
+  return fastify
+}
+
+describe('报表导出 API', () => {
+  let app: FastifyInstance
+  let request: supertest.SuperTest<supertest.Test>
+
+  beforeAll(async () => {
+    app = await createTestAppWithExport()
+    await app.ready()
+    request = supertest(app.server)
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  describe('POST /api/v1/analytics/export/pdf', () => {
+    it('应该返回400当project-progress类型缺少projectId', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'project-progress' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('projectId是必填参数')
+    })
+
+    it('应该返回404当project-progress类型的项目不存在', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'project-progress', projectId: 'non-existent' })
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('项目不存在')
+    })
+
+    it('应该成功导出project-progress类型的PDF', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'project-progress', projectId: 'project-1' })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('project-progress-project-1')
+    })
+
+    it('应该返回400当project-compare类型缺少projectIds', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'project-compare' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('projectIds是必填参数')
+    })
+
+    it('应该成功导出project-compare类型的PDF', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'project-compare', projectIds: ['project-1', 'project-2'] })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('project-comparison')
+    })
+
+    it('应该成功导出dashboard类型的PDF', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'dashboard' })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('dashboard-report')
+    })
+
+    it('应该返回400当user-contribution类型缺少userId', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'user-contribution' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('userId是必填参数')
+    })
+
+    it('应该返回404当user-contribution类型的用户不存在', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'user-contribution', userId: 'non-existent' })
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('用户不存在')
+    })
+
+    it('应该成功导出user-contribution类型的PDF', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'user-contribution', userId: 'user-1' })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('user-contribution-user-1')
+    })
+
+    it('应该返回400当类型不支持', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/pdf')
+        .send({ type: 'invalid-type' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('不支持的报表类型')
+    })
+  })
+
+  describe('POST /api/v1/analytics/export/excel', () => {
+    it('应该返回400当project-progress类型缺少projectId', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'project-progress' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('projectId是必填参数')
+    })
+
+    it('应该返回404当project-progress类型的项目不存在', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'project-progress', projectId: 'non-existent' })
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('项目不存在')
+    })
+
+    it('应该成功导出project-progress类型的Excel', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'project-progress', projectId: 'project-1' })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('project-progress-project-1')
+    })
+
+    it('应该返回400当project-compare类型缺少projectIds', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'project-compare' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('projectIds是必填参数')
+    })
+
+    it('应该成功导出project-compare类型的Excel', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'project-compare', projectIds: ['project-1', 'project-2'] })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('project-comparison')
+    })
+
+    it('应该成功导出dashboard类型的Excel', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'dashboard' })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('dashboard-report')
+    })
+
+    it('应该返回400当user-contribution类型缺少userId', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'user-contribution' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('userId是必填参数')
+    })
+
+    it('应该返回404当user-contribution类型的用户不存在', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'user-contribution', userId: 'non-existent' })
+        .expect(404)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('用户不存在')
+    })
+
+    it('应该成功导出user-contribution类型的Excel', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'user-contribution', userId: 'user-1' })
+        .expect(200)
+
+      expect(response.body.success).toBe(true)
+      expect(response.body.filename).toBe('user-contribution-user-1')
+    })
+
+    it('应该返回400当类型不支持', async () => {
+      const response = await request
+        .post('/api/v1/analytics/export/excel')
+        .send({ type: 'invalid-type' })
+        .expect(400)
+
+      expect(response.body.success).toBe(false)
+      expect(response.body.error).toBe('不支持的报表类型')
+    })
+  })
+})
