@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { NCard, NButton, NTag, NGrid, NGi, NEmpty } from 'naive-ui'
 import { useProjectStore } from '@/stores/project'
 import SkeletonCard from '@/components/SkeletonCard.vue'
@@ -13,6 +14,7 @@ import SkeletonCard from '@/components/SkeletonCard.vue'
  * - 显示项目状态和进度
  */
 
+const router = useRouter()
 const projectStore = useProjectStore()
 
 /**
@@ -120,6 +122,7 @@ onMounted(() => {
 
               <template #footer>
                 <div class="project-actions">
+                  <n-button size="small" @click="router.push('/reports')">查看报表</n-button>
                   <n-button size="small">查看详情</n-button>
                   <n-button size="small" type="primary">管理</n-button>
                 </div>

@@ -62,6 +62,11 @@ const menuOptions = [
     icon: () => h(NIcon, null, { default: () => h('span', '📋') })
   },
   {
+    label: '报表',
+    key: '/reports',
+    icon: () => h(NIcon, null, { default: () => h('span', '📊') })
+  },
+  {
     label: '技能',
     key: '/skills',
     icon: () => h(NIcon, null, { default: () => h('span', '🛠️') })

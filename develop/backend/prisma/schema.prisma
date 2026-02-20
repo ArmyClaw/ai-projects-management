@@ -19,7 +19,12 @@ model User {
   avatar        String?
   role          Role      @default(PARTICIPANT)
   status        UserStatus @default(ACTIVE)
-  points        Int       @default(0)
+  
+  // 统计字段
+  totalPoints   Int       @default(0)
+  totalTasks    Int       @default(0)
+  completedTasks Int      @default(0)
+  rank          Int?
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -28,6 +33,7 @@ model User {
   tasks         Task[]
   skills        Skill[]   @relation("SkillAuthor")
   reviews       TaskReview[]
+  points        Point[]
   
   @@map("users")
   @@index([status])
@@ -61,6 +67,14 @@ model Project {
   initiatorId   String
   initiator     User      @relation("ProjectInitiator", fields: [initiatorId], references: [id])
   
+  // 统计字段
+  totalTasks    Int       @default(0)
+  completedTasks Int      @default(0)
+  totalMilestones Int    @default(0)
+  completedMilestones Int @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -90,12 +104,17 @@ enum ProjectStatus {
 // 环节表
 model Milestone {
   id            String    @id @default(uuid())
-  projectId    String
+  projectId     String
   project       Project   @relation(fields: [projectId], references: [id])
   
   name          String
   description   String?
   order         Int
+  
+  // 截止日期和状态
+  dueDate       DateTime
+  status        MilestoneStatus @default(PENDING)
+  completedAt   DateTime?
   
   createdAt     DateTime  @default(now())
   
@@ -104,6 +123,12 @@ model Milestone {
   @@map("milestones")
   @@index([projectId])
   @@index([order])
+}
+
+enum MilestoneStatus {
+  PENDING
+  COMPLETED
+  OVERDUE
 }
 
 // 任务表
@@ -249,6 +274,21 @@ enum Visibility {
   PRIVATE
   COMMUNITY
   PUBLIC
+}
+
+// 积分表
+model Point {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  amount        Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("points")
+  @@unique([userId])
 }
 
 // 积分交易表

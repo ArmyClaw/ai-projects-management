@@ -34,6 +34,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: '任务管理', keepAlive: true }
   },
   {
+    path: '/reports',
+    name: 'Reports',
+    component: loadView('ReportsView'),
+    meta: { title: '数据报表', keepAlive: true }
+  },
+  {
     path: '/skills',
     name: 'Skills',
     component: loadView('SkillsView'),

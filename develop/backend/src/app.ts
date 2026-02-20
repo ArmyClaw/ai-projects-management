@@ -71,6 +71,7 @@ await fastify.register(swagger, {
     tags: [
       { name: 'projects', description: '项目管理' },
       { name: 'tasks', description: '任务管理' },
+      { name: 'analytics', description: '报表分析' },
       { name: 'auth', description: '认证授权' },
       { name: 'skills', description: '技能管理' },
       { name: 'points', description: '积分系统' },
@@ -255,6 +256,24 @@ await fastify.register(authRefreshRoutes, { prefix: '/api/v1/auth' })
 // 注册通知路由
 import notificationRoutes from './routes/notifications'
 await fastify.register(notificationRoutes, { prefix: '/api/v1' })
+
+// 注册报表分析路由
+import {
+  getProjectProgressRoute,
+  getProjectGanttRoute,
+  getProjectMilestonesRoute,
+  createProjectMilestoneRoute,
+  getUserContributionsRoute,
+  getUserFinanceRoute,
+  getDashboardRoute
+} from './routes/analytics'
+await getProjectProgressRoute(fastify)
+await getProjectGanttRoute(fastify)
+await getProjectMilestonesRoute(fastify)
+await createProjectMilestoneRoute(fastify)
+await getUserContributionsRoute(fastify)
+await getUserFinanceRoute(fastify)
+await getDashboardRoute(fastify)
 
 // 初始化WebSocket服务
 createWebSocketServer(fastify.server, {

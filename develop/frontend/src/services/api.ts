@@ -216,6 +216,228 @@ export function setGlobalUserStore(store: unknown): void {
   window.__USER_STORE__ = store
 }
 
+// ========== 报表分析 API ==========
+
+/**
+ * 项目进度响应
+ */
+export interface ProjectProgress {
+  id: string
+  title: string
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  totalTasks: number
+  completedTasks: number
+  progressPercentage: number
+  totalMilestones: number
+  completedMilestones: number
+  startDate: string | null
+  endDate: string | null
+  daysRemaining: number | null
+}
+
+/**
+ * 甘特图任务
+ */
+export interface GanttTask {
+  id: string
+  name: string
+  startDate: string
+  endDate: string
+  status: string
+  progress: number
+  dependencies: string[]
+}
+
+/**
+ * 甘特图里程碑
+ */
+export interface GanttMilestone {
+  id: string
+  name: string
+  dueDate: string
+  status: string
+}
+
+/**
+ * 甘特图数据
+ */
+export interface GanttData {
+  projectId: string
+  projectName: string
+  tasks: GanttTask[]
+  milestones: GanttMilestone[]
+  startDate: string
+  endDate: string
+}
+
+/**
+ * 里程碑数据
+ */
+export interface Milestone {
+  id: string
+  name: string
+  description: string
+  dueDate: string
+  status: 'PENDING' | 'COMPLETED' | 'OVERDUE'
+  completedAt: string | null
+}
+
+/**
+ * 创建里程碑请求
+ */
+export interface CreateMilestoneRequest {
+  name: string
+  description: string
+  dueDate: string
+}
+
+/**
+ * 个人贡献
+ */
+export interface UserContribution {
+  userId: string
+  userName: string
+  totalTasks: number
+  completedTasks: number
+  completionRate: number
+  totalPoints: number
+  rank: number
+  weeklyActivity: {
+    date: string
+    taskCount: number
+  }[]
+}
+
+/**
+ * 财务记录
+ */
+export interface FinanceRecord {
+  id: string
+  type: 'INCOME' | 'EXPENSE'
+  amount: number
+  description: string
+  projectId: string | null
+  projectName: string | null
+  createdAt: string
+}
+
+/**
+ * 用户财务
+ */
+export interface UserFinance {
+  userId: string
+  totalIncome: number
+  totalExpense: number
+  balance: number
+  pendingSettlement: number
+  transactions: FinanceRecord[]
+}
+
+/**
+ * 数据看板
+ */
+export interface DashboardStats {
+  totalProjects: number
+  activeProjects: number
+  completedProjects: number
+  totalTasks: number
+  completedTasks: number
+  totalUsers: number
+  activeUsers: number
+  totalPoints: number
+  recentActivity: {
+    date: string
+    projectCount: number
+    taskCount: number
+  }[]
+}
+
+/**
+ * 获取项目进度
+ * GET /api/v1/projects/:id/progress
+ */
+export async function getProjectProgress(projectId: string): Promise<ProjectProgress> {
+  const response = await api.get<{ success: boolean; data: ProjectProgress }>(
+    `/projects/${projectId}/progress`
+  )
+  return response.data.data
+}
+
+/**
+ * 获取甘特图数据
+ * GET /api/v1/projects/:id/gantt
+ */
+export async function getProjectGantt(projectId: string): Promise<GanttData> {
+  const response = await api.get<{ success: boolean; data: GanttData }>(
+    `/projects/${projectId}/gantt`
+  )
+  return response.data.data
+}
+
+/**
+ * 获取里程碑列表
+ * GET /api/v1/projects/:id/milestones
+ */
+export async function getProjectMilestones(
+  projectId: string,
+  status?: string
+): Promise<Milestone[]> {
+  const params = status ? { status } : {}
+  const response = await api.get<{ success: boolean; data: Milestone[] }>(
+    `/projects/${projectId}/milestones`,
+    { params }
+  )
+  return response.data.data
+}
+
+/**
+ * 创建里程碑
+ * POST /api/v1/projects/:id/milestones
+ */
+export async function createProjectMilestone(
+  projectId: string,
+  data: CreateMilestoneRequest
+): Promise<Milestone> {
+  const response = await api.post<{ success: boolean; data: Milestone }>(
+    `/projects/${projectId}/milestones`,
+    data
+  )
+  return response.data.data
+}
+
+/**
+ * 获取用户贡献统计
+ * GET /api/v1/users/:id/contributions
+ */
+export async function getUserContributions(userId: string): Promise<UserContribution> {
+  const response = await api.get<{ success: boolean; data: UserContribution }>(
+    `/users/${userId}/contributions`
+  )
+  return response.data.data
+}
+
+/**
+ * 获取用户财务信息
+ * GET /api/v1/users/:id/finance
+ */
+export async function getUserFinance(userId: string): Promise<UserFinance> {
+  const response = await api.get<{ success: boolean; data: UserFinance }>(
+    `/users/${userId}/finance`
+  )
+  return response.data.data
+}
+
+/**
+ * 获取数据看板
+ * GET /api/v1/analytics/dashboard
+ */
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const response = await api.get<{ success: boolean; data: DashboardStats }>(
+    '/analytics/dashboard'
+  )
+  return response.data.data
+}
+
 export default api
 
 // 类型声明
