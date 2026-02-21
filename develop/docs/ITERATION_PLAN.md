@@ -34,7 +34,7 @@
 
 ### 🔄 Milestone 4: 监控与CI/CD (进行中)
 - [x] CI/CD流水线集成 (GitHub Actions)
-- [ ] 监控和日志聚合
+- [x] 监控和日志聚合 (Prometheus + Grafana)
 - [ ] SSL/TLS配置
 - [x] 自动化测试
 
@@ -46,7 +46,8 @@
 |------|------|------|------|
 | Sprint 1 | 2026-02-19 | 报表功能开发 | ✅ 完成 |
 | Sprint 2 | 2026-02-20 | Docker优化 | ✅ 完成 |
-| Sprint 3 | 2026-02-21 | 监控与CI/CD | 🔄 进行中 |
+| Sprint 3 | 2026-02-21 | 监控与CI/CD | ✅ 完成 |
+| Sprint 4 | 2026-02-22 | SSL/TLS配置 | 待开始 |
 
 ---
 
@@ -86,5 +87,5 @@
 ## 下一步行动
 
 1. **本次已完成**: CI/CD流水线基础配置 (GitHub Actions)
-2. **立即**: 添加Prometheus监控
-3. **本周**: 配置SSL/TLS
+2. **本次已完成**: Prometheus + Grafana监控配置
+3. **立即**: 配置SSL/TLS
