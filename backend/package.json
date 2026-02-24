@@ -23,7 +23,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^8.57.0",
     "@types/node": "^20.10.0",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^10.0.0",
