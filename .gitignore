@@ -17,6 +17,11 @@ Thumbs.db
 # Testing
 coverage/
 
+# Environment variables (local secrets)
+.env
+.env.local
+.env.*.local
+
 # OpenClaw system files
 .openclaw/
 skills/
