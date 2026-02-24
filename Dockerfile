@@ -6,7 +6,7 @@ WORKDIR /app
 
 # 复制并安装依赖（利用 Docker 缓存）
 COPY frontend/package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # 复制源代码并构建
 COPY frontend/ .
@@ -24,7 +24,7 @@ WORKDIR /app
 
 # 复制并安装依赖（利用 Docker 缓存）
 COPY backend/package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # 复制源代码并构建
 COPY backend/ .
