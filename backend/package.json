@@ -20,7 +20,8 @@
     "@prisma/client": "^5.6.0",
     "fastify": "^4.24.0",
     "socket.io": "^4.7.2",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^8.57.0",
