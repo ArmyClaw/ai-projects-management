@@ -1,0 +1,618 @@
+// Prisma Schema for AI Project Management Platform
+// 参考架构设计文档 v0.8
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  githubId      String?   @unique
+  name          String
+  avatar        String?
+  role          Role      @default(PARTICIPANT)
+  status        UserStatus @default(ACTIVE)
+  
+  // 统计字段
+  totalPoints   Int       @default(0)
+  totalTasks    Int       @default(0)
+  completedTasks Int      @default(0)
+  rank          Int?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  projects      Project[]  @relation("ProjectInitiator")
+  tasks         Task[]
+  skills        Skill[]   @relation("SkillAuthor")
+  reviews       TaskReview[]
+  points        Point[]
+  
+  @@map("users")
+  @@index([status])
+  @@index([role])
+}
+
+enum Role {
+  INITIATOR
+  PARTICIPANT
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// 项目表
+model Project {
+  id            String    @id @default(uuid())
+  title         String
+  description   String
+  mode          ProjectMode @default(COMMUNITY)
+  status        ProjectStatus @default(DRAFT)
+  
+  // 预算和抽成
+  budget        Int
+  platformFee   Float     @default(0.05)
+  
+  // 发起人
+  initiatorId   String
+  initiator     User      @relation("ProjectInitiator", fields: [initiatorId], references: [id])
+  
+  // 统计字段
+  totalTasks    Int       @default(0)
+  completedTasks Int      @default(0)
+  totalMilestones Int    @default(0)
+  completedMilestones Int @default(0)
+  startDate     DateTime?
+  endDate       DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  milestones    Milestone[]
+  tasks         Task[]
+  
+  @@map("projects")
+  @@index([initiatorId])
+  @@index([status])
+  @@index([mode])
+  @@index([createdAt])
+  @@index([status, mode])
+}
+
+enum ProjectMode {
+  COMMUNITY
+  ENTERPRISE
+}
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// 环节表
+model Milestone {
+  id            String    @id @default(uuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id])
+  
+  name          String
+  description   String?
+  order         Int
+  
+  // 截止日期和状态
+  dueDate       DateTime
+  status        MilestoneStatus @default(PENDING)
+  completedAt   DateTime?
+  
+  createdAt     DateTime  @default(now())
+  
+  tasks         Task[]
+  
+  @@map("milestones")
+  @@index([projectId])
+  @@index([order])
+}
+
+enum MilestoneStatus {
+  PENDING
+  COMPLETED
+  OVERDUE
+}
+
+// 任务表
+model Task {
+  id            String    @id @default(uuid())
+  projectId    String
+  project       Project   @relation(fields: [projectId], references: [id])
+  
+  milestoneId   String?
+  milestone     Milestone? @relation(fields: [milestoneId], references: [id])
+  
+  title         String
+  description   String
+  requiredSkills String[]
+  reviewStandard String?
+  
+  // 预算
+  budget        Int
+  
+  // 状态
+  status        TaskStatus @default(OPEN)
+  
+  // 参与者
+  assigneeId    String?
+  assignee      User?     @relation(fields: [assigneeId], references: [id])
+  
+  // 截止日期
+  dueAt        DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  submissions   TaskSubmission[]
+  reviews       TaskReview[]
+  
+  @@map("tasks")
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([createdAt])
+  @@index([projectId, status])
+  @@index([assigneeId, status])
+}
+
+enum TaskStatus {
+  OPEN
+  CLAIMED
+  SUBMITTED
+  IN_REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+// 任务交付表
+model TaskSubmission {
+  id            String    @id @default(uuid())
+  taskId        String
+  task          Task      @relation(fields: [taskId], references: [id])
+  
+  // 仓库地址
+  repoUrl       String
+  branch        String?
+  commitHash    String?
+  
+  // 说明
+  description   String?
+  
+  // 状态
+  status        SubmissionStatus @default(SUBMITTED)
+  
+  submittedAt   DateTime  @default(now())
+  
+  reviews       TaskReview[]
+  
+  @@map("task_submissions")
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+// 任务验收表
+model TaskReview {
+  id            String    @id @default(uuid())
+  taskId        String
+  task          Task      @relation(fields: [taskId], references: [id])
+  
+  submissionId   String
+  submission     TaskSubmission @relation(fields: [submissionId], references: [id])
+  
+  // 验收人
+  reviewerId    String
+  reviewer      User      @relation(fields: [reviewerId], references: [id])
+  
+  // 评分
+  scores        Float[]
+  totalScore    Float
+  comment       String?
+  
+  // 结果
+  result        ReviewResult
+  
+  createdAt     DateTime  @default(now())
+  
+  @@map("task_reviews")
+}
+
+enum ReviewResult {
+  APPROVED
+  REJECTED
+  REVISION_REQUIRED
+}
+
+// Skill表
+model Skill {
+  id            String    @id @default(uuid())
+  name          String
+  description   String
+  tags          String[]
+  definition    Json      // Skill JSON Definition
+  
+  authorId      String
+  author        User      @relation("SkillAuthor", fields: [authorId], references: [id])
+  
+  visibility    Visibility @default(COMMUNITY)
+  license       String     @default("MIT")
+  
+  // 统计
+  stats         Json       @default("{\"usageCount\": 0, \"successRate\": 0, \"avgScore\": 0}")
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("skills")
+}
+
+enum Visibility {
+  PRIVATE
+  COMMUNITY
+  PUBLIC
+}
+
+// 积分表
+model Point {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  
+  amount        Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("points")
+  @@unique([userId])
+}
+
+// 积分交易表
+model PointTransaction {
+  id            String    @id @default(uuid())
+  userId        String
+  
+  amount        Int
+  balanceBefore Int
+  balanceAfter  Int
+  
+  type          PointTransactionType
+  description   String?
+  
+  projectId    String?
+  taskId       String?
+  
+  createdAt     DateTime  @default(now())
+  
+  @@map("point_transactions")
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@index([projectId])
+  @@index([taskId])
+}
+
+enum PointTransactionType {
+  PROJECT_INIT
+  TASK_COMPLETE
+  REVIEW_REWARD
+  BONUS
+  PENALTY
+  PLATFORM_FEE
+  REFUND
+}
+
+// 结算表
+model Settlement {
+  id            String    @id @default(uuid())
+  userId        String
+  
+  // 关联
+  taskId        String?
+  projectId     String?
+  
+  // 金额
+  amount        Float
+  platformFee   Float     @default(0)
+  netAmount     Float
+  
+  // 货币
+  currency      String    @default("POINT")
+  
+  // 类型
+  type          SettlementType
+  description   String?
+  
+  // 状态
+  status        SettlementStatus @default(PENDING)
+  
+  // 时间
+  settledAt     DateTime?
+  createdAt     DateTime  @default(now())
+  
+  @@map("settlements")
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([type])
+  @@index([taskId])
+  @@index([projectId])
+}
+
+enum SettlementType {
+  TASK_COMPLETE
+  REVIEW_REWARD
+  BONUS
+  PENALTY
+  PLATFORM_FEE
+  REFUND
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// 争议表
+model Dispute {
+  id            String    @id @default(uuid())
+  
+  // 关联
+  taskId        String
+  projectId     String
+  
+  // 争议方
+  initiatorId   String
+  respondentId  String
+  
+  // 内容
+  reason        String
+  evidence      String?
+  evidenceUrls  String[]
+  
+  // 仲裁结果
+  status        DisputeStatus @default(OPEN)
+  decision      DisputeDecision?
+  decisionReason String?
+  refundAmount  Float?
+  penaltyAmount Float?
+  
+  // 仲裁员
+  arbitratorId  String?
+  
+  // 时间
+  createdAt     DateTime  @default(now())
+  arbitratedAt  DateTime?
+  closedAt      DateTime?
+  
+  @@map("disputes")
+}
+
+enum DisputeStatus {
+  OPEN
+  ARBITRATING
+  CLOSED
+}
+
+enum DisputeDecision {
+  SUSTAIN_INITIATOR    // 维持发起人决定
+  OVERTURN_INITIATOR   // 推翻发起人决定
+  COMPROMISE           // 各退一步
+}
+
+// 用户信用历史记录表
+model UserCreditHistory {
+  id              String    @id @default(uuid())
+  userId          String
+  
+  // 信用类型
+  creditType      CreditType
+  
+  // 信用变化
+  change          Float
+  previousScore   Float
+  newScore        Float
+  
+  // 来源
+  sourceType      SourceType
+  sourceId        String?
+  description     String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("user_credit_history")
+}
+
+enum CreditType {
+  PARTICIPANT_CREDIT
+  INITIATOR_CREDIT
+}
+
+enum SourceType {
+  PROJECT_COMPLETED
+  TASK_APPROVED
+  TASK_REJECTED
+  GOOD_REVIEW
+  BAD_REVIEW
+  PUNISHMENT
+}
+
+// 技能测试结果表
+model SkillTestResult {
+  id            String    @id @default(uuid())
+  userId        String
+  
+  // 测试信息
+  testType      String
+  score         Float
+  totalQuestions Int?
+  correctAnswers Int?
+  
+  // 防作弊数据
+  antiCheat     Json?
+  suspicious    Boolean   @default(false)
+  flaggedAt     DateTime?
+  
+  createdAt     DateTime  @default(now())
+  
+  @@map("skill_test_results")
+}
+
+// 作品集验证表
+model PortfolioVerification {
+  id              String    @id @default(uuid())
+  userId          String
+  portfolioUrl    String
+  
+  // 验证类型
+  verificationType VerificationType
+  result          VerificationResult
+  
+  // AI分析
+  aiAnalysis      Json?
+  
+  // Git验证
+  gitVerified     Boolean   @default(false)
+  commitHistory   Json?
+  
+  // 人工复核
+  manualReview    Boolean   @default(false)
+  reviewerId      String?
+  reviewResult    String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("portfolio_verifications")
+}
+
+enum VerificationType {
+  AI_AUTO
+  MANUAL
+  HYBRID
+}
+
+enum VerificationResult {
+  PASS
+  FAIL
+  SUSPICIOUS
+  NEED_REVIEW
+}
+
+// 同伴评议限制表
+model PeerReviewLimit {
+  id            String    @id @default(uuid())
+  reviewerId    String
+  
+  limitType     String    @default("DAILY_COUNT")
+  dailyCount    Int       @default(0)
+  dailyLimit    Int       @default(3)
+  
+  date          DateTime  @default(now())
+  
+  @@unique([reviewerId, date])
+  @@map("peer_review_limits")
+}
+
+// 作弊举报表
+model CheatingReport {
+  id              String    @id @default(uuid())
+  
+  // 被举报人
+  reportedUserId  String
+  
+  // 举报人
+  reporterId      String
+  
+  // 举报内容
+  reportType     CheatingType
+  evidence       String
+  evidenceUrls   String[]
+  
+  // 处理结果
+  status         CheatingReportStatus @default(PENDING)
+  investigation  String?
+  result        String?
+  
+  // 时间
+  reportedAt     DateTime  @default(now())
+  resolvedAt     DateTime?
+  
+  @@map("cheating_reports")
+}
+
+enum CheatingType {
+  TEST_CHEATING
+  PORTFOLIO_FAKE
+  FAKE_REVIEW
+  OTHER
+}
+
+enum CheatingReportStatus {
+  PENDING
+  INVESTIGATING
+  CONFIRMED
+  DISMISSED
+}
+
+// 通知表
+model Notification {
+  id            String    @id @default(uuid())
+
+  // 接收者
+  userId        String
+
+  // 通知类型
+  type          NotificationType
+
+  // 通知内容
+  title         String
+  message       String
+  data          Json?     // 关联数据（如任务ID、项目ID等）
+
+  // 状态
+  isRead        Boolean   @default(false)
+  readAt        DateTime?
+
+  // 时间
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  TASK_UPDATE       // 任务更新
+  SETTLEMENT       // 结算提醒
+  DISPUTE          // 争议仲裁
+  SYSTEM           // 系统消息
+}
