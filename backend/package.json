@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/app.ts",
-    "build": "tsc",
+    "build": "tsc --noEmit false",
     "start": "node dist/app.js",
     "lint": "eslint src --ext .ts --fix",
     "test": "vitest run",
