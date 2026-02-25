@@ -78,7 +78,7 @@ const features = [
 }
 
 .hero h1 {
-  font-family: 'Source Serif 4', 'Nunito', serif;
+  font-family: "Georgia", "Times New Roman", "STSong", serif;
   font-size: 36px;
   margin-bottom: 16px;
 }
