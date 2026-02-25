@@ -44,7 +44,6 @@ WORKDIR /app
 
 # 复制前端构建产物
 COPY --from=frontend-builder /app/dist ./dist
-COPY --from=frontend-builder /app/nginx.conf ./nginx.conf
 
 # 复制后端构建产物（只复制需要的内容，减少镜像大小）
 COPY --from=backend-builder /app/dist ./dist-server
@@ -52,6 +51,9 @@ COPY --from=backend-builder /app/package*.json ./package.json
 
 # 复制生产依赖（重新安装以确保干净的环境）
 COPY --from=backend-builder /app/node_modules ./node_modules
+
+# 复制配置文件
+COPY nginx.conf ./nginx.conf
 
 # 设置环境变量
 ENV NODE_ENV=production \

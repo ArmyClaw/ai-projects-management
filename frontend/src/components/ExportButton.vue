@@ -10,7 +10,7 @@
       </template>
       导出
       <template #suffix>
-        <n-icon><ChevronDownOutlined /></n-icon>
+        <!-- <n-icon><ChevronDownOutlined /></n-icon> -->
       </template>
     </n-button>
   </n-dropdown>
@@ -27,7 +27,7 @@ import {
 } from 'naive-ui'
 import { 
   DownloadOutlined, 
-  ChevronDownOutlined,
+  // ChevronDownOutlined,
   FilePdfOutlined,
   FileExcelOutlined 
 } from '@vicons/antd'

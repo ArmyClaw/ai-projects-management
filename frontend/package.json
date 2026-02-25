@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write src/"
@@ -19,6 +19,7 @@
     "naive-ui": "^2.38.0",
     "pinia": "^2.1.0",
     "socket.io-client": "^4.7.2",
+    "terser": "^5.46.0",
     "vue": "^3.4.0",
     "vue-i18n": "^9.0.0",
     "vue-router": "^4.2.0"

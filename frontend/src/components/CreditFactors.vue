@@ -62,12 +62,12 @@ import {
   NAlert
 } from 'naive-ui'
 import * as echarts from 'echarts'
-import {
-  Lightbulb,
-  TrendingUp,
-  TrendingDown,
-  Minus
-} from '@vicons/ionicons5'
+// import {
+//   Lightbulb,
+//   TrendingUp,
+//   TrendingDown,
+//   Minus
+// } from '@vicons/ionicons5'
 import type { CreditFactor } from '@/services/api'
 
 const props = defineProps<{

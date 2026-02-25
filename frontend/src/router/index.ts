@@ -57,7 +57,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   // 路由切换时滚动到顶部
-  scrollBehavior(to, from, savedPosition) {
+  scrollBehavior(_to, _from, savedPosition) {
     if (savedPosition) {
       return savedPosition
     } else {
@@ -93,7 +93,7 @@ router.beforeEach((to, from, next) => {
 })
 
 // 后置守卫：路由切换完成后处理
-router.afterEach((to, from) => {
+router.afterEach((_to, _from) => {
   // 可以在这里添加页面访问统计等
 })
 

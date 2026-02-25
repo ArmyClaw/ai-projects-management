@@ -3,11 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import { NBadge, NButton, NDrawer, NDrawerContent, NIcon, NTag, NEmpty, NSpin } from 'naive-ui'
 import { 
   Notifications, 
-  Assignment, 
-  Payments, 
-  Gavel, 
-  Info, 
-  Delete 
+  List,
+  Wallet,
+  Information, 
+  Trash 
 } from '@vicons/ionicons5'
 import { useNotificationStore, type Notification } from '../stores/notification'
 import { useMessage } from 'naive-ui'
@@ -20,11 +19,11 @@ dayjs.locale('zh-cn')
 
 // 图标组件
 const NotificationsIcon = Notifications
-const AssignmentIcon = Assignment
-const PaymentsIcon = Payments
-const GavelIcon = Gavel
-const InfoIcon = Info
-const DeleteIcon = Delete
+const AssignmentIcon = List
+const PaymentsIcon = Wallet
+const GavelIcon = Information
+const InfoIcon = Information
+const DeleteIcon = Trash
 
 // Store
 const notificationStore = useNotificationStore()

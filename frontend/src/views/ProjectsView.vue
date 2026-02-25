@@ -103,7 +103,7 @@ onMounted(() => {
                 
                 <div class="project-meta">
                   <span>预算：¥{{ project.budget.toLocaleString() }}</span>
-                  <span>发起人：{{ project.initiator.name }}</span>
+                  <span>发起人：{{ project.initiator?.name || '未知' }}</span>
                 </div>
                 
                 <!-- 进度条 -->

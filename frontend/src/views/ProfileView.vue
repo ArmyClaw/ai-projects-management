@@ -120,7 +120,7 @@ async function saveEdit() {
 /**
  * 获取信用等级
  */
-function getCreditLevel(score: number): { level: string; type: 'success' | 'info' | 'warning' | 'error' } {
+function getCreditLevel(score: number): { level: string; type: 'success' | 'info' | 'warning' | 'error' | 'default' | 'primary' } {
   if (score >= 90) return { level: '优秀', type: 'success' }
   if (score >= 70) return { level: '良好', type: 'info' }
   if (score >= 50) return { level: '一般', type: 'warning' }
