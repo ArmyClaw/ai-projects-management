@@ -114,8 +114,12 @@ import notificationRoutes from './routes/notifications.js'
 await fastify.register(notificationRoutes)
 console.log('[14] Notifications done')
 
+const { registerAnalyticsRoutes } = await import('./routes/analytics.js')
+await registerAnalyticsRoutes(fastify)
+console.log('[15] Analytics done')
+
 fastify.get('/health', async () => ({ status: 'ok' }))
 
 const port = Number(process.env.PORT || 4000)
 await fastify.listen({ port, host: '0.0.0.0' })
-console.log('[15] Server running!')
+console.log('[16] Server running!')
