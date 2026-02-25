@@ -437,8 +437,8 @@ async function refreshToken(
  * 提供以下端点：
  * - POST /api/v1/auth/register - 用户注册
  * - POST /api/v1/auth/login - 用户登录
- * - GET /api/v1/auth/me - 获取当前用户信息
- * - POST /api/v1/auth/refresh - 刷新Token
+ * - GET /api/v1/auth/me - 获取当前用户信息（已迁移到 auth-refresh 路由）
+ * - POST /api/v1/auth/refresh - 刷新Token（已迁移到 auth-refresh 路由）
  * 
  * @param fastify Fastify实例
  */
@@ -480,47 +480,5 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     login
   );
 
-  // 获取当前用户信息
-  fastify.get('/me', {
-    schema: {
-      description: '获取当前登录用户信息',
-      tags: ['auth'],
-      security: [{ bearerAuth: [] }],
-      response: {
-        200: {
-          description: '成功返回当前用户信息',
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            data: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                email: { type: 'string' },
-                username: { type: 'string' },
-                createdAt: { type: 'string' }
-              }
-            }
-          }
-        }
-      }
-    }
-  }, getMe);
-
-  // 刷新Token
-  fastify.post<{ Body: RefreshRequest }>(
-    '/refresh',
-    {
-      schema: {
-        body: {
-          type: 'object',
-          required: ['refreshToken'],
-          properties: {
-            refreshToken: { type: 'string' }
-          }
-        }
-      }
-    },
-    refreshToken
-  );
+  // /me 和 /refresh 由 auth-refresh 路由提供
 }

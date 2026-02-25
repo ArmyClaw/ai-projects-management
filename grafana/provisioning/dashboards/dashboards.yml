@@ -1,66 +1,11 @@
-{
-  "dashboard": {
-    "id": null,
-    "uid": "system-overview",
-    "title": "System Overview",
-    "tags": ["system"],
-    "timezone": "browser",
-    "schemaVersion": 16,
-    "version": 0,
-    "refresh": "30s",
-    "panels": [
-      {
-        "id": 1,
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
-        "type": "graph",
-        "title": "CPU Usage",
-        "targets": [
-          {
-            "expr": "rate(process_cpu_seconds_total{job=\"application\"}[5m])",
-            "legendFormat": "CPU",
-            "refId": "A"
-          }
-        ]
-      },
-      {
-        "id": 2,
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
-        "type": "graph",
-        "title": "Memory Usage",
-        "targets": [
-          {
-            "expr": "process_resident_memory_bytes{job=\"application\"}",
-            "legendFormat": "Memory",
-            "refId": "A"
-          }
-        ]
-      },
-      {
-        "id": 3,
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
-        "type": "graph",
-        "title": "Request Duration",
-        "targets": [
-          {
-            "expr": "rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])",
-            "legendFormat": "Duration",
-            "refId": "A"
-          }
-        ]
-      },
-      {
-        "id": 4,
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
-        "type": "graph",
-        "title": "Requests per Second",
-        "targets": [
-          {
-            "expr": "rate(http_requests_total[5m])",
-            "legendFormat": "RPS",
-            "refId": "A"
-          }
-        ]
-      }
-    ]
-  }
-}
+apiVersion: 1
+
+providers:
+  - name: "default"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/definitions

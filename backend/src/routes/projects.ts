@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { prisma } from '../prisma-client'
+import { prisma } from '../prisma-client.js'
 
 /**
  * 项目列表响应类型
@@ -25,6 +25,8 @@ interface ProjectListItem {
   mode: 'COMMUNITY' | 'ENTERPRISE'
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
   budget: number
+  platformFee: number
+  initiatorId: string
   initiatorName: string
   taskCount: number
   createdAt: string
@@ -82,6 +84,8 @@ export async function getProjectsRoute(fastify: FastifyInstance): Promise<void> 
                       mode: { type: 'string' },
                       status: { type: 'string' },
                       budget: { type: 'number' },
+                      platformFee: { type: 'number' },
+                      initiatorId: { type: 'string' },
                       initiatorName: { type: 'string' },
                       taskCount: { type: 'number' },
                       createdAt: { type: 'string' },
@@ -169,6 +173,8 @@ export async function getProjectsRoute(fastify: FastifyInstance): Promise<void> 
         mode: project.mode,
         status: project.status,
         budget: project.budget,
+        platformFee: project.platformFee,
+        initiatorId: project.initiatorId,
         initiatorName: project.initiator.name,
         taskCount: project.tasks.length,
         createdAt: project.createdAt.toISOString(),
@@ -202,6 +208,100 @@ export async function getProjectsRoute(fastify: FastifyInstance): Promise<void> 
 }
 
 /**
+ * 获取项目详情
+ * GET /api/v1/projects/:id
+ */
+export async function getProjectByIdRoute(fastify: FastifyInstance): Promise<void> {
+  fastify.get<{
+    Params: { id: string }
+  }>('/api/v1/projects/:id', {
+    schema: {
+      description: '获取项目详情',
+      tags: ['projects'],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: '项目ID' }
+        }
+      },
+      response: {
+        200: {
+          description: '成功返回项目详情',
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                title: { type: 'string' },
+                description: { type: 'string' },
+                mode: { type: 'string' },
+                status: { type: 'string' },
+                budget: { type: 'number' },
+                platformFee: { type: 'number' },
+                initiatorId: { type: 'string' },
+                initiator: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' }
+                  }
+                },
+                createdAt: { type: 'string' },
+                updatedAt: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { id } = request.params
+      const project = await prisma.project.findUnique({
+        where: { id },
+        include: {
+          initiator: {
+            select: { id: true, name: true }
+          }
+        }
+      })
+
+      if (!project) {
+        return reply.status(404).send({
+          success: false,
+          error: '项目不存在'
+        })
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          id: project.id,
+          title: project.title,
+          description: project.description,
+          mode: project.mode,
+          status: project.status,
+          budget: project.budget,
+          platformFee: project.platformFee,
+          initiatorId: project.initiatorId,
+          initiator: project.initiator,
+          createdAt: project.createdAt.toISOString(),
+          updatedAt: project.updatedAt.toISOString()
+        }
+      })
+    } catch (error) {
+      fastify.log.error('获取项目详情失败:', error)
+      return reply.status(500).send({
+        success: false,
+        error: '服务器内部错误'
+      })
+    }
+  })
+}
+
+/**
  * 创建项目请求体类型
  */
 interface CreateProjectBody {
@@ -209,7 +309,6 @@ interface CreateProjectBody {
   description: string
   mode?: 'COMMUNITY' | 'ENTERPRISE'
   budget?: number
-  skills?: string[]
 }
 
 /**
@@ -224,9 +323,8 @@ interface CreateProjectResponse {
     mode: 'COMMUNITY' | 'ENTERPRISE'
     status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
     budget: number
-    initiatorName: string
-    taskCount: number
-    skills: string[]
+    platformFee: number
+    initiatorId: string
     createdAt: string
     updatedAt: string
   }
@@ -241,7 +339,6 @@ interface CreateProjectResponse {
  * - description: 项目描述（必填）
  * - mode: 项目模式（可选，默认 COMMUNITY）
  * - budget: 预算金额（可选，默认 0）
- * - skills: 技能列表（可选）
  */
 export async function createProjectRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post<{
@@ -257,8 +354,7 @@ export async function createProjectRoute(fastify: FastifyInstance): Promise<void
           title: { type: 'string', description: '项目标题' },
           description: { type: 'string', description: '项目描述' },
           mode: { type: 'string', enum: ['COMMUNITY', 'ENTERPRISE'], description: '项目模式' },
-          budget: { type: 'number', description: '预算金额' },
-          skills: { type: 'array', items: { type: 'string' }, description: '技能列表' }
+          budget: { type: 'number', description: '预算金额' }
         }
       },
       response: {
@@ -276,9 +372,8 @@ export async function createProjectRoute(fastify: FastifyInstance): Promise<void
                 mode: { type: 'string' },
                 status: { type: 'string' },
                 budget: { type: 'number' },
-                initiatorName: { type: 'string' },
-                taskCount: { type: 'number' },
-                skills: { type: 'array', items: { type: 'string' } },
+                platformFee: { type: 'number' },
+                initiatorId: { type: 'string' },
                 createdAt: { type: 'string' },
                 updatedAt: { type: 'string' }
               }
@@ -289,7 +384,7 @@ export async function createProjectRoute(fastify: FastifyInstance): Promise<void
     }
   }, async (request, reply) => {
     try {
-      const { title, description, mode = 'COMMUNITY', budget = 0, skills = [] } = request.body
+      const { title, description, mode = 'COMMUNITY', budget = 0 } = request.body
 
       // 验证必填字段
       if (!title || title.trim().length === 0) {
@@ -322,25 +417,27 @@ export async function createProjectRoute(fastify: FastifyInstance): Promise<void
         })
       }
 
-      // 生成项目ID（模拟）
-      const projectId = `project-${Date.now()}`
+      const initiator = await prisma.user.findFirst()
+      const initiatorId = initiator?.id || (await prisma.user.create({
+        data: {
+          email: `initiator_${Date.now()}@example.com`,
+          name: 'Initiator',
+          role: 'INITIATOR',
+          status: 'ACTIVE'
+        }
+      })).id
 
-      // 创建项目（模拟数据）
-      const project = {
-        id: projectId,
-        title: title.trim(),
-        description: description.trim(),
-        mode,
-        status: 'ACTIVE' as const,
-        budget,
-        initiatorName: '测试用户',
-        taskCount: 0,
-        skills,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
+      const project = await prisma.project.create({
+        data: {
+          title: title.trim(),
+          description: description.trim(),
+          mode,
+          status: 'ACTIVE',
+          budget,
+          initiatorId
+        }
+      })
 
-      // 格式化响应数据
       const formattedProject: CreateProjectResponse['data'] = {
         id: project.id,
         title: project.title,
@@ -348,9 +445,8 @@ export async function createProjectRoute(fastify: FastifyInstance): Promise<void
         mode: project.mode,
         status: project.status,
         budget: project.budget,
-        initiatorName: project.initiatorName,
-        taskCount: project.taskCount,
-        skills: project.skills,
+        platformFee: project.platformFee,
+        initiatorId: project.initiatorId,
         createdAt: project.createdAt.toISOString(),
         updatedAt: project.updatedAt.toISOString()
       }
@@ -378,7 +474,6 @@ interface UpdateProjectBody {
   description?: string
   mode?: 'COMMUNITY' | 'ENTERPRISE'
   budget?: number
-  skills?: string[]
   status?: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
 }
 
@@ -394,9 +489,8 @@ interface UpdateProjectResponse {
     mode: 'COMMUNITY' | 'ENTERPRISE'
     status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
     budget: number
-    initiatorName: string
-    taskCount: number
-    skills: string[]
+    platformFee: number
+    initiatorId: string
     createdAt: string
     updatedAt: string
   }
@@ -414,7 +508,6 @@ interface UpdateProjectResponse {
  * - description: 项目描述（可选）
  * - mode: 项目模式（可选）
  * - budget: 预算金额（可选）
- * - skills: 技能列表（可选）
  * - status: 项目状态（可选）
  */
 export async function updateProjectRoute(fastify: FastifyInstance): Promise<void> {
@@ -426,7 +519,7 @@ export async function updateProjectRoute(fastify: FastifyInstance): Promise<void
   }>('/api/v1/projects/:id', async (request, reply) => {
     try {
       const { id } = request.params
-      const { title, description, mode, budget, skills, status } = request.body
+      const { title, description, mode, budget, status } = request.body
 
       // 验证 mode 字段
       if (mode && !['COMMUNITY', 'ENTERPRISE'].includes(mode)) {
@@ -453,22 +546,25 @@ export async function updateProjectRoute(fastify: FastifyInstance): Promise<void
         })
       }
 
-      // 验证项目是否存在（模拟）
-      const project = {
-        id,
-        title: title || '示例项目',
-        description: description || '示例描述',
-        mode: mode || 'COMMUNITY',
-        status: status || 'ACTIVE',
-        budget: budget || 0,
-        initiatorName: '测试用户',
-        taskCount: 0,
-        skills: skills || [],
-        createdAt: new Date(),
-        updatedAt: new Date()
+      const existing = await prisma.project.findUnique({ where: { id } })
+      if (!existing) {
+        return reply.status(404).send({
+          success: false,
+          error: '项目不存在'
+        })
       }
 
-      // 格式化响应数据
+      const project = await prisma.project.update({
+        where: { id },
+        data: {
+          title: title?.trim() || undefined,
+          description: description?.trim() || undefined,
+          mode,
+          budget,
+          status
+        }
+      })
+
       const formattedProject: UpdateProjectResponse['data'] = {
         id: project.id,
         title: project.title,
@@ -476,11 +572,10 @@ export async function updateProjectRoute(fastify: FastifyInstance): Promise<void
         mode: project.mode,
         status: project.status,
         budget: project.budget,
-        initiatorName: project.initiatorName,
-        taskCount: project.taskCount,
-        skills: project.skills,
+        platformFee: project.platformFee,
+        initiatorId: project.initiatorId,
         createdAt: project.createdAt.toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: project.updatedAt.toISOString()
       }
 
       // 返回响应
@@ -533,7 +628,16 @@ export async function deleteProjectRoute(fastify: FastifyInstance): Promise<void
         })
       }
 
-      // 模拟删除项目（实际应用中需要数据库操作）
+      const existing = await prisma.project.findUnique({ where: { id } })
+      if (!existing) {
+        return reply.status(404).send({
+          success: false,
+          error: '项目不存在'
+        })
+      }
+
+      await prisma.project.delete({ where: { id } })
+
       const deleteResult: DeleteProjectResponse = {
         success: true,
         data: {

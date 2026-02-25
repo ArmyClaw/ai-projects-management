@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { prisma } from '../prisma-client'
+import { prisma } from '../prisma-client.js'
 
 /**
  * 任务列表响应类型
@@ -22,13 +22,13 @@ interface TaskListItem {
   id: string
   title: string
   description: string
-  status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  status: 'OPEN' | 'CLAIMED' | 'SUBMITTED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED'
   budget: number
   projectId: string
   projectTitle: string
   assigneeName: string | null
-  skills: string[]
-  deadline: string | null
+  requiredSkills: string[]
+  dueAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -89,8 +89,8 @@ export async function getTasksRoute(fastify: FastifyInstance): Promise<void> {
                       projectId: { type: 'string' },
                       projectTitle: { type: 'string' },
                       assigneeName: { type: ['string', 'null'] },
-                      skills: { type: 'array', items: { type: 'string' } },
-                      deadline: { type: ['string', 'null'] },
+                      requiredSkills: { type: 'array', items: { type: 'string' } },
+                      dueAt: { type: ['string', 'null'] },
                       createdAt: { type: 'string' },
                       updatedAt: { type: 'string' }
                     }
@@ -161,11 +161,6 @@ export async function getTasksRoute(fastify: FastifyInstance): Promise<void> {
             select: {
               name: true
             }
-          },
-          skills: {
-            select: {
-              skillId: true
-            }
           }
         },
         orderBy: {
@@ -183,8 +178,8 @@ export async function getTasksRoute(fastify: FastifyInstance): Promise<void> {
         projectId: task.project.id,
         projectTitle: task.project.title,
         assigneeName: task.assignee?.name || null,
-        skills: task.skills.map(s => s.skillId),
-        deadline: task.deadline?.toISOString() || null,
+        requiredSkills: task.requiredSkills || [],
+        dueAt: task.dueAt?.toISOString() || null,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString()
       }))
@@ -250,9 +245,9 @@ export async function getTaskDetailRoute(fastify: FastifyInstance): Promise<void
                 budget: { type: 'number' },
                 project: { type: 'object' },
                 assignee: { type: ['object', 'null'] },
-                skills: { type: 'array', items: { type: 'string' } },
+                requiredSkills: { type: 'array', items: { type: 'string' } },
                 reviews: { type: 'array' },
-                deadline: { type: ['string', 'null'] },
+                dueAt: { type: ['string', 'null'] },
                 createdAt: { type: 'string' },
                 updatedAt: { type: 'string' }
               }
@@ -285,16 +280,10 @@ export async function getTaskDetailRoute(fastify: FastifyInstance): Promise<void
               email: true
             }
           },
-          skills: {
-            select: {
-              skillId: true,
-              description: true
-            }
-          },
           reviews: {
             select: {
               id: true,
-              status: true,
+              result: true,
               comment: true,
               createdAt: true
             }
@@ -323,14 +312,14 @@ export async function getTaskDetailRoute(fastify: FastifyInstance): Promise<void
             id: task.assignee.id,
             name: task.assignee.name
           } : null,
-          skills: task.skills.map(s => s.skillId),
+          requiredSkills: task.requiredSkills || [],
           reviews: task.reviews.map(r => ({
             id: r.id,
-            status: r.status,
+            status: r.result,
             comment: r.comment,
             createdAt: r.createdAt.toISOString()
           })),
-          deadline: task.deadline?.toISOString() || null,
+          dueAt: task.dueAt?.toISOString() || null,
           createdAt: task.createdAt.toISOString(),
           updatedAt: task.updatedAt.toISOString()
         }
@@ -356,7 +345,9 @@ interface CreateTaskBody {
   projectId: string
   budget?: number
   skills?: string[]
+  requiredSkills?: string[]
   deadline?: string
+  dueAt?: string
 }
 
 /**
@@ -368,13 +359,13 @@ interface CreateTaskResponse {
     id: string
     title: string
     description: string
-    status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+    status: 'OPEN' | 'CLAIMED' | 'SUBMITTED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED'
     budget: number
     projectId: string
     projectTitle: string
     assigneeName: string | null
-    skills: string[]
-    deadline: string | null
+    requiredSkills: string[]
+    dueAt: string | null
     createdAt: string
     updatedAt: string
   }
@@ -389,8 +380,10 @@ interface CreateTaskResponse {
  * - description: 任务描述（必填）
  * - projectId: 项目ID（必填）
  * - budget: 任务预算（可选，默认 0）
- * - skills: 技能列表（可选）
- * - deadline: 截止日期（可选，ISO 8601格式）
+ * - requiredSkills: 技能列表（可选）
+ * - skills: 技能列表（兼容字段）
+ * - dueAt: 截止日期（可选，ISO 8601格式）
+ * - deadline: 截止日期（兼容字段）
  */
 export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
   fastify.post<{
@@ -407,8 +400,10 @@ export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
           description: { type: 'string', description: '任务描述' },
           projectId: { type: 'string', description: '项目ID' },
           budget: { type: 'number', description: '任务预算' },
-          skills: { type: 'array', items: { type: 'string' }, description: '技能列表' },
-          deadline: { type: 'string', description: '截止日期（ISO 8601格式）' }
+          requiredSkills: { type: 'array', items: { type: 'string' }, description: '技能列表' },
+          skills: { type: 'array', items: { type: 'string' }, description: '技能列表（兼容字段）' },
+          dueAt: { type: 'string', description: '截止日期（ISO 8601格式）' },
+          deadline: { type: 'string', description: '截止日期（兼容字段）' }
         }
       },
       response: {
@@ -428,8 +423,8 @@ export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
                 projectId: { type: 'string' },
                 projectTitle: { type: 'string' },
                 assigneeName: { type: ['string', 'null'] },
-                skills: { type: 'array', items: { type: 'string' } },
-                deadline: { type: ['string', 'null'] },
+                requiredSkills: { type: 'array', items: { type: 'string' } },
+                dueAt: { type: ['string', 'null'] },
                 createdAt: { type: 'string' },
                 updatedAt: { type: 'string' }
               }
@@ -440,7 +435,9 @@ export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
     }
   }, async (request, reply) => {
     try {
-      const { title, description, projectId, budget = 0, skills = [], deadline } = request.body
+      const { title, description, projectId, budget = 0, skills, requiredSkills, deadline, dueAt } = request.body
+      const finalSkills = requiredSkills ?? skills ?? []
+      const finalDueAt = dueAt ?? deadline
 
       // 验证必填字段
       if (!title || title.trim().length === 0) {
@@ -473,8 +470,8 @@ export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
       }
 
       // 验证 deadline 格式（如果提供）
-      if (deadline) {
-        const deadlineDate = new Date(deadline)
+      if (finalDueAt) {
+        const deadlineDate = new Date(finalDueAt)
         if (isNaN(deadlineDate.getTime())) {
           return reply.status(400).send({
             success: false,
@@ -483,24 +480,25 @@ export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
         }
       }
 
-      // 生成任务ID（模拟）
-      const taskId = `task-${Date.now()}`
-
-      // 创建任务（模拟数据）
-      const task = {
-        id: taskId,
-        title: title.trim(),
-        description: description.trim(),
-        status: 'OPEN' as const,
-        budget,
-        projectId: projectId.trim(),
-        projectTitle: '示例项目',
-        assigneeName: null as const,
-        skills: skills || [],
-        deadline: deadline ? new Date(deadline).toISOString() : null,
-        createdAt: new Date(),
-        updatedAt: new Date()
+      const project = await prisma.project.findUnique({ where: { id: projectId } })
+      if (!project) {
+        return reply.status(404).send({
+          success: false,
+          error: '项目不存在'
+        })
       }
+
+      const task = await prisma.task.create({
+        data: {
+          title: title.trim(),
+          description: description.trim(),
+          status: 'OPEN',
+          budget,
+          projectId: projectId.trim(),
+          requiredSkills: finalSkills,
+          dueAt: finalDueAt ? new Date(finalDueAt) : null
+        }
+      })
 
       // 格式化响应数据
       const formattedTask: CreateTaskResponse['data'] = {
@@ -510,10 +508,10 @@ export async function createTaskRoute(fastify: FastifyInstance): Promise<void> {
         status: task.status,
         budget: task.budget,
         projectId: task.projectId,
-        projectTitle: task.projectTitle,
-        assigneeName: task.assigneeName,
-        skills: task.skills,
-        deadline: task.deadline,
+        projectTitle: project.title,
+        assigneeName: null,
+        requiredSkills: task.requiredSkills || [],
+        dueAt: task.dueAt?.toISOString() || null,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString()
       }
@@ -541,7 +539,9 @@ interface UpdateTaskBody {
   description?: string
   budget?: number
   skills?: string[]
+  requiredSkills?: string[]
   deadline?: string
+  dueAt?: string
 }
 
 /**
@@ -553,13 +553,13 @@ interface UpdateTaskResponse {
     id: string
     title: string
     description: string
-    status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+    status: 'OPEN' | 'CLAIMED' | 'SUBMITTED' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED'
     budget: number
     projectId: string
     projectTitle: string
     assigneeName: string | null
-    skills: string[]
-    deadline: string | null
+    requiredSkills: string[]
+    dueAt: string | null
     createdAt: string
     updatedAt: string
   }
@@ -573,8 +573,10 @@ interface UpdateTaskResponse {
  * - title: 任务标题
  * - description: 任务描述
  * - budget: 任务预算
- * - skills: 技能列表
- * - deadline: 截止日期（ISO 8601格式）
+ * - requiredSkills: 技能列表
+ * - skills: 技能列表（兼容字段）
+ * - dueAt: 截止日期（ISO 8601格式）
+ * - deadline: 截止日期（兼容字段）
  */
 export async function updateTaskRoute(fastify: FastifyInstance): Promise<void> {
   fastify.put<{
@@ -585,7 +587,9 @@ export async function updateTaskRoute(fastify: FastifyInstance): Promise<void> {
   }>('/api/v1/tasks/:id', async (request, reply) => {
     try {
       const { id } = request.params
-      const { title, description, budget, skills, deadline } = request.body
+      const { title, description, budget, skills, requiredSkills, deadline, dueAt } = request.body
+      const finalSkills = requiredSkills ?? skills
+      const finalDueAt = dueAt ?? deadline
 
       // 验证 budget 字段（如果提供）
       if (budget !== undefined && budget < 0) {
@@ -596,8 +600,8 @@ export async function updateTaskRoute(fastify: FastifyInstance): Promise<void> {
       }
 
       // 验证 deadline 格式（如果提供）
-      if (deadline) {
-        const deadlineDate = new Date(deadline)
+      if (finalDueAt) {
+        const deadlineDate = new Date(finalDueAt)
         if (isNaN(deadlineDate.getTime())) {
           return reply.status(400).send({
             success: false,
@@ -622,21 +626,27 @@ export async function updateTaskRoute(fastify: FastifyInstance): Promise<void> {
         })
       }
 
-      // 生成更新的任务数据（模拟）
-      const updatedTask = {
-        id: id,
-        title: title?.trim() || '实现用户认证模块',
-        description: description?.trim() || '需要实现用户登录注册功能',
-        status: 'OPEN' as const,
-        budget: budget !== undefined ? budget : 500,
-        projectId: 'project-1',
-        projectTitle: 'AI代码审查工具',
-        assigneeName: null as const,
-        skills: skills || ['TypeScript', 'Fastify'],
-        deadline: deadline ? new Date(deadline).toISOString() : new Date('2026-02-25').toISOString(),
-        createdAt: new Date('2026-02-15'),
-        updatedAt: new Date()
+      const existing = await prisma.task.findUnique({ where: { id } })
+      if (!existing) {
+        return reply.status(404).send({
+          success: false,
+          error: '任务不存在'
+        })
       }
+
+      const updatedTask = await prisma.task.update({
+        where: { id },
+        data: {
+          title: title?.trim() ?? undefined,
+          description: description?.trim() ?? undefined,
+          budget: budget ?? undefined,
+          requiredSkills: finalSkills ?? undefined,
+          dueAt: finalDueAt ? new Date(finalDueAt) : undefined
+        },
+        include: {
+          project: { select: { title: true } }
+        }
+      })
 
       // 格式化响应数据
       const formattedTask: UpdateTaskResponse['data'] = {
@@ -646,10 +656,10 @@ export async function updateTaskRoute(fastify: FastifyInstance): Promise<void> {
         status: updatedTask.status,
         budget: updatedTask.budget,
         projectId: updatedTask.projectId,
-        projectTitle: updatedTask.projectTitle,
-        assigneeName: updatedTask.assigneeName,
-        skills: updatedTask.skills,
-        deadline: updatedTask.deadline,
+        projectTitle: updatedTask.project.title,
+        assigneeName: null,
+        requiredSkills: updatedTask.requiredSkills || [],
+        dueAt: updatedTask.dueAt?.toISOString() || null,
         createdAt: updatedTask.createdAt.toISOString(),
         updatedAt: updatedTask.updatedAt.toISOString()
       }
@@ -690,17 +700,15 @@ export async function deleteTaskRoute(fastify: FastifyInstance): Promise<void> {
     try {
       const { id } = request.params
 
-      // 模拟验证：任务ID以 "task-" 开头表示存在
-      const taskExists = id.startsWith('task-')
-
-      if (!taskExists) {
+      const existing = await prisma.task.findUnique({ where: { id } })
+      if (!existing) {
         return reply.status(404).send({
           success: false,
           error: '任务不存在'
         })
       }
 
-      // 删除成功，返回 204 No Content
+      await prisma.task.delete({ where: { id } })
       return reply.status(204).send()
     } catch (error) {
       fastify.log.error('删除任务失败:', error)

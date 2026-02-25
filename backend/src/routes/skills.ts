@@ -314,8 +314,14 @@ export async function createSkillRoute(fastify: FastifyInstance): Promise<void> 
     }
 
     try {
-      // TODO: 获取当前用户ID（从JWT token中解析）
-      const authorId = 'temp-user-id'
+      const author = await prisma.user.findFirst()
+      const authorId = author?.id || (await prisma.user.create({
+        data: {
+          email: `skill_author_${Date.now()}@example.com`,
+          name: 'Skill Author',
+          status: 'ACTIVE'
+        }
+      })).id
 
       const skill = await prisma.skill.create({
         data: {

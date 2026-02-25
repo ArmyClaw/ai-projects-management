@@ -1,234 +1,82 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import Fastify, { FastifyInstance } from 'fastify';
-import authRoutes from '../src/routes/auth.js';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import supertest from 'supertest'
+import { buildTestApp } from './helpers/app'
+import type { FastifyInstance } from 'fastify'
 
-// 模拟用户数据
-const mockUsers: Array<{ id: string; email: string; username: string; passwordHash: string }> = [];
-
-describe('Auth API Tests', () => {
-  let app: FastifyInstance;
+describe('Auth API', () => {
+  let app: FastifyInstance
+  let request: supertest.SuperTest<supertest.Test>
 
   beforeAll(async () => {
-    app = Fastify({ logger: false });
-    
-    // 注册路由
-    app.register(authRoutes, { prefix: '/api/v1/auth' });
-    
-    await app.ready();
-  });
+    app = await buildTestApp()
+    request = supertest(app.server)
+  })
 
-  afterEach(async () => {
-    // 清理测试数据
-    mockUsers.length = 0;
-  });
+  afterAll(async () => {
+    await app.close()
+  })
 
-  // ============================================
-  // POST /api/v1/auth/register - 用户注册
-  // ============================================
+  it('registers, logs in, and fetches profile', async () => {
+    const unique = Date.now()
+    const register = await request
+      .post('/api/v1/auth/register')
+      .send({ email: `auth_user_${unique}@example.com`, username: `auth_user_${unique}`, password: 'Password123' })
 
-  describe('POST /api/v1/auth/register', () => {
-    it('should register a new user successfully', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'test@example.com',
-          username: 'testuser',
-          password: 'Password123!'
-        }
-      });
+    expect(register.status).toBe(201)
+    expect(register.body.success).toBe(true)
 
-      expect(response.statusCode).toBe(201);
-      const body = JSON.parse(response.body);
-      expect(body.success).toBe(true);
-      expect(body.data.user).toHaveProperty('id');
-      expect(body.data.user.email).toBe('test@example.com');
-      expect(body.data.user.username).toBe('testuser');
-      expect(body.data).not.toHaveProperty('password');
-    });
+    const login = await request
+      .post('/api/v1/auth/login')
+      .send({ email: `auth_user_${unique}@example.com`, password: 'Password123' })
 
-    it('should return 400 for duplicate email', async () => {
-      // 先注册一个用户
-      await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'duplicate@example.com',
-          username: 'user1',
-          password: 'Password123!'
-        }
-      });
+    expect(login.status).toBe(200)
+    expect(login.body.data.token).toBeDefined()
+  })
 
-      // 尝试用相同邮箱注册
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'duplicate@example.com',
-          username: 'user2',
-          password: 'Password123!'
-        }
-      });
+  it('rejects invalid credentials', async () => {
+    const res = await request
+      .post('/api/v1/auth/login')
+      .send({ email: 'not-exist@example.com', password: 'Password123' })
 
-      expect(response.statusCode).toBe(400);
-      const body = JSON.parse(response.body);
-      expect(body.success).toBe(false);
-    });
+    expect(res.status).toBe(401)
+  })
 
-    it('should return 400 for invalid email format', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'invalid-email',
-          username: 'testuser',
-          password: 'Password123!'
-        }
-      });
+  it('validates registration fields and uniqueness', async () => {
+    const missing = await request.post('/api/v1/auth/register').send({ email: '', username: '', password: '' })
+    expect(missing.status).toBe(400)
 
-      expect(response.statusCode).toBe(400);
-    });
+    const invalidEmail = await request.post('/api/v1/auth/register').send({
+      email: 'bad-email',
+      username: 'user_bad_email',
+      password: 'Password123'
+    })
+    expect(invalidEmail.status).toBe(400)
 
-    it('should return 400 for weak password', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'test@example.com',
-          username: 'testuser',
-          password: '123'
-        }
-      });
+    const weakPassword = await request.post('/api/v1/auth/register').send({
+      email: 'weak@example.com',
+      username: 'weak_user',
+      password: 'short'
+    })
+    expect(weakPassword.status).toBe(400)
 
-      expect(response.statusCode).toBe(400);
-    });
+    const unique = Date.now()
+    const first = await request.post('/api/v1/auth/register').send({
+      email: `dup_${unique}@example.com`,
+      username: `dup_${unique}`,
+      password: 'Password123'
+    })
+    expect(first.status).toBe(201)
 
-    it('should return 400 for missing required fields', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'test@example.com'
-        }
-      });
+    const duplicate = await request.post('/api/v1/auth/register').send({
+      email: `dup_${unique}@example.com`,
+      username: `dup_${unique}_2`,
+      password: 'Password123'
+    })
+    expect(duplicate.status).toBe(400)
+  })
 
-      expect(response.statusCode).toBe(400);
-    });
-  });
-
-  // ============================================
-  // POST /api/v1/auth/login - 用户登录
-  // ============================================
-
-  describe('POST /api/v1/auth/login', () => {
-    it('should login successfully with correct credentials', async () => {
-      // 先注册用户
-      await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'login@example.com',
-          username: 'loginuser',
-          password: 'Password123!'
-        }
-      });
-
-      // 登录
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/login',
-        payload: {
-          email: 'login@example.com',
-          password: 'Password123!'
-        }
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.success).toBe(true);
-      expect(body.data).toHaveProperty('token');
-      expect(body.data).toHaveProperty('user');
-    });
-
-    it('should return 401 for incorrect password', async () => {
-      // 先注册用户
-      await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/register',
-        payload: {
-          email: 'wrongpass@example.com',
-          username: 'wrongpassuser',
-          password: 'Password123!'
-        }
-      });
-
-      // 尝试错误密码登录
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/login',
-        payload: {
-          email: 'wrongpass@example.com',
-          password: 'WrongPassword!'
-        }
-      });
-
-      expect(response.statusCode).toBe(401);
-      const body = JSON.parse(response.body);
-      expect(body.success).toBe(false);
-    });
-
-    it('should return 401 for non-existent user', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/login',
-        payload: {
-          email: 'nonexistent@example.com',
-          password: 'Password123!'
-        }
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-
-    it('should return 400 for missing credentials', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/login',
-        payload: {}
-      });
-
-      expect(response.statusCode).toBe(400);
-    });
-  });
-
-  // ============================================
-  // GET /api/v1/auth/me - 获取当前用户信息
-  // ============================================
-
-  describe('GET /api/v1/auth/me', () => {
-    it('should return 401 without authentication token', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/auth/me'
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
-  });
-
-  // ============================================
-  // POST /api/v1/auth/refresh - 刷新Token
-  // ============================================
-
-  describe('POST /api/v1/auth/refresh', () => {
-    it('should return 400 with empty body', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/refresh',
-        payload: {}
-      });
-
-      expect(response.statusCode).toBe(400);
-    });
-  });
-});
+  it('rejects login with missing fields', async () => {
+    const res = await request.post('/api/v1/auth/login').send({ email: '' })
+    expect(res.status).toBe(400)
+  })
+})

@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { prisma } from '../prisma-client'
+import { prisma } from '../prisma-client.js'
 
 /**
  * 通知列表响应类型

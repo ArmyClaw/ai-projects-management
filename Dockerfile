@@ -28,13 +28,14 @@ RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # 复制源代码并构建
 COPY backend/ .
+RUN npx prisma generate
 RUN npm run build
 
 # 阶段3: 生产镜像
 FROM node:20-alpine AS production
 
-# 安装 dumb-init 和 curl（用于健康检查）
-RUN apk add --no-cache dumb-init curl
+# 安装 dumb-init、curl 和 openssl（用于健康检查与 Prisma 运行时）
+RUN apk add --no-cache dumb-init curl openssl
 
 # 创建非 root 用户和组
 RUN addgroup -g 1001 -S nodejs && \
@@ -47,7 +48,7 @@ COPY --from=frontend-builder /app/dist ./dist
 
 # 复制后端构建产物（只复制需要的内容，减少镜像大小）
 COPY --from=backend-builder /app/dist ./dist-server
-COPY --from=backend-builder /app/package*.json ./package.json
+COPY --from=backend-builder /app/package*.json ./
 
 # 复制生产依赖（重新安装以确保干净的环境）
 COPY --from=backend-builder /app/node_modules ./node_modules
@@ -71,8 +72,8 @@ EXPOSE 3000
 
 # 健康检查（使用 curl 更可靠）
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:4000/health || exit 1
 
 # 启动命令
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist-server/index.js"]
+CMD ["node", "dist-server/app.js"]

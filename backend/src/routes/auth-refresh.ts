@@ -259,7 +259,7 @@ export async function getCurrentUserRoute(fastify: FastifyInstance) {
           avatar: true,
           role: true,
           githubId: true,
-          points: true,
+          totalPoints: true,
           status: true,
           createdAt: true,
           updatedAt: true
@@ -285,7 +285,7 @@ export async function getCurrentUserRoute(fastify: FastifyInstance) {
           avatar: user.avatar,
           role: user.role,
           githubId: user.githubId,
-          points: user.points,
+          points: user.totalPoints,
           status: user.status,
           createdAt: user.createdAt.toISOString(),
           updatedAt: user.updatedAt.toISOString()

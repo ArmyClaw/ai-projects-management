@@ -1,142 +1,65 @@
-/**
- * 验收系统API测试
- * 
- * 测试任务交付和验收API路由：
- * - POST /api/v1/tasks/:id/submit - 提交任务交付
- * - POST /api/v1/tasks/:id/review - 发起人验收任务
- */
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import supertest from 'supertest'
+import type { FastifyInstance } from 'fastify'
+import { buildTestApp } from './helpers/app'
+import { createProject, createTask } from './helpers/seed'
 
-import { test, describe, expect } from 'vitest'
-import Fastify, { FastifyInstance } from 'fastify'
-
-describe('Review API Routes', () => {
+describe('Review API', () => {
   let app: FastifyInstance
+  let request: supertest.SuperTest<supertest.Test>
 
-  beforeEach(async () => {
-    app = Fastify({ logger: false })
+  beforeAll(async () => {
+    app = await buildTestApp()
+    request = supertest(app.server)
   })
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close()
   })
 
-  describe('POST /api/v1/tasks/:id/submit', () => {
-    test('should register route', async () => {
-      app.post('/api/v1/tasks/:id/submit', async (request) => {
-        const taskId = (request.params as any).id
-        return {
-          success: true,
-          data: {
-            taskId,
-            submissionId: 'submission-123',
-            status: 'SUBMITTED',
-            submittedAt: new Date().toISOString()
-          }
-        }
-      })
+  it('submits task and reviews', async () => {
+    const project = await createProject()
+    const task = await createTask({ projectId: project.id, status: 'CLAIMED' })
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/tasks/task-123/submit',
-        payload: {
-          repoUrl: 'https://github.com/user/repo',
-          description: '完成代码提交'
-        }
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data).toHaveProperty('submissionId')
-      expect(body.data.status).toBe('SUBMITTED')
+    const submit = await request.post(`/api/v1/tasks/${task.id}/submit`).send({
+      repoUrl: 'https://github.com/example/repo',
+      description: 'submission'
     })
+    expect(submit.status).toBe(201)
 
-    test('should validate required fields', async () => {
-      let receivedPayload = null
-      
-      app.post('/api/v1/tasks/:id/submit', async (request, reply) => {
-        receivedPayload = request.body
-        if (!receivedPayload?.repoUrl) {
-          reply.status(400)
-          return { success: false, error: '缺少仓库地址' }
-        }
-        return { success: true, data: {} }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/tasks/task-123/submit',
-        payload: { description: '没有仓库地址' }
-      })
-
-      expect(response.statusCode).toBe(400)
+    const review = await request.post(`/api/v1/tasks/${task.id}/review`).send({
+      result: 'APPROVED',
+      scores: [4, 5],
+      comment: 'good'
     })
+    expect(review.status).toBe(200)
+    expect(review.body.data.result).toBe('APPROVED')
   })
 
-  describe('POST /api/v1/tasks/:id/review', () => {
-    test('should register route', async () => {
-      app.post('/api/v1/tasks/:id/review', async (request) => {
-        const taskId = (request.params as any).id
-        const { result, scores, comment } = request.body as any
-        return {
-          success: true,
-          data: {
-            taskId,
-            reviewId: 'review-123',
-            result,
-            totalScore: scores?.reduce((a: number, b: number) => a + b, 0) / scores?.length || 0,
-            comment,
-            reviewedAt: new Date().toISOString()
-          }
-        }
-      })
+  it('validates submission and review errors', async () => {
+    const missingRepo = await request.post('/api/v1/tasks/not-found/submit').send({})
+    expect(missingRepo.status).toBe(400)
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/tasks/task-123/review',
-        payload: {
-          result: 'APPROVED',
-          scores: [5, 4.5, 5, 4],
-          comment: '代码质量优秀'
-        }
-      })
+    const missingTask = await request.post('/api/v1/tasks/not-found/submit').send({ repoUrl: 'https://x.com' })
+    expect(missingTask.status).toBe(404)
 
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data.result).toBe('APPROVED')
+    const project = await createProject()
+    const openTask = await createTask({ projectId: project.id, status: 'OPEN' })
+    const badStatus = await request.post(`/api/v1/tasks/${openTask.id}/submit`).send({ repoUrl: 'https://x.com' })
+    expect(badStatus.status).toBe(400)
+
+    const claimedTask = await createTask({ projectId: project.id, status: 'CLAIMED' })
+    const submit = await request.post(`/api/v1/tasks/${claimedTask.id}/submit`).send({ repoUrl: 'https://x.com' })
+    expect(submit.status).toBe(201)
+
+    const missingScores = await request.post(`/api/v1/tasks/${claimedTask.id}/review`).send({ result: 'APPROVED', scores: [] })
+    expect(missingScores.status).toBe(400)
+
+    const missingSubmissionTask = await createTask({ projectId: project.id, status: 'CLAIMED' })
+    const noSubmission = await request.post(`/api/v1/tasks/${missingSubmissionTask.id}/review`).send({
+      result: 'APPROVED',
+      scores: [5]
     })
-
-    test('should calculate average score', async () => {
-      app.post('/api/v1/tasks/:id/review', async (request) => {
-        const { scores } = request.body as any
-        const totalScore = scores?.reduce((a: number, b: number) => a + b, 0) / scores?.length || 0
-        return {
-          success: true,
-          data: { totalScore }
-        }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/tasks/task-123/review',
-        payload: {
-          result: 'APPROVED',
-          scores: [5, 4, 5, 4, 5],
-          comment: ''
-        }
-      })
-
-      const body = JSON.parse(response.body)
-      expect(body.data.totalScore).toBe(4.6)
-    })
+    expect(noSubmission.status).toBe(400)
   })
 })

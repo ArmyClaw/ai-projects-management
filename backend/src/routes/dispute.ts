@@ -110,6 +110,7 @@ export async function createDisputeRoute(fastify: FastifyInstance) {
         }
       })
 
+      reply.status(201)
       return {
         success: true,
         data: {
@@ -229,38 +230,41 @@ export async function getDisputesRoute(fastify: FastifyInstance) {
           where,
           orderBy: { createdAt: 'desc' },
           skip: (pageNum - 1) * pageSizeNum,
-          take: pageSizeNum,
-          include: {
-            task: {
-              select: { id: true, title: true }
-            },
-            initiator: {
-              select: { id: true, name: true }
-            },
-            respondent: {
-              select: { id: true, name: true }
-            }
-          }
+          take: pageSizeNum
         }),
         prisma.dispute.count({ where })
       ])
+
+      const taskIds = Array.from(new Set(disputes.map(d => d.taskId)))
+      const tasks = await prisma.task.findMany({
+        where: { id: { in: taskIds } },
+        select: { id: true, title: true }
+      })
+      const taskMap = new Map(tasks.map(task => [task.id, task.title]))
 
       const totalPages = Math.ceil(total / pageSizeNum)
 
       return {
         success: true,
         data: {
-          disputes: disputes.map(d => ({
+          disputes: await Promise.all(disputes.map(async d => {
+            const [initiator, respondent] = await Promise.all([
+              prisma.user.findUnique({ where: { id: d.initiatorId }, select: { id: true, name: true } }),
+              prisma.user.findUnique({ where: { id: d.respondentId }, select: { id: true, name: true } })
+            ])
+
+            return {
             id: d.id,
             taskId: d.taskId,
-            taskTitle: d.task.title,
+            taskTitle: taskMap.get(d.taskId) || '未知任务',
             initiatorId: d.initiatorId,
-            initiatorName: d.initiator.name,
+            initiatorName: initiator?.name || '未知用户',
             respondentId: d.respondentId,
-            respondentName: d.respondent.name,
+            respondentName: respondent?.name || '未知用户',
             reason: d.reason,
             status: d.status,
             createdAt: d.createdAt.toISOString()
+            }
           })),
           total,
           page: pageNum,
@@ -351,12 +355,7 @@ export async function arbitrateDisputeRoute(fastify: FastifyInstance) {
     try {
       // 验证争议是否存在
       const dispute = await prisma.dispute.findUnique({
-        where: { id: disputeId },
-        include: {
-          task: true,
-          initiator: true,
-          respondent: true
-        }
+        where: { id: disputeId }
       })
 
       if (!dispute) {
@@ -370,15 +369,19 @@ export async function arbitrateDisputeRoute(fastify: FastifyInstance) {
       }
 
       // 更新争议状态
+      const refundValue = typeof refundAmount === 'number' ? refundAmount : null
+      const penaltyValue = typeof penaltyAmount === 'number' ? penaltyAmount : null
+      const arbitratorValue = arbitratorId ?? null
+
       await prisma.dispute.update({
         where: { id: disputeId },
         data: {
           status: 'CLOSED',
           decision,
           decisionReason,
-          refundAmount,
-          penaltyAmount,
-          arbitratorId,
+          refundAmount: refundValue,
+          penaltyAmount: penaltyValue,
+          arbitratorId: arbitratorValue,
           arbitratedAt: new Date(),
           closedAt: new Date()
         }
@@ -416,8 +419,8 @@ export async function arbitrateDisputeRoute(fastify: FastifyInstance) {
       }
 
       // 如果有退款，处理退款
-      if (refundAmount && refundAmount > 0) {
-        await handleRefund(dispute.taskId, refundAmount)
+      if (refundValue && refundValue > 0) {
+        await handleRefund(dispute.taskId, refundValue)
       }
 
       return {
@@ -426,7 +429,7 @@ export async function arbitrateDisputeRoute(fastify: FastifyInstance) {
           id: disputeId,
           decision,
           decisionReason,
-          refundAmount,
+          refundAmount: refundValue ?? undefined,
           creditChanges,
           status: 'CLOSED',
           arbitratedAt: new Date().toISOString()
@@ -502,7 +505,7 @@ async function handleRefund(taskId: string, amount: number) {
     if (initiator) {
       await prisma.user.update({
         where: { id: task.project.initiatorId },
-        data: { points: initiator.points + amount }
+        data: { totalPoints: initiator.totalPoints + amount }
       })
     }
   } catch (error) {

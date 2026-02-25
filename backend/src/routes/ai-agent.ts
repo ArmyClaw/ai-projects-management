@@ -160,10 +160,11 @@ export async function createAIAgentRoute(fastify: FastifyInstance) {
           avatar: avatar || null,
           role: 'PARTICIPANT',
           status: 'ACTIVE',
-          points: initialPoints || 100
+          totalPoints: initialPoints || 100
         }
       })
 
+      reply.status(201)
       return {
         success: true,
         data: {
@@ -171,7 +172,7 @@ export async function createAIAgentRoute(fastify: FastifyInstance) {
           type,
           name: agent.name,
           avatar: agent.avatar,
-          points: agent.points,
+          points: agent.totalPoints,
           skills: skills || [],
           status: agent.status,
           agentType: AGENT_TYPES[type],
@@ -269,7 +270,7 @@ export async function getAIAgentsRoute(fastify: FastifyInstance) {
             id: true,
             name: true,
             avatar: true,
-            points: true,
+            totalPoints: true,
             status: true,
             createdAt: true
           }
@@ -282,6 +283,7 @@ export async function getAIAgentsRoute(fastify: FastifyInstance) {
       // 为每个Agent推断类型（简化处理）
       const agentsWithType = agents.map(agent => ({
         ...agent,
+        points: agent.totalPoints,
         type: 'TASK_COMPLETER', // 默认类型
         agentType: AGENT_TYPES.TASK_COMPLETER
       }))
@@ -377,7 +379,7 @@ export async function triggerAIAgentActionRoute(fastify: FastifyInstance) {
       // 验证Agent是否存在
       const agent = await prisma.user.findUnique({
         where: { id: agentId },
-        select: { id: true, name: true, points: true, status: true }
+        select: { id: true, name: true, totalPoints: true, status: true }
       })
 
       if (!agent) {
@@ -507,7 +509,7 @@ async function simulateCompleteTask(agentId: string, taskId?: string) {
     if (agent) {
       await prisma.user.update({
         where: { id: agentId },
-        data: { points: agent.points + reward }
+        data: { totalPoints: agent.totalPoints + reward }
       })
     }
 
@@ -516,7 +518,7 @@ async function simulateCompleteTask(agentId: string, taskId?: string) {
       message: '任务完成',
       qualityScore,
       reward,
-      newPoints: (agent?.points || 0) + reward
+      newPoints: (agent?.totalPoints || 0) + reward
     }
   } catch (error) {
     return { success: false, error: '完成任务失败' }

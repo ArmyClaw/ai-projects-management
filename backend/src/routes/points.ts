@@ -51,7 +51,7 @@ export async function getUserPointsRoute(fastify: FastifyInstance) {
     try {
       const user = await prisma.user.findUnique({
         where: { id },
-        select: { id: true, points: true, updatedAt: true }
+        select: { id: true, totalPoints: true, updatedAt: true }
       })
 
       if (!user) {
@@ -63,7 +63,7 @@ export async function getUserPointsRoute(fastify: FastifyInstance) {
         success: true,
         data: {
           userId: user.id,
-          points: user.points,
+          points: user.totalPoints,
           lastUpdated: user.updatedAt.toISOString()
         }
       }

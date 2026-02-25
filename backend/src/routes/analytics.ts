@@ -5,7 +5,7 @@
  */
 
 import { FastifyInstance } from 'fastify'
-import { prisma } from '../prisma-client'
+import { prisma } from '../prisma-client.js'
 
 /**
  * 获取项目进度
@@ -1874,4 +1874,21 @@ export async function exportExcelRoute(fastify: FastifyInstance): Promise<void> 
       })
     }
   })
+}
+
+/**
+ * 注册所有分析相关路由
+ */
+export async function registerAnalyticsRoutes(fastify: FastifyInstance): Promise<void> {
+  await getProjectProgressRoute(fastify)
+  await getProjectGanttRoute(fastify)
+  await getProjectMilestonesRoute(fastify)
+  await createProjectMilestoneRoute(fastify)
+  await getUserContributionsRoute(fastify)
+  await getUserFinanceRoute(fastify)
+  await getDashboardRoute(fastify)
+  await getProjectsCompareRoute(fastify)
+  await getUserCreditTrendRoute(fastify)
+  await exportPdfRoute(fastify)
+  await exportExcelRoute(fastify)
 }

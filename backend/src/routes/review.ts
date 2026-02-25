@@ -89,7 +89,7 @@ export async function submitTaskRoute(fastify: FastifyInstance) {
         return { success: false, error: '任务不存在' }
       }
 
-      if (task.status !== 'CLAIMED' && task.status !== 'IN_PROGRESS') {
+      if (task.status !== 'CLAIMED') {
         reply.status(400)
         return { success: false, error: '任务当前状态不允许提交' }
       }
@@ -117,6 +117,7 @@ export async function submitTaskRoute(fastify: FastifyInstance) {
         }
       })
 
+      reply.status(201)
       return {
         success: true,
         data: {
@@ -245,9 +246,11 @@ export async function reviewTaskRoute(fastify: FastifyInstance) {
       })
 
       // 更新任务状态
-      const newTaskStatus = result === 'APPROVED' ? 'COMPLETED' 
-        : result === 'REJECTED' ? 'REJECTED' 
-        : 'PENDING'
+      const newTaskStatus = result === 'APPROVED'
+        ? 'COMPLETED'
+        : result === 'REJECTED'
+          ? 'CANCELLED'
+          : 'IN_REVIEW'
 
       await prisma.task.update({
         where: { id: taskId },

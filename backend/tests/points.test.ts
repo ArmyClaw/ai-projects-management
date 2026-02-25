@@ -1,145 +1,76 @@
-/**
- * 积分系统API测试
- * 
- * 测试积分相关API路由：
- * - GET /api/v1/users/:id/points - 获取用户积分余额
- * - GET /api/v1/users/:id/points/transactions - 获取用户积分交易记录
- */
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import supertest from 'supertest'
+import type { FastifyInstance } from 'fastify'
+import { buildTestApp } from './helpers/app'
+import { createUser, createPoints } from './helpers/seed'
+import { prisma } from './setup'
 
-import { test, describe, expect } from 'vitest'
-import Fastify, { FastifyInstance } from 'fastify'
-
-describe('Points API Routes', () => {
+describe('Points API', () => {
   let app: FastifyInstance
+  let request: supertest.SuperTest<supertest.Test>
 
-  beforeEach(async () => {
-    app = Fastify({ logger: false })
+  beforeAll(async () => {
+    app = await buildTestApp()
+    request = supertest(app.server)
   })
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close()
   })
 
-  describe('GET /api/v1/users/:id/points', () => {
-    test('should return user points balance', async () => {
-      app.get('/api/v1/users/:id/points', async (request) => {
-        const userId = (request.params as any).id
-        return {
-          success: true,
-          data: {
-            userId,
-            points: 1000,
-            lastUpdated: new Date().toISOString()
-          }
-        }
-      })
+  it('returns user points balance', async () => {
+    const user = await createUser()
+    await createPoints(user.id, 300)
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/users/user-123/points'
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data).toHaveProperty('userId')
-      expect(body.data).toHaveProperty('points')
-      expect(typeof body.data.points).toBe('number')
-    })
-
-    test('should return 400 for invalid user id', async () => {
-      let receivedStatus = 200
-      
-      app.get('/api/v1/users/:id/points', async (request, reply) => {
-        const userId = (request.params as any).id
-        if (!userId || userId.length < 1) {
-          receivedStatus = 400
-          reply.status(400)
-          return { success: false, error: 'Invalid user ID' }
-        }
-        return { success: true, data: { userId, points: 0 } }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/users//points'
-      })
-
-      expect(response.statusCode).toBe(400)
-    })
+    const res = await request.get(`/api/v1/users/${user.id}/points`)
+    expect(res.status).toBe(200)
+    expect(res.body.data.points).toBe(300)
   })
 
-  describe('GET /api/v1/users/:id/points/transactions', () => {
-    test('should return user points transactions', async () => {
-      app.get('/api/v1/users/:id/points/transactions', async (request) => {
-        const userId = (request.params as any).id
-        return {
-          success: true,
-          data: {
-            userId,
-            transactions: [
-              {
-                id: 'tx-001',
-                type: 'TASK_COMPLETE',
-                amount: 100,
-                description: '完成任务奖励',
-                createdAt: new Date().toISOString()
-              }
-            ],
-            total: 1
-          }
-        }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/users/user-123/points/transactions'
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data).toHaveProperty('transactions')
-      expect(Array.isArray(body.data.transactions)).toBe(true)
-      expect(body.data).toHaveProperty('total')
+  it('returns points transactions', async () => {
+    const user = await createUser()
+    await createPoints(user.id, 100)
+    await prisma.pointTransaction.create({
+      data: {
+        userId: user.id,
+        amount: 50,
+        balanceBefore: 100,
+        balanceAfter: 150,
+        type: 'BONUS',
+        description: 'bonus'
+      }
     })
 
-    test('should support pagination', async () => {
-      app.get('/api/v1/users/:id/points/transactions', async (request) => {
-        const { id } = request.params as any
-        const page = Number(request.query?.page) || 1
-        const pageSize = Number(request.query?.pageSize) || 10
-        
-        return {
-          success: true,
-          data: {
-            userId: id,
-            transactions: [],
-            total: 0,
-            page,
-            pageSize,
-            totalPages: 0
-          }
-        }
-      })
+    const res = await request.get(`/api/v1/users/${user.id}/points/transactions`)
+    expect(res.status).toBe(200)
+    expect(res.body.data.transactions.length).toBe(1)
+  })
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/users/user-123/points/transactions?page=2&pageSize=20'
-      })
+  it('returns 404 for missing user points', async () => {
+    const res = await request.get('/api/v1/users/not-found/points')
+    expect(res.status).toBe(404)
+  })
 
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.data.page).toBe(2)
-      expect(body.data.pageSize).toBe(20)
+  it('returns 404 for missing user transactions', async () => {
+    const res = await request.get('/api/v1/users/not-found/points/transactions')
+    expect(res.status).toBe(404)
+  })
+
+  it('handles transactions pagination', async () => {
+    const user = await createUser()
+    await prisma.pointTransaction.create({
+      data: {
+        userId: user.id,
+        amount: 10,
+        balanceBefore: 0,
+        balanceAfter: 10,
+        type: 'BONUS',
+        description: 'bonus'
+      }
     })
+
+    const res = await request.get(`/api/v1/users/${user.id}/points/transactions?page=1&pageSize=1`)
+    expect(res.status).toBe(200)
+    expect(res.body.data.page).toBe(1)
   })
 })

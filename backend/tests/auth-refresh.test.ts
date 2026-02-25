@@ -1,270 +1,112 @@
-/**
- * JWT Token刷新API测试
- * 
- * 测试Token刷新和用户认证API：
- * - POST /api/v1/auth/refresh - 刷新Token
- * - POST /api/v1/auth/logout - 登出
- * - GET /api/v1/auth/me - 获取当前用户
- */
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import supertest from 'supertest'
+import type { FastifyInstance } from 'fastify'
+import { buildTestApp } from './helpers/app'
+import { createUser } from './helpers/seed'
 
-import { test, describe, expect } from 'vitest'
-import Fastify, { FastifyInstance } from 'fastify'
-
-describe('JWT Token Refresh API Routes', () => {
+describe('Auth Refresh API', () => {
   let app: FastifyInstance
+  let request: supertest.SuperTest<supertest.Test>
 
-  beforeEach(async () => {
-    app = Fastify({ logger: false })
+  beforeAll(async () => {
+    app = await buildTestApp()
+    request = supertest(app.server)
   })
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close()
   })
 
-  describe('POST /api/v1/auth/refresh', () => {
-    test('should register route', async () => {
-      app.post('/api/v1/auth/refresh', async () => {
-        return {
-          success: true,
-          data: {
-            accessToken: 'new-access-token',
-            refreshToken: 'new-refresh-token',
-            tokenType: 'bearer',
-            expiresIn: 3600
-          }
-        }
-      })
+  it('refreshes token with refresh token format and existing user', async () => {
+    const user = await createUser()
+    const refreshToken = `refresh_${user.id}_${Date.now()}`
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/refresh',
-        headers: {
-          Authorization: 'Bearer old-refresh-token'
-        }
-      })
+    const res = await request
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${refreshToken}`)
 
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data).toHaveProperty('accessToken')
-      expect(body.data.tokenType).toBe('bearer')
-    })
-
-    test('should require refresh token', async () => {
-      let hasToken = false
-      
-      app.post('/api/v1/auth/refresh', async (request, reply) => {
-        const authHeader = request.headers.authorization
-        hasToken = !!authHeader
-        if (!authHeader) {
-          reply.status(401)
-          return { success: false, error: '缺少刷新令牌' }
-        }
-        return { success: true, data: {} }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/refresh'
-      })
-
-      expect(response.statusCode).toBe(401)
-    })
-
-    test('should return new tokens', async () => {
-      app.post('/api/v1/auth/refresh', async () => {
-        return {
-          success: true,
-          data: {
-            accessToken: `access_${Date.now()}`,
-            refreshToken: `refresh_${Date.now()}`,
-            tokenType: 'bearer',
-            expiresIn: 3600
-          }
-        }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/refresh',
-        headers: {
-          Authorization: 'Bearer valid-refresh-token'
-        }
-      })
-
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data.accessToken).toBeDefined()
-      expect(body.data.refreshToken).toBeDefined()
-    })
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.data.accessToken).toBeDefined()
   })
 
-  describe('POST /api/v1/auth/logout', () => {
-    test('should register route', async () => {
-      app.post('/api/v1/auth/logout', async () => {
-        return {
-          success: true,
-          message: '登出成功'
-        }
-      })
+  it('returns current user with valid access token', async () => {
+    const user = await createUser()
+    const accessToken = app.jwt.sign({ userId: user.id, email: user.email, role: user.role })
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/logout',
-        headers: {
-          Authorization: 'Bearer valid-token'
-        }
-      })
+    const res = await request
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
 
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.message).toBe('登出成功')
-    })
-
-    test('should require authentication', async () => {
-      let hasAuth = false
-      
-      app.post('/api/v1/auth/logout', async (request, reply) => {
-        hasAuth = !!request.headers.authorization
-        if (!request.headers.authorization) {
-          reply.status(401)
-          return { success: false, error: '未授权' }
-        }
-        return { success: true, message: '登出成功' }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/logout'
-      })
-
-      expect(response.statusCode).toBe(401)
-    })
-
-    test('should blacklist token', async () => {
-      app.post('/api/v1/auth/logout', async () => {
-        return {
-          success: true,
-          message: '登出成功',
-          data: {
-            tokenBlacklisted: true
-          }
-        }
-      })
-
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/v1/auth/logout',
-        headers: {
-          Authorization: 'Bearer token-to-revoke'
-        }
-      })
-
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data.tokenBlacklisted).toBe(true)
-    })
+    expect(res.status).toBe(200)
+    expect(res.body.data.id).toBe(user.id)
   })
 
-  describe('GET /api/v1/auth/me', () => {
-    test('should return current user', async () => {
-      app.get('/api/v1/auth/me', async (request) => {
-        return {
-          success: true,
-          data: {
-            id: 'user-123',
-            name: 'Test User',
-            email: 'test@example.com',
-            avatar: 'https://example.com/avatar.png',
-            role: 'PARTICIPANT'
-          }
-        }
-      })
+  it('verifies token validity', async () => {
+    const token = app.jwt.sign({ userId: 'user-1', email: 'u@example.com', role: 'PARTICIPANT' })
+    const res = await request
+      .post('/api/v1/auth/verify')
+      .set('Authorization', `Bearer ${token}`)
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/auth/me',
-        headers: {
-          Authorization: 'Bearer valid-access-token'
-        }
-      })
+    expect(res.status).toBe(200)
+    expect(res.body.data.valid).toBe(true)
+  })
 
-      expect(response.statusCode).toBe(200)
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data.id).toBe('user-123')
-      expect(body.data.email).toBe('test@example.com')
-    })
+  it('rejects refresh without bearer token and invalid formats', async () => {
+    const missing = await request.post('/api/v1/auth/refresh')
+    expect(missing.status).toBe(401)
 
-    test('should require valid token', async () => {
-      let hasValidToken = false
-      
-      app.get('/api/v1/auth/me', async (request, reply) => {
-        const token = request.headers.authorization?.split(' ')[1]
-        hasValidToken = token === 'valid-access-token'
-        if (!hasValidToken) {
-          reply.status(401)
-          return { success: false, error: '无效令牌' }
-        }
-        return { success: true, data: {} }
-      })
+    const invalid = await request
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', 'Bearer short')
+    expect(invalid.status).toBe(401)
+  })
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/auth/me'
-      })
+  it('rejects refresh for revoked or unknown user token', async () => {
+    const revokedToken = `refresh_revoked_${Date.now()}`
+    await request.post('/api/v1/auth/logout').set('Authorization', `Bearer ${revokedToken}`)
 
-      expect(response.statusCode).toBe(401)
-    })
+    const revoked = await request
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${revokedToken}`)
+    expect(revoked.status).toBe(401)
 
-    test('should return user profile', async () => {
-      app.get('/api/v1/auth/me', async () => {
-        return {
-          success: true,
-          data: {
-            id: 'user-456',
-            name: 'GitHub User',
-            email: 'user@github.com',
-            avatar: 'https://github.com/avatars/user',
-            githubId: '123456',
-            role: 'INITIATOR',
-            points: 1500,
-            createdAt: '2024-01-15T10:30:00Z'
-          }
-        }
-      })
+    const unknownUserToken = `refresh_unknown_${Date.now()}`
+    const unknown = await request
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${unknownUserToken}`)
+    expect(unknown.status).toBe(401)
+  })
 
-      await app.ready()
-      
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/auth/me',
-        headers: {
-          Authorization: 'Bearer github-user-token'
-        }
-      })
+  it('handles current user auth failures', async () => {
+    const missing = await request.get('/api/v1/auth/me')
+    expect(missing.status).toBe(401)
 
-      const body = JSON.parse(response.body)
-      expect(body.success).toBe(true)
-      expect(body.data.githubId).toBe('123456')
-      expect(body.data.points).toBe(1500)
-    })
+    const bad = await request
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer bad-token')
+    expect(bad.status).toBe(401)
+
+    const inactive = await createUser({ status: 'INACTIVE' })
+    const accessToken = app.jwt.sign({ userId: inactive.id, email: inactive.email, role: inactive.role })
+    const res = await request
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+    expect(res.status).toBe(403)
+  })
+
+  it('returns invalid for verify without token or revoked token', async () => {
+    const missing = await request.post('/api/v1/auth/verify')
+    expect(missing.status).toBe(200)
+    expect(missing.body.data.valid).toBe(false)
+
+    const token = app.jwt.sign({ userId: 'user-2', email: 'u2@example.com', role: 'PARTICIPANT' })
+    await request.post('/api/v1/auth/logout').set('Authorization', `Bearer ${token}`)
+
+    const revoked = await request
+      .post('/api/v1/auth/verify')
+      .set('Authorization', `Bearer ${token}`)
+    expect(revoked.status).toBe(200)
+    expect(revoked.body.data.valid).toBe(false)
   })
 })

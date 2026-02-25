@@ -1,8 +1,8 @@
-version: '3.  postgres:
-    image: postgres:8'
+version: '3.8'
 
 services:
-15-alpine
+  postgres:
+    image: postgres:15-alpine
     container_name: ai-pm-postgres
     environment:
       POSTGRES_USER: postgres

@@ -465,7 +465,7 @@ async function upsertGitHubUser(userInfo: {
         name: userInfo.name || userInfo.login,
         avatar: userInfo.avatar_url,
         status: 'ACTIVE',
-        points: 0
+        totalPoints: 0
       }
     })
   }

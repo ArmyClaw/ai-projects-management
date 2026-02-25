@@ -97,7 +97,7 @@ export async function createSettlementRoute(fastify: FastifyInstance) {
       const netAmount = Math.round((amount - platformFee) * 100) / 100
 
       // 计算新的积分余额
-      const newBalance = user.points + netAmount
+      const newBalance = user.totalPoints + netAmount
 
       // 创建结算记录
       const settlement = await prisma.settlement.create({
@@ -118,9 +118,10 @@ export async function createSettlementRoute(fastify: FastifyInstance) {
       // 更新用户积分
       await prisma.user.update({
         where: { id: userId },
-        data: { points: newBalance }
+        data: { totalPoints: newBalance }
       })
 
+      reply.status(201)
       return {
         success: true,
         data: {

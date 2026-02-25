@@ -14,7 +14,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 const loadView = (view: string) => () => import(`@/views/${view}.vue`)
 
 // 路由配置
-const routes: Array<RouteRecordRaw> = [
+export const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     name: 'Home',
@@ -67,7 +67,7 @@ const router = createRouter({
 })
 
 // 路由预获取策略：用户悬停时预加载
-const prefetchRoute = (to: RouteRecordRaw) => {
+export const prefetchRoute = (to: RouteRecordRaw) => {
   const component = to.component
   if (typeof component === 'function' && 'then' in component) {
     // 组件已被预加载，无需重复加载
