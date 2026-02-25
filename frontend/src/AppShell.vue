@@ -133,58 +133,64 @@ onMounted(async () => {
     <n-layout has-header style="min-height: 100vh;">
       <!-- 顶部导航 -->
       <n-layout-header class="app-header">
-        <!-- 左侧：Logo和菜单 -->
-        <div class="header-left">
-          <!-- 汉堡菜单按钮（移动端） -->
-          <n-button class="hamburger-btn" circle @click="openMobileMenu">
-            <template #icon>
-              <span class="hamburger-icon">☰</span>
-            </template>
-          </n-button>
-          
-          <!-- Logo -->
-          <div class="logo">
-            AI Project Manager
-          </div>
-          
-          <!-- 桌面端导航菜单 -->
-          <n-menu 
-            class="desktop-menu"
-            mode="horizontal" 
-            :options="menuOptions" 
-            :value="route.path"
-            @update:value="handleMenuUpdate"
-            style="border-bottom: none;"
-          />
-        </div>
-
-        <!-- 右侧：通知、主题切换、语言切换、用户 -->
-        <div class="header-right">
-          <!-- 通知中心 -->
-          <NotificationCenter />
-
-          <!-- 主题切换 -->
-          <ThemeToggle />
-
-          <!-- 语言切换 -->
-          <LanguageSelector />
-
-          <!-- 用户菜单 -->
-          <n-dropdown :options="userMenuOptions" @select="handleUserMenuUpdate" v-if="userStore.user">
-            <div class="user-menu-trigger">
-              <n-avatar 
-                :size="32" 
-                :src="userStore.user.avatar" 
-                round
-              >
-                {{ userStore.user.name.charAt(0) }}
-              </n-avatar>
-              <span class="user-name">{{ userStore.user.name }}</span>
+        <div class="app-header-inner">
+          <!-- 左侧：Logo和菜单 -->
+          <div class="header-left">
+            <!-- 汉堡菜单按钮（移动端） -->
+            <n-button class="hamburger-btn" circle @click="openMobileMenu">
+              <template #icon>
+                <span class="hamburger-icon">☰</span>
+              </template>
+            </n-button>
+            
+            <!-- Logo -->
+            <div class="logo">
+              <span class="logo-mark">◎</span>
+              <div class="logo-text">
+                <div class="logo-title">AI Project Manager</div>
+                <div class="logo-subtitle">Warm, calm, focused</div>
+              </div>
             </div>
-          </n-dropdown>
-          <n-button v-else type="primary" size="small" @click="router.push('/login')">
-            登录
-          </n-button>
+            
+            <!-- 桌面端导航菜单 -->
+            <n-menu 
+              class="desktop-menu"
+              mode="horizontal" 
+              :options="menuOptions" 
+              :value="route.path"
+              @update:value="handleMenuUpdate"
+              style="border-bottom: none;"
+            />
+          </div>
+
+          <!-- 右侧：通知、主题切换、语言切换、用户 -->
+          <div class="header-right">
+            <!-- 通知中心 -->
+            <NotificationCenter />
+
+            <!-- 主题切换 -->
+            <ThemeToggle />
+
+            <!-- 语言切换 -->
+            <LanguageSelector />
+
+            <!-- 用户菜单 -->
+            <n-dropdown :options="userMenuOptions" @select="handleUserMenuUpdate" v-if="userStore.user">
+              <div class="user-menu-trigger">
+                <n-avatar 
+                  :size="32" 
+                  :src="userStore.user.avatar" 
+                  round
+                >
+                  {{ userStore.user.name.charAt(0) }}
+                </n-avatar>
+                <span class="user-name">{{ userStore.user.name }}</span>
+              </div>
+            </n-dropdown>
+            <n-button v-else type="primary" size="small" class="login-btn" @click="router.push('/login')">
+              登录
+            </n-button>
+          </div>
         </div>
       </n-layout-header>
 
@@ -213,11 +219,13 @@ onMounted(async () => {
 
       <!-- 主内容区 - 路由过渡动画 -->
       <div class="main-content">
+        <div class="page-surface">
         <RouterView v-slot="{ Component }">
           <Transition name="fade-slide" mode="out-in">
             <component :is="Component" />
           </Transition>
         </RouterView>
+        </div>
       </div>
     </n-layout>
   </n-config-provider>
@@ -233,13 +241,25 @@ onMounted(async () => {
    响应式头部布局
    ======================== */
 .app-header {
-  height: 64px;
-  padding: 0 16px;
+  height: 72px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(180deg, rgba(255, 247, 240, 0.96), rgba(255, 241, 230, 0.92));
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-header-inner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-primary);
 }
 
 .header-left {
@@ -255,10 +275,39 @@ onMounted(async () => {
 }
 
 .logo {
-  font-size: 18px;
-  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--accent-color);
   white-space: nowrap;
+}
+
+.logo-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #ffe7d6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d16a6a;
+  font-size: 18px;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.logo-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.logo-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 /* 汉堡菜单按钮 */
@@ -281,6 +330,11 @@ onMounted(async () => {
 .user-name {
   font-size: 14px;
   white-space: nowrap;
+}
+
+.login-btn {
+  border-radius: 999px;
+  padding: 0 16px;
 }
 
 /* ========================
@@ -450,9 +504,17 @@ html:not(.dark) {
    主内容区响应式
    ======================== */
 .main-content {
-  padding: 24px;
+  padding: 24px 16px 48px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.page-surface {
+  background: #fffaf6;
+  border: 1px solid #f2d4c2;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 18px 40px rgba(90, 54, 35, 0.08);
 }
 
 @media (max-width: 1200px) {

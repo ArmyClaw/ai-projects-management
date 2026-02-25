@@ -10,7 +10,10 @@ html, body {
   font-size: 14px;
   line-height: 1.5;
   color: #3a2a1f;
-  background-color: #fff7f0;
+  background:
+    radial-gradient(900px 400px at 10% 10%, rgba(255, 241, 230, 0.7), rgba(255, 241, 230, 0)),
+    radial-gradient(700px 320px at 90% 0%, rgba(255, 236, 220, 0.6), rgba(255, 236, 220, 0)),
+    #fff7f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -37,6 +40,14 @@ a:hover {
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 6px 18px rgba(94, 58, 38, 0.08);
+}
+
+/* Naive UI card surface */
+.n-card {
+  border-radius: 16px;
+  border: 1px solid #f2d4c2;
+  background: #fffaf6;
+  box-shadow: 0 12px 24px rgba(90, 54, 35, 0.08);
 }
 
 /* 按钮样式 */
