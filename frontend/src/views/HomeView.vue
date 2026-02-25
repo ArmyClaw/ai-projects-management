@@ -68,20 +68,24 @@ const features = [
 }
 
 .hero {
-  background: linear-gradient(135deg, #18a058 0%, #36ad6a 100%);
-  color: #fff;
+  background: radial-gradient(1200px 400px at 50% -50%, rgba(255, 241, 230, 0.9) 0%, rgba(255, 241, 230, 0) 60%),
+    linear-gradient(135deg, #f6a06c 0%, #e07a47 45%, #d86a56 100%);
+  color: #fffaf6;
   padding: 80px 0;
   text-align: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .hero h1 {
+  font-family: 'Source Serif 4', 'Nunito', serif;
   font-size: 36px;
   margin-bottom: 16px;
 }
 
 .subtitle {
   font-size: 18px;
-  opacity: 0.9;
+  color: rgba(255, 250, 246, 0.88);
   margin-bottom: 32px;
 }
 
@@ -93,6 +97,7 @@ const features = [
 
 .features {
   padding: 60px 0;
+  background: linear-gradient(180deg, #fff7f0 0%, #fff1e6 100%);
 }
 
 .feature-item {
@@ -111,6 +116,6 @@ const features = [
 }
 
 .feature-item p {
-  color: #666;
+  color: #6f564a;
 }
 </style>

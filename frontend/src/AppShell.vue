@@ -393,56 +393,56 @@ onMounted(async () => {
    深色模式样式覆盖
    ======================== */
 html.dark {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-tertiary: #0f3460;
-  --text-primary: #eaeaea;
-  --text-secondary: #a0a0a0;
-  --border-color: #2d2d44;
-  --accent-color: #e94560;
-  --success-color: #18a058;
-  --warning-color: #f0a020;
-  --error-color: #d03050;
+  --bg-primary: #2b1d16;
+  --bg-secondary: #241812;
+  --bg-tertiary: #1d130e;
+  --text-primary: #f6eadf;
+  --text-secondary: #c8b2a3;
+  --border-color: #3a261c;
+  --accent-color: #e07a47;
+  --success-color: #6aa476;
+  --warning-color: #f0b36a;
+  --error-color: #d36b6b;
 }
 
 html:not(.dark) {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-tertiary: #f0f2f5;
-  --text-primary: #333639;
-  --text-secondary: #666;
-  --border-color: #e8e8e8;
-  --accent-color: #18a058;
-  --success-color: #18a058;
-  --warning-color: #f0a020;
-  --error-color: #d03050;
+  --bg-primary: #fff7f0;
+  --bg-secondary: #fff1e6;
+  --bg-tertiary: #ffe7d6;
+  --text-primary: #3a2a1f;
+  --text-secondary: #6f564a;
+  --border-color: #f2d4c2;
+  --accent-color: #e07a47;
+  --success-color: #5f9c73;
+  --warning-color: #e6a35a;
+  --error-color: #d16a6a;
 }
 
 /* ========================
    全局CSS变量
    ======================== */
 :root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-tertiary: #f0f2f5;
-  --text-primary: #333639;
-  --text-secondary: #666;
-  --border-color: #e8e8e8;
-  --accent-color: #18a058;
-  --success-color: #18a058;
-  --warning-color: #f0a020;
-  --error-color: #d03050;
+  --bg-primary: #fff7f0;
+  --bg-secondary: #fff1e6;
+  --bg-tertiary: #ffe7d6;
+  --text-primary: #3a2a1f;
+  --text-secondary: #6f564a;
+  --border-color: #f2d4c2;
+  --accent-color: #e07a47;
+  --success-color: #5f9c73;
+  --warning-color: #e6a35a;
+  --error-color: #d16a6a;
 }
 
 /* 深色模式覆盖 */
 @media (prefers-color-scheme: dark) {
   html:not(.light) {
-    --bg-primary: #1a1a2e;
-    --bg-secondary: #16213e;
-    --bg-tertiary: #0f3460;
-    --text-primary: #eaeaea;
-    --text-secondary: #a0a0a0;
-    --border-color: #2d2d44;
+    --bg-primary: #2b1d16;
+    --bg-secondary: #241812;
+    --bg-tertiary: #1d130e;
+    --text-primary: #f6eadf;
+    --text-secondary: #c8b2a3;
+    --border-color: #3a261c;
   }
 }
 

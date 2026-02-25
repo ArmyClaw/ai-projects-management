@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Source+Serif+4:wght@500;600&display=swap');
+
 /* 全局样式 */
 * {
   margin: 0;
@@ -6,22 +8,22 @@
 }
 
 html, body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Nunito', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #333;
-  background-color: #f5f7fa;
+  color: #3a2a1f;
+  background-color: #fff7f0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 a {
-  color: #18a058;
+  color: #e07a47;
   text-decoration: none;
 }
 
 a:hover {
-  color: #36ad6a;
+  color: #e88d62;
 }
 
 /* 通用容器 */
@@ -33,10 +35,10 @@ a:hover {
 
 /* 卡片样式 */
 .card {
-  background: #fff;
+  background: #fffaf6;
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 18px rgba(94, 58, 38, 0.08);
 }
 
 /* 按钮样式 */
@@ -54,21 +56,21 @@ a:hover {
 }
 
 .btn-primary {
-  background: #18a058;
+  background: #e07a47;
   color: #fff;
 }
 
 .btn-primary:hover {
-  background: #36ad6a;
+  background: #e88d62;
 }
 
 .btn-secondary {
-  background: #f0f0f0;
-  color: #333;
+  background: #ffe9db;
+  color: #5b3d2d;
 }
 
 .btn-secondary:hover {
-  background: #e0e0e0;
+  background: #ffd9c4;
 }
 
 /* 布局工具 */
@@ -104,9 +106,9 @@ a:hover {
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 
-.text-primary { color: #18a058; }
-.text-secondary { color: #666; }
-.text-muted { color: #999; }
+.text-primary { color: #e07a47; }
+.text-secondary { color: #6f564a; }
+.text-muted { color: #9a7f72; }
 
 .text-sm { font-size: 12px; }
 .text-lg { font-size: 18px; }
