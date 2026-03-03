@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CapabilityStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+  ARCHIVED
+}
+
+enum HealthStatus {
+  UNKNOWN
+  HEALTHY
+  UNHEALTHY
+  DEGRADED
+}
+
+enum ModelTier {
+  PREMIUM
+  BALANCED
+  ECONOMY
+}
+
+enum AssignmentRole {
+  PRIMARY
+  ASSISTANT
+}
+
+model Model {
+  id          String           @id
+  name        String
+  provider    String
+  modelId     String
+  tier        ModelTier
+  status      CapabilityStatus @default(DRAFT)
+  healthStatus HealthStatus    @default(UNKNOWN)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  agents      Agent[]
+  assignments ProjectRoleAgent[]
+  primaryForRoles AgentRoleProfile[] @relation("PrimaryRoleModel")
+  assistantForRoles AgentRoleProfile[] @relation("AssistantRoleModel")
+}
+
+model Skill {
+  id         String           @id
+  name       String
+  version    String
+  status     CapabilityStatus @default(DRAFT)
+  tags       String[]
+  definition Json
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([name, version])
+  @@index([status])
+}
+
+model Agent {
+  id             String  @id
+  name           String
+  roleId         String
+  workload       Int
+  defaultModelId String?
+  skillIds       String[] @default([])
+  workflow       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  defaultModel   Model?   @relation(fields: [defaultModelId], references: [id])
+  assignments    ProjectRoleAgent[]
+}
+
+model AgentRoleProfile {
+  roleId            String   @id
+  skillIds          String[] @default([])
+  workflow          Json?
+  workloadMarkdown  String   @default("")
+  primaryModelId    String
+  assistantModelId  String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  primaryModel      Model @relation("PrimaryRoleModel", fields: [primaryModelId], references: [id], onDelete: Restrict)
+  assistantModel    Model @relation("AssistantRoleModel", fields: [assistantModelId], references: [id], onDelete: Restrict)
+
+  @@index([primaryModelId])
+  @@index([assistantModelId])
+}
+
+model Project {
+  id          String   @id
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments ProjectRoleAgent[]
+}
+
+model ProjectRoleAgent {
+  id             String         @id @default(uuid())
+  projectId      String
+  roleId         String
+  agentId        String
+  assignmentRole AssignmentRole
+  modelId        String
+  priority       Int
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  model   Model   @relation(fields: [modelId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, roleId, agentId])
+  @@index([projectId, roleId])
+  @@index([projectId, roleId, assignmentRole])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  beforeData Json?
+  afterData  Json?
+  createdAt  DateTime @default(now())
+}

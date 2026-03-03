@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Agent"
+ADD COLUMN "skillIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN "workflow" JSONB;

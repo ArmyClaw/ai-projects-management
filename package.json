@@ -1,0 +1,14 @@
+{
+  "name": "ai-projects-management",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "backend",
+    "web"
+  ],
+  "scripts": {
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace backend run build && npm --workspace web run build"
+  }
+}
