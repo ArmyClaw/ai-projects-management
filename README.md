@@ -20,6 +20,22 @@
   - PostgreSQL: `backend/prisma/schema.prisma`
   - MySQL: `backend/prisma/schema.mysql.prisma`
 
+### Switch To MySQL
+1. Copy `backend/.env.mysql.example` to `backend/.env` and adjust values:
+   - `DATABASE_PROVIDER=mysql`
+   - `DATABASE_URL=mysql://<user>:<password>@<host>:<port>/agent_team_builder`
+2. Ensure the MySQL database exists (example: `agent_team_builder`) and the user has create/alter table privileges.
+3. Initialize schema:
+   - `npm --workspace backend run db:init`
+4. Start backend:
+   - `npm run dev:backend`
+
+Notes:
+- This repository's migration history is PostgreSQL-oriented. For MySQL, use `db:init` (`prisma db push`) as the primary initialization path.
+- `db:init` picks schema by `DATABASE_PROVIDER`:
+  - `postgresql` -> `backend/prisma/schema.prisma`
+  - `mysql` -> `backend/prisma/schema.mysql.prisma`
+
 ## MVP Scope in Code
 - Model Library API
 - Skill Library API (Markdown definition editor)
