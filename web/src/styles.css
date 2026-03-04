@@ -1,4 +1,5 @@
-:root {
+:root,
+:root[data-theme="classic"] {
   --bg: #ffffff;
   --bg-accent: #ffffff;
   --surface: #ffffff;
@@ -69,6 +70,9 @@ body {
   border: 1px solid #f0f0f0;
   transition: all 0.2s ease;
   background: #fff;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .nav-link.router-link-active {
@@ -85,6 +89,8 @@ body {
 
 .main {
   padding: 22px;
+  position: relative;
+  pointer-events: auto;
 }
 
 .page-title {
@@ -198,6 +204,7 @@ body {
   background: var(--surface);
   box-shadow: var(--shadow);
   position: relative;
+  pointer-events: auto;
 }
 
 .card::before {
@@ -209,6 +216,7 @@ body {
   height: 5px;
   border-radius: 999px;
   background: #f2f2f2;
+  pointer-events: none;
 }
 
 .input,
@@ -315,6 +323,249 @@ label {
   margin-top: 8px;
 }
 
+:root[data-theme="dungeon"] {
+  --bg: #1f1a2d;
+  --bg-accent: #2b2440;
+  --surface: #fff8e7;
+  --surface-soft: #f5edd8;
+  --text-primary: #2d2318;
+  --text-secondary: #625344;
+  --border: #443624;
+  --focus: #b28b45;
+  --primary: #2c2318;
+  --primary-soft: #ece0c1;
+  --success: #2f8f64;
+  --error: #a12a24;
+  --shadow: 0 10px 0 rgba(30, 20, 8, 0.2), 0 20px 26px rgba(8, 4, 16, 0.35);
+  --ring: 0 0 0 3px rgba(178, 139, 69, 0.25);
+}
+
+:root[data-theme="dungeon"] body {
+  font-family: "Baloo 2", "Nunito", "Avenir Next", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background-image:
+    radial-gradient(circle at 20% 12%, rgba(255, 219, 145, 0.1), transparent 30%),
+    radial-gradient(circle at 78% 18%, rgba(102, 201, 255, 0.08), transparent 34%),
+    linear-gradient(180deg, #1f1a2d 0%, #161223 100%);
+}
+
+:root[data-theme="dungeon"] body::before,
+:root[data-theme="dungeon"] body::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: -1;
+}
+
+:root[data-theme="dungeon"] body::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px) 0 0 / 28px 28px;
+}
+
+:root[data-theme="dungeon"] body::after {
+  right: 24px;
+  bottom: 20px;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 223, 128, 0.35);
+  animation: floaty 5s ease-in-out infinite;
+}
+
+:root[data-theme="dungeon"] .layout {
+  gap: 10px;
+}
+
+:root[data-theme="dungeon"] .sidebar {
+  border-right: 2px solid #3b2d1d;
+  background: linear-gradient(180deg, #faefce 0%, #f0dfba 100%);
+  box-shadow: inset -4px 0 0 rgba(63, 46, 29, 0.12);
+}
+
+:root[data-theme="dungeon"] .sidebar::after {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #432f1b;
+  background: radial-gradient(circle at 35% 35%, #fff6cf 0%, #ecb65a 58%, #8c4f16 100%);
+  box-shadow: 0 0 16px rgba(255, 212, 124, 0.65);
+  animation: flame 1.8s ease-in-out infinite;
+}
+
+:root[data-theme="dungeon"] .brand {
+  letter-spacing: 0.4px;
+  color: #3a2716;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme="dungeon"] .nav-link {
+  padding: 9px 11px;
+  border: 2px solid #4a3925;
+  background: linear-gradient(180deg, #fff9ec 0%, #f6e8c7 100%);
+  box-shadow: 0 2px 0 #b79a6e;
+}
+
+:root[data-theme="dungeon"] .nav-link.router-link-active {
+  background: linear-gradient(180deg, #ffefbe 0%, #e9d39e 100%);
+  border-color: #332313;
+  box-shadow: 0 3px 0 #8f7244, inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+:root[data-theme="dungeon"] .nav-link:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #fff8dd 0%, #f2e2b8 100%);
+}
+
+:root[data-theme="dungeon"] .main {
+  position: relative;
+}
+
+:root[data-theme="dungeon"] .main::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 20px;
+  width: 88px;
+  height: 18px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(90deg, rgba(255, 229, 150, 0.85), rgba(255, 229, 150, 0.85) 8px, rgba(255, 255, 255, 0.25) 8px, rgba(255, 255, 255, 0.25) 14px);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+:root[data-theme="dungeon"] .page-title {
+  font-size: 24px;
+  letter-spacing: 0.3px;
+  color: #fdf0ce;
+  text-shadow: 0 2px 0 rgba(40, 20, 5, 0.6);
+}
+
+:root[data-theme="dungeon"] .card {
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+:root[data-theme="dungeon"] .card::before {
+  right: 8px;
+  top: 8px;
+  width: 54px;
+  height: 54px;
+  border: 2px dashed rgba(59, 42, 21, 0.22);
+  background: transparent;
+  pointer-events: none;
+}
+
+:root[data-theme="dungeon"] .card::after {
+  content: "";
+  position: absolute;
+  left: -20px;
+  bottom: -22px;
+  width: 100px;
+  height: 60px;
+  border-radius: 40% 60% 20% 80%;
+  background: rgba(66, 179, 122, 0.08);
+  pointer-events: none;
+}
+
+:root[data-theme="dungeon"] .input,
+:root[data-theme="dungeon"] .select,
+:root[data-theme="dungeon"] textarea {
+  border: 2px solid #8f7754;
+  border-radius: 12px;
+  background: #fffdf6;
+  color: #302417;
+}
+
+:root[data-theme="dungeon"] .button {
+  border: 2px solid #4b371c;
+  background: linear-gradient(180deg, #fff8e3 0%, #f5dfb1 100%);
+  color: #2f2114;
+  box-shadow: 0 3px 0 #9c7c4c;
+}
+
+:root[data-theme="dungeon"] .button.primary {
+  background: linear-gradient(180deg, #3d2d19 0%, #2a1f12 100%);
+  color: #ffefc9;
+  border-color: #160f08;
+  box-shadow: 0 3px 0 #000;
+}
+
+:root[data-theme="dungeon"] .button:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.05);
+}
+
+:root[data-theme="dungeon"] .table {
+  border: 2px solid #90744d;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fffdf6;
+}
+
+:root[data-theme="dungeon"] .table th,
+:root[data-theme="dungeon"] .table td {
+  border-bottom-color: #e6d8ba;
+}
+
+:root[data-theme="dungeon"] .table th {
+  color: #5e4a30;
+  background: linear-gradient(180deg, #f7e8c4 0%, #edd8a9 100%);
+}
+
+:root[data-theme="dungeon"] .tag {
+  border: 2px solid #5e492d;
+  background: #fff4d4;
+}
+
+:root[data-theme="dungeon"] .tag.primary {
+  background: #302114;
+  color: #ffe5a7;
+}
+
+:root[data-theme="dungeon"] .muted {
+  color: #7f6e5a;
+}
+
+:root[data-theme="dungeon"] label {
+  color: #6f5a41;
+}
+
+:root[data-theme="dungeon"] .error-text {
+  background: #fff1ef;
+  border: 1px solid #e5b3ad;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+:root[data-theme="dungeon"] .modal-panel {
+  background: linear-gradient(180deg, #fffaf0 0%, #f8ebcd 100%);
+  border: 2px solid #4f3d27;
+  border-radius: 14px;
+}
+
+@keyframes flame {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
 @media (max-width: 960px) {
   .layout {
     grid-template-columns: 1fr;
@@ -333,3 +584,24 @@ label {
     grid-template-columns: 1fr;
   }
 }
+
+.sidebar::after,
+.main::before,
+.card::before,
+.card::after,
+body::before,
+body::after {
+  pointer-events: none !important;
+}
+
+.modal-backdrop {
+  z-index: 6000 !important;
+  pointer-events: auto;
+}
+
+.modal-panel {
+  position: relative;
+  z-index: 6001;
+  pointer-events: auto;
+}
+

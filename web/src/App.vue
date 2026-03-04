@@ -34,6 +34,11 @@
           <option value="zh-CN">{{ t("lang.zh") }}</option>
           <option value="en-US">{{ t("lang.en") }}</option>
         </select>
+        <label class="locale-label" for="theme-select">{{ t("theme.label") }}</label>
+        <select id="theme-select" class="locale-select" :value="theme" @change="onThemeChange">
+          <option value="classic">{{ t("theme.classic") }}</option>
+          <option value="dungeon">{{ t("theme.dungeon") }}</option>
+        </select>
       </div>
     </aside>
 
@@ -131,8 +136,11 @@ import { useI18n } from "./lib/i18n";
 import { useAuth } from "./lib/auth";
 import { NETWORK_ERROR_CODE } from "./lib/api-base";
 import { apiNetworkErrorBase, clearApiNetworkErrorBase } from "./lib/network-status";
+import type { ThemeMode } from "./lib/theme";
+import { useTheme } from "./lib/theme";
 
 const { t, locale, setLocale } = useI18n();
+const { theme, setTheme } = useTheme();
 const { user, isLoggedIn, login, register, logout, refresh } = useAuth();
 
 const defaultAvatar =
@@ -169,6 +177,11 @@ const registerForm = reactive({
 const onLocaleChange = (event: Event) => {
   const value = (event.target as HTMLSelectElement).value as Locale;
   if (value === "zh-CN" || value === "en-US") setLocale(value);
+};
+
+const onThemeChange = (event: Event) => {
+  const value = (event.target as HTMLSelectElement).value as ThemeMode;
+  if (value === "classic" || value === "dungeon") setTheme(value);
 };
 
 const closeAuthModal = () => {
@@ -249,6 +262,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  position: relative;
+  z-index: 10;
 }
 
 .sidebar-top {
@@ -309,7 +324,7 @@ onMounted(async () => {
 }
 
 .sidebar-bottom {
-  border: 1px solid #d8d8d8;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 8px;
   display: grid;
@@ -318,34 +333,40 @@ onMounted(async () => {
   left: 12px;
   bottom: 12px;
   width: min(204px, calc(100vw - 24px));
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 6px 22px rgba(20, 20, 20, 0.12);
-  z-index: 1000;
+  z-index: 1200;
+  pointer-events: auto;
+}
+
+.sidebar-bottom * {
+  pointer-events: auto !important;
 }
 
 .locale-label {
   margin: 0;
   font-size: 11px;
-  color: #646464;
+  color: var(--text-secondary);
   font-weight: 700;
 }
 
 .locale-select {
   width: 100%;
   height: 30px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #fff;
+  background: var(--surface-soft);
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
   padding: 0 10px;
 }
 
 .host-entry {
-  border: 1px solid #111;
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 4px 10px 4px 4px;
-  background: #fff;
+  background: var(--surface-soft);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -356,9 +377,9 @@ onMounted(async () => {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid #1b1b1b;
+  border: 1px solid var(--border);
   object-fit: cover;
-  background: #fff;
+  background: var(--surface);
 }
 
 .host-avatar.large {
@@ -378,9 +399,10 @@ onMounted(async () => {
 }
 
 .host-login-btn {
-  border: 1px solid #111;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #fff;
+  background: var(--surface-soft);
+  color: var(--text-primary);
   padding: 8px 12px;
   font-weight: 800;
   cursor: pointer;

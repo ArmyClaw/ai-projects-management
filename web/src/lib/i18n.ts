@@ -17,6 +17,9 @@ const messages: Record<Locale, Record<string, string>> = {
   "en-US": {
     "lang.zh": "中文",
     "lang.en": "EN",
+    "theme.label": "Theme",
+    "theme.classic": "Classic",
+    "theme.dungeon": "Dungeon",
     "nav.models": "Models",
     "nav.hall": "Panel",
     "nav.skills": "Skills",
@@ -106,6 +109,9 @@ const messages: Record<Locale, Record<string, string>> = {
   "zh-CN": {
     "lang.zh": "中文",
     "lang.en": "EN",
+    "theme.label": "主题",
+    "theme.classic": "经典黑白",
+    "theme.dungeon": "勇者地下城",
     "nav.models": "模型",
     "nav.hall": "面板",
     "nav.skills": "技能",

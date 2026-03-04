@@ -1,5 +1,5 @@
 <template>
-  <section class="hall-shell">
+  <section class="hall-shell" :class="{ 'dungeon-mode': theme === 'dungeon' }">
     <header class="hero-stage">
       <div class="hero-main">
         <p class="hero-kicker">{{ locale === "zh-CN" ? "世界大厅" : "World Lobby" }}</p>
@@ -11,6 +11,11 @@
               : "A game-lobby style overview: who climbs, who rules tools, and who drives premium orchestrations."
           }}
         </p>
+        <div class="hero-emblems">
+          <span>{{ locale === "zh-CN" ? "战报" : "Battle Log" }}</span>
+          <span>{{ locale === "zh-CN" ? "排行榜" : "Ranking" }}</span>
+          <span>{{ locale === "zh-CN" ? "世界频道" : "World Chat" }}</span>
+        </div>
         <div class="hero-tags">
           <span>{{ locale === "zh-CN" ? "模型" : "Models" }} {{ hall?.totals.models ?? 0 }}</span>
           <span>{{ locale === "zh-CN" ? "技能" : "Skills" }} {{ hall?.totals.skills ?? 0 }}</span>
@@ -60,6 +65,15 @@
       </article>
 
       <div class="center-stage">
+        <article class="panel strategy-map">
+          <h3>{{ locale === "zh-CN" ? "今日远征地图" : "Today Expedition Map" }}</h3>
+          <div class="map-lines">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </article>
         <section class="war-ticker" aria-label="war ticker">
           <div class="ticker-track">
             <div class="ticker-list">
@@ -136,6 +150,7 @@
 import { computed, onMounted, ref } from "vue";
 import { apiGet } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { useTheme } from "../lib/theme";
 
 type HallOverview = {
   generatedAt: string;
@@ -155,6 +170,7 @@ type HallOverview = {
 const hall = ref<HallOverview | null>(null);
 const loadError = ref("");
 const { locale } = useI18n();
+const { theme } = useTheme();
 
 const featuredProject = computed(() => hall.value?.projectLuxuryTop?.[0] ?? null);
 const totalPower = computed(() => {
@@ -254,7 +270,27 @@ onMounted(load);
 <style scoped>
 .hall-shell {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  position: relative;
+}
+
+.dungeon-mode .hall-shell::before {
+  content: "";
+  position: absolute;
+  inset: -6px -6px auto -6px;
+  height: 160px;
+  border-radius: 20px;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 12% 35%, rgba(255, 207, 120, 0.25), transparent 38%),
+    radial-gradient(circle at 85% 30%, rgba(95, 197, 255, 0.16), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05) 10px, transparent 10px, transparent 20px);
+}
+
+.dungeon-mode .hall-shell > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-stage {
@@ -262,11 +298,12 @@ onMounted(load);
   grid-template-columns: 1.35fr 0.65fr;
   gap: 12px;
   border: 2px solid #161616;
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 14px;
   background:
     radial-gradient(circle at 10px 10px, #101010 1px, transparent 1px) 0 0 / 16px 16px,
     linear-gradient(130deg, #fff 0%, #fafafa 56%, #f2f2f2 100%);
+  box-shadow: 0 8px 24px rgba(20, 20, 20, 0.08);
 }
 
 .hero-main {
@@ -290,6 +327,17 @@ onMounted(load);
   opacity: 0.28;
 }
 
+.hero-main::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  width: 72px;
+  height: 12px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.12) 8px, transparent 8px, transparent 14px);
+}
+
 .hero-side {
   display: grid;
   gap: 10px;
@@ -299,7 +347,7 @@ onMounted(load);
 .total-ring {
   min-height: 128px;
   border: 1px solid #1f1f1f;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 10px;
   display: grid;
   place-items: center;
@@ -331,7 +379,7 @@ onMounted(load);
 
 .hero-title {
   margin: 6px 0;
-  font-size: 30px;
+  font-size: 32px;
   line-height: 1.15;
 }
 
@@ -347,6 +395,25 @@ onMounted(load);
   gap: 8px;
 }
 
+.hero-emblems {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero-emblems span {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px dashed #3a3a3a;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .hero-tags span {
   border: 1px solid #1c1c1c;
   border-radius: 999px;
@@ -358,7 +425,7 @@ onMounted(load);
 
 .refresh-card,
 .boss-card {
-  border: 1px solid #1f1f1f;
+  border: 2px solid #1f1f1f;
   border-radius: 12px;
   padding: 10px;
   background: #fff;
@@ -434,7 +501,7 @@ onMounted(load);
 .lobby-grid {
   display: grid;
   grid-template-columns: 0.86fr 1.25fr 0.89fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .center-stage {
@@ -442,19 +509,58 @@ onMounted(load);
   gap: 12px;
 }
 
+.strategy-map {
+  padding-bottom: 10px;
+}
+
+.map-lines {
+  border: 2px dashed #242424;
+  border-radius: 10px;
+  padding: 10px;
+  background:
+    linear-gradient(180deg, #fff 0%, #f7f7f7 100%);
+  display: grid;
+  gap: 6px;
+}
+
+.map-lines span {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(90deg, #222, #222 8px, #fff 8px, #fff 16px);
+}
+
+.map-lines span:nth-child(2) {
+  width: 82%;
+}
+
+.map-lines span:nth-child(3) {
+  width: 65%;
+}
+
+.map-lines span:nth-child(4) {
+  width: 90%;
+}
+
 .board-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .panel {
-  border: 1px solid #1f1f1f;
+  border: 2px solid #1f1f1f;
   border-radius: 14px;
   padding: 12px;
   background:
     linear-gradient(180deg, #fff 0%, #fbfbfb 100%),
     radial-gradient(circle at 14px 14px, #111 1px, transparent 1px) 0 0 / 14px 14px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(20, 20, 20, 0.12);
 }
 
 .panel h3 {
@@ -468,7 +574,7 @@ onMounted(load);
 }
 
 .orb {
-  border: 1px dashed #202020;
+  border: 2px dashed #202020;
   border-radius: 12px;
   padding: 10px;
   display: flex;
@@ -520,7 +626,7 @@ onMounted(load);
 .radar-track {
   height: 12px;
   border-radius: 999px;
-  border: 1px solid #202020;
+  border: 2px solid #202020;
   overflow: hidden;
   background: #fff;
 }
@@ -538,7 +644,7 @@ onMounted(load);
 }
 
 .luxury-card {
-  border: 1px dashed #d9d9d9;
+  border: 2px dashed #d9d9d9;
   border-radius: 10px;
   padding: 9px;
   display: flex;
@@ -573,7 +679,7 @@ onMounted(load);
   display: grid;
   grid-template-columns: 58px 1fr;
   gap: 8px;
-  border: 1px dashed #dcdcdc;
+  border: 2px dashed #dcdcdc;
   border-radius: 10px;
   padding: 8px;
   background: #fff;
@@ -593,6 +699,194 @@ onMounted(load);
 .time {
   font-family: monospace;
   color: #666;
+}
+
+.dungeon-mode .hero-stage {
+  border-color: #5e4422;
+  background:
+    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.08) 1px, transparent 1px) 0 0 / 16px 16px,
+    linear-gradient(130deg, #2b2138 0%, #241a33 56%, #1a1329 100%);
+  box-shadow: 0 12px 28px rgba(7, 4, 18, 0.45);
+}
+
+.dungeon-mode .hero-main,
+.dungeon-mode .panel,
+.dungeon-mode .refresh-card,
+.dungeon-mode .boss-card {
+  background: linear-gradient(180deg, #fff9eb 0%, #f3e4c6 100%);
+  border-color: #6b4f2d;
+  box-shadow: 0 8px 18px rgba(59, 35, 12, 0.2);
+}
+
+.dungeon-mode .hero-main {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(255, 202, 102, 0.18), transparent 30%),
+    linear-gradient(180deg, #fff9ef 0%, #f3e6ca 100%);
+}
+
+.dungeon-mode .hero-title {
+  color: #3b2511;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72),
+    0 2px 8px rgba(78, 45, 12, 0.16);
+}
+
+.dungeon-mode .hero-kicker {
+  color: #7a5730;
+}
+
+.dungeon-mode .hero-sub {
+  color: #5b4228;
+}
+
+.dungeon-mode .hero-tags span,
+.dungeon-mode .tag {
+  background: linear-gradient(180deg, #ffefbe 0%, #f6d890 100%);
+  border-color: #7a5a2f;
+  color: #3e2a11;
+}
+
+.dungeon-mode .hero-emblems span {
+  background: linear-gradient(180deg, #f2ebff 0%, #d9cbff 100%);
+  border-color: #7a6bb2;
+  color: #2f235d;
+}
+
+.dungeon-mode .map-lines {
+  border-color: #6d532f;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(104, 206, 255, 0.2), transparent 26%),
+    linear-gradient(180deg, #fff7e4 0%, #efdfbe 100%);
+}
+
+.dungeon-mode .map-lines span {
+  background: repeating-linear-gradient(90deg, #4a371f, #4a371f 8px, #f8e8bf 8px, #f8e8bf 16px);
+}
+
+.dungeon-mode .side-mission {
+  background:
+    radial-gradient(circle at 20% 16%, rgba(255, 182, 99, 0.22), transparent 28%),
+    linear-gradient(180deg, #fff4dd 0%, #efd7ad 100%);
+  border-color: #8e6026;
+}
+
+.dungeon-mode .strategy-map {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(93, 208, 255, 0.2), transparent 28%),
+    linear-gradient(180deg, #eef8ff 0%, #d9ebf7 100%);
+  border-color: #3d6d86;
+}
+
+.dungeon-mode .podium-panel {
+  background:
+    radial-gradient(circle at 14% 20%, rgba(173, 139, 255, 0.22), transparent 30%),
+    linear-gradient(180deg, #f7f1ff 0%, #ebddff 100%);
+  border-color: #7561ad;
+}
+
+.dungeon-mode .channel-panel {
+  background:
+    radial-gradient(circle at 86% 14%, rgba(120, 255, 214, 0.22), transparent 28%),
+    linear-gradient(180deg, #effff9 0%, #dbf4ea 100%);
+  border-color: #2d8a72;
+}
+
+.dungeon-mode .radar-panel {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 216, 112, 0.24), transparent 30%),
+    linear-gradient(180deg, #fff8e8 0%, #f4e6bf 100%);
+  border-color: #9b772a;
+}
+
+.dungeon-mode .luxury-panel {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 166, 166, 0.2), transparent 28%),
+    linear-gradient(180deg, #fff0f0 0%, #f7dede 100%);
+  border-color: #b86262;
+}
+
+.dungeon-mode .orb {
+  background: linear-gradient(180deg, #fff6dc 0%, #f8e8c2 100%);
+  border-color: #72552c;
+  color: #3d2a12;
+}
+
+.dungeon-mode .orb:nth-child(2n) {
+  background: linear-gradient(180deg, #ecf6ff 0%, #d5e9ff 100%);
+  border-color: #4f6d9a;
+}
+
+.dungeon-mode .orb strong {
+  color: #6a2b14;
+}
+
+.dungeon-mode .orb:nth-child(2n) strong {
+  color: #1f4e8b;
+}
+
+.dungeon-mode .chat-line {
+  background: linear-gradient(180deg, #f3fff8 0%, #e2f6ea 100%);
+  border-color: #8bc0a6;
+}
+
+.dungeon-mode .chat-line:nth-child(2n) {
+  background: linear-gradient(180deg, #f8f1ff 0%, #e8dbfa 100%);
+  border-color: #b49add;
+}
+
+.dungeon-mode .luxury-card {
+  background: linear-gradient(180deg, #fff8f8 0%, #fbe2e2 100%);
+  border-color: #da9b9b;
+}
+
+.dungeon-mode .luxury-badge {
+  background: linear-gradient(180deg, #ffe9be 0%, #ffc878 100%);
+  border-color: #8c5a21;
+  color: #3f250f;
+}
+
+.dungeon-mode .total-ring {
+  border-color: #8d6a2f;
+  background:
+    conic-gradient(from 140deg, #7a5525 0deg, #7a5525 22deg, #fff8e1 22deg, #fff8e1 50deg, #7a5525 50deg, #7a5525 72deg, #fff8e1 72deg, #fff8e1 360deg);
+}
+
+.dungeon-mode .total-ring small,
+.dungeon-mode .total-ring strong {
+  border-color: #8d6a2f;
+  background: #fff3d5;
+  color: #4a2d12;
+}
+
+.dungeon-mode .podium-row {
+  border-bottom-color: rgba(73, 50, 113, 0.25);
+}
+
+.dungeon-mode .podium-row b {
+  color: #492a7f;
+}
+
+.dungeon-mode .ticker-item {
+  color: #ffeac2;
+  border-right-color: rgba(255, 222, 165, 0.35);
+}
+
+.dungeon-mode .ticker-item::before {
+  background: #ffc97d;
+}
+
+.dungeon-mode .war-ticker {
+  border-color: #7a5a2b;
+  background: linear-gradient(180deg, #2f2344 0%, #201733 100%);
+}
+
+.dungeon-mode .radar-track {
+  border-color: #6b512b;
+}
+
+.dungeon-mode .luxury-badge {
+  background: #fff1ca;
+  border-color: #4f391f;
 }
 
 @media (max-width: 1200px) {
@@ -637,3 +931,4 @@ onMounted(load);
   }
 }
 </style>
+
