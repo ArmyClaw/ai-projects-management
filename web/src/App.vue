@@ -38,6 +38,8 @@
         <select id="theme-select" class="locale-select" :value="theme" @change="onThemeChange">
           <option value="classic">{{ t("theme.classic") }}</option>
           <option value="dungeon">{{ t("theme.dungeon") }}</option>
+          <option value="storybook">{{ t("theme.storybook") }}</option>
+          <option value="cyber">{{ t("theme.cyber") }}</option>
         </select>
       </div>
     </aside>
@@ -181,7 +183,7 @@ const onLocaleChange = (event: Event) => {
 
 const onThemeChange = (event: Event) => {
   const value = (event.target as HTMLSelectElement).value as ThemeMode;
-  if (value === "classic" || value === "dungeon") setTheme(value);
+  if (value === "classic" || value === "dungeon" || value === "storybook" || value === "cyber") setTheme(value);
 };
 
 const closeAuthModal = () => {

@@ -1,5 +1,8 @@
 <template>
-  <section class="hall-shell" :class="{ 'dungeon-mode': theme === 'dungeon' }">
+  <section
+    class="hall-shell"
+    :class="{ 'dungeon-mode': theme === 'dungeon', 'storybook-mode': theme === 'storybook', 'cyber-mode': theme === 'cyber' }"
+  >
     <header class="hero-stage">
       <div class="hero-main">
         <p class="hero-kicker">{{ locale === "zh-CN" ? "世界大厅" : "World Lobby" }}</p>
@@ -887,6 +890,386 @@ onMounted(load);
 .dungeon-mode .luxury-badge {
   background: #fff1ca;
   border-color: #4f391f;
+}
+
+.storybook-mode .hero-stage {
+  border-color: #83a79b;
+  background:
+    radial-gradient(circle at 10px 10px, rgba(54, 93, 83, 0.1) 1px, transparent 1px) 0 0 / 16px 16px,
+    linear-gradient(130deg, #e8f6f2 0%, #ddf0eb 52%, #d1e8e2 100%);
+  box-shadow: 0 12px 26px rgba(67, 115, 103, 0.2);
+}
+
+.storybook-mode .hero-main,
+.storybook-mode .panel,
+.storybook-mode .refresh-card,
+.storybook-mode .boss-card {
+  background: linear-gradient(180deg, #fffef8 0%, #eef8f3 100%);
+  border-color: #92b2a7;
+  box-shadow: 0 8px 18px rgba(103, 136, 126, 0.16);
+}
+
+.storybook-mode .hero-main {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(255, 222, 168, 0.34), transparent 30%),
+    linear-gradient(180deg, #fffef8 0%, #eef9f4 100%);
+}
+
+.storybook-mode .hero-title {
+  color: #304b43;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.storybook-mode .hero-kicker {
+  color: #58736a;
+}
+
+.storybook-mode .hero-sub {
+  color: #4d6961;
+}
+
+.storybook-mode .hero-tags span,
+.storybook-mode .tag {
+  background: linear-gradient(180deg, #fff6df 0%, #e8f5f1 100%);
+  border-color: #7ea497;
+  color: #335148;
+}
+
+.storybook-mode .hero-emblems span {
+  background: linear-gradient(180deg, #f8fff9 0%, #e6f3ed 100%);
+  border-color: #8caea2;
+  color: #3b6157;
+}
+
+.storybook-mode .map-lines {
+  border-color: #8eaea3;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 226, 172, 0.3), transparent 26%),
+    linear-gradient(180deg, #fffef8 0%, #ecf8f2 100%);
+}
+
+.storybook-mode .map-lines span {
+  background: repeating-linear-gradient(90deg, #557c70, #557c70 8px, #ecf8f2 8px, #ecf8f2 16px);
+}
+
+.storybook-mode .side-mission {
+  background:
+    radial-gradient(circle at 20% 16%, rgba(255, 223, 169, 0.32), transparent 30%),
+    linear-gradient(180deg, #fffaf0 0%, #f0faf5 100%);
+  border-color: #98b6aa;
+}
+
+.storybook-mode .strategy-map {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(174, 216, 201, 0.34), transparent 28%),
+    linear-gradient(180deg, #f8fffd 0%, #e5f3ee 100%);
+  border-color: #8bac9f;
+}
+
+.storybook-mode .podium-panel {
+  background:
+    radial-gradient(circle at 14% 20%, rgba(255, 219, 170, 0.3), transparent 30%),
+    linear-gradient(180deg, #fffef8 0%, #edf7f1 100%);
+  border-color: #98b5aa;
+}
+
+.storybook-mode .channel-panel {
+  background:
+    radial-gradient(circle at 86% 14%, rgba(160, 218, 200, 0.3), transparent 28%),
+    linear-gradient(180deg, #f7fffc 0%, #e7f5ef 100%);
+  border-color: #89ac9f;
+}
+
+.storybook-mode .radar-panel {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 229, 177, 0.34), transparent 30%),
+    linear-gradient(180deg, #fffef8 0%, #edf8f2 100%);
+  border-color: #96b5aa;
+}
+
+.storybook-mode .luxury-panel {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 214, 170, 0.3), transparent 28%),
+    linear-gradient(180deg, #fffaf1 0%, #eef7f2 100%);
+  border-color: #9ab7ab;
+}
+
+.storybook-mode .orb {
+  background: linear-gradient(180deg, #fff9ea 0%, #ecf8f3 100%);
+  border-color: #8faea3;
+  color: #35544b;
+}
+
+.storybook-mode .orb:nth-child(2n) {
+  background: linear-gradient(180deg, #f4fffa 0%, #e5f3ed 100%);
+  border-color: #8cade0;
+}
+
+.storybook-mode .orb strong,
+.storybook-mode .orb:nth-child(2n) strong {
+  color: #36554b;
+}
+
+.storybook-mode .chat-line {
+  background: linear-gradient(180deg, #f8fffc 0%, #eaf6f1 100%);
+  border-color: #acd0c2;
+}
+
+.storybook-mode .chat-line:nth-child(2n) {
+  background: linear-gradient(180deg, #fffef8 0%, #f0f8f3 100%);
+  border-color: #c1dbc7;
+}
+
+.storybook-mode .luxury-card {
+  background: linear-gradient(180deg, #fffdf6 0%, #edf7f2 100%);
+  border-color: #bfd8ce;
+}
+
+.storybook-mode .luxury-badge {
+  background: linear-gradient(180deg, #fff0cf 0%, #f7dbb2 100%);
+  border-color: #8ca99f;
+  color: #39554d;
+}
+
+.storybook-mode .total-ring {
+  border-color: #8eaea2;
+  background:
+    conic-gradient(from 140deg, #7ea295 0deg, #7ea295 22deg, #f9fff8 22deg, #f9fff8 50deg, #7ea295 50deg, #7ea295 72deg, #f9fff8 72deg, #f9fff8 360deg);
+}
+
+.storybook-mode .total-ring small,
+.storybook-mode .total-ring strong {
+  border-color: #8eaea2;
+  background: #f9fffc;
+  color: #315147;
+}
+
+.storybook-mode .podium-row {
+  border-bottom-color: rgba(90, 133, 120, 0.24);
+}
+
+.storybook-mode .podium-row b {
+  color: #33584f;
+}
+
+.storybook-mode .ticker-item {
+  color: #34574f;
+  border-right-color: rgba(95, 143, 130, 0.3);
+}
+
+.storybook-mode .ticker-item::before {
+  background: #6f9b8f;
+}
+
+.storybook-mode .war-ticker {
+  border-color: #8eaea2;
+  background: linear-gradient(180deg, #f7fffd 0%, #e6f3ee 100%);
+}
+
+.storybook-mode .radar-track {
+  border-color: #89a99d;
+}
+
+.cyber-mode .hero-stage {
+  border-color: #2f6c98;
+  background:
+    linear-gradient(90deg, rgba(25, 213, 255, 0.08) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(rgba(25, 213, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(130deg, #091127 0%, #0a132a 55%, #070e20 100%);
+  box-shadow: 0 12px 30px rgba(2, 8, 28, 0.72);
+}
+
+.cyber-mode .hero-main,
+.cyber-mode .panel,
+.cyber-mode .refresh-card,
+.cyber-mode .boss-card {
+  background: linear-gradient(180deg, #101a31 0%, #0c152c 100%);
+  border-color: #2d6992;
+  box-shadow: 0 8px 18px rgba(3, 10, 34, 0.56);
+}
+
+.cyber-mode .hero-main {
+  background:
+    radial-gradient(circle at 88% 16%, rgba(70, 111, 255, 0.2), transparent 30%),
+    linear-gradient(180deg, #101a31 0%, #0c152c 100%);
+}
+
+.cyber-mode .hero-main::before {
+  background: repeating-linear-gradient(90deg, rgba(95, 245, 255, 0.24), rgba(95, 245, 255, 0.24) 8px, transparent 8px, transparent 14px);
+}
+
+.cyber-mode .hero-main::after {
+  border-color: rgba(82, 203, 255, 0.35);
+}
+
+.cyber-mode .hero-title {
+  color: #bdfbff;
+  text-shadow: 0 0 14px rgba(32, 220, 255, 0.34);
+}
+
+.cyber-mode .hero-kicker {
+  color: #75b7d6;
+}
+
+.cyber-mode .hero-sub {
+  color: #8ac5dd;
+}
+
+.cyber-mode .hero-tags span,
+.cyber-mode .tag {
+  background: linear-gradient(180deg, #132947 0%, #11223f 100%);
+  border-color: #3278ab;
+  color: #b6f5ff;
+}
+
+.cyber-mode .hero-emblems span {
+  background: linear-gradient(180deg, #112541 0%, #0d1c35 100%);
+  border-color: #3a7eb0;
+  color: #9fefff;
+}
+
+.cyber-mode .map-lines {
+  border-color: #2f6f9c;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(72, 108, 255, 0.24), transparent 26%),
+    linear-gradient(180deg, #0f1a32 0%, #0d172d 100%);
+}
+
+.cyber-mode .map-lines span {
+  background: repeating-linear-gradient(90deg, #64edff, #64edff 8px, #0c1b32 8px, #0c1b32 16px);
+}
+
+.cyber-mode .side-mission,
+.cyber-mode .strategy-map,
+.cyber-mode .podium-panel,
+.cyber-mode .channel-panel,
+.cyber-mode .radar-panel,
+.cyber-mode .luxury-panel {
+  border-color: #2f6f9c;
+}
+
+.cyber-mode .side-mission {
+  background:
+    radial-gradient(circle at 20% 16%, rgba(14, 210, 255, 0.2), transparent 30%),
+    linear-gradient(180deg, #101a31 0%, #0d152b 100%);
+}
+
+.cyber-mode .strategy-map {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(100, 88, 255, 0.24), transparent 28%),
+    linear-gradient(180deg, #111b35 0%, #0d172f 100%);
+}
+
+.cyber-mode .podium-panel {
+  background:
+    radial-gradient(circle at 14% 20%, rgba(0, 220, 255, 0.2), transparent 30%),
+    linear-gradient(180deg, #111c35 0%, #0d172e 100%);
+}
+
+.cyber-mode .channel-panel {
+  background:
+    radial-gradient(circle at 86% 14%, rgba(67, 115, 255, 0.2), transparent 28%),
+    linear-gradient(180deg, #0f1a32 0%, #0c152a 100%);
+}
+
+.cyber-mode .radar-panel {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(0, 220, 255, 0.2), transparent 30%),
+    linear-gradient(180deg, #0f1a31 0%, #0c1429 100%);
+}
+
+.cyber-mode .luxury-panel {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(112, 72, 255, 0.22), transparent 28%),
+    linear-gradient(180deg, #101a33 0%, #0c142a 100%);
+}
+
+.cyber-mode .orb {
+  background: linear-gradient(180deg, #122543 0%, #10203b 100%);
+  border-color: #3277ab;
+  color: #a8efff;
+}
+
+.cyber-mode .orb:nth-child(2n) {
+  background: linear-gradient(180deg, #13284a 0%, #112241 100%);
+  border-color: #3e84b8;
+}
+
+.cyber-mode .orb strong,
+.cyber-mode .orb:nth-child(2n) strong {
+  color: #c3feff;
+}
+
+.cyber-mode .chat-line {
+  background: linear-gradient(180deg, #132746 0%, #11213d 100%);
+  border-color: #3a7eb0;
+}
+
+.cyber-mode .chat-line:nth-child(2n) {
+  background: linear-gradient(180deg, #162c4e 0%, #11213d 100%);
+  border-color: #4a8abc;
+}
+
+.cyber-mode .chat-line p,
+.cyber-mode .time,
+.cyber-mode .podium-row em {
+  color: #8ec9df;
+}
+
+.cyber-mode .luxury-card {
+  background: linear-gradient(180deg, #132746 0%, #10213d 100%);
+  border-color: #4387ba;
+}
+
+.cyber-mode .luxury-badge {
+  background: linear-gradient(180deg, #13dfff 0%, #07b0ff 100%);
+  border-color: #5cf2ff;
+  color: #071226;
+}
+
+.cyber-mode .total-ring {
+  border-color: #3379ac;
+  background:
+    conic-gradient(from 140deg, #10d9ff 0deg, #10d9ff 22deg, #0d1f3d 22deg, #0d1f3d 50deg, #10d9ff 50deg, #10d9ff 72deg, #0d1f3d 72deg, #0d1f3d 360deg);
+}
+
+.cyber-mode .total-ring small,
+.cyber-mode .total-ring strong {
+  border-color: #3379ac;
+  background: #0d1b35;
+  color: #bcf9ff;
+}
+
+.cyber-mode .podium-row {
+  border-bottom-color: rgba(74, 138, 188, 0.34);
+}
+
+.cyber-mode .podium-row b {
+  color: #b6f6ff;
+}
+
+.cyber-mode .ticker-item {
+  color: #a7f2ff;
+  border-right-color: rgba(83, 183, 227, 0.35);
+}
+
+.cyber-mode .ticker-item::before {
+  background: #43e4ff;
+  box-shadow: 0 0 8px rgba(67, 228, 255, 0.72);
+}
+
+.cyber-mode .war-ticker {
+  border-color: #2f6f9c;
+  background: linear-gradient(180deg, #0f1b34 0%, #0b1429 100%);
+}
+
+.cyber-mode .radar-track {
+  border-color: #3679ab;
+  background: #0b162d;
+}
+
+.cyber-mode .radar-fill {
+  background: repeating-linear-gradient(90deg, #18dcff, #18dcff 7px, #0c1730 7px, #0c1730 13px);
 }
 
 @media (max-width: 1200px) {
