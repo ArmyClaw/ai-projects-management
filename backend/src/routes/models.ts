@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
+import { getActorId } from "../services/auth.js";
 
 const createModelSchema = z.object({
   id: z.string().min(1),
@@ -19,6 +20,7 @@ export async function modelRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/v1/models", async (req, reply) => {
+    const actorId = getActorId(req);
     const parsed = createModelSchema.safeParse(req.body);
     if (!parsed.success) {
       return fail(reply, "VALIDATION_ERROR", "Invalid input", [
@@ -38,6 +40,8 @@ export async function modelRoutes(app: FastifyInstance) {
         provider: parsed.data.provider,
         modelId: parsed.data.modelId,
         tier: parsed.data.tier,
+        createdBy: actorId,
+        updatedBy: actorId,
       },
     });
     await writeAuditLog({
@@ -45,11 +49,13 @@ export async function modelRoutes(app: FastifyInstance) {
       entityType: "MODEL",
       entityId: model.id,
       afterData: model,
+      actorId,
     });
     return ok(reply, model);
   });
 
   app.post("/api/v1/models/:id/health-check", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const current = await prisma.model.findUnique({ where: { id } });
     if (!current) {
@@ -57,7 +63,7 @@ export async function modelRoutes(app: FastifyInstance) {
     }
     const model = await prisma.model.update({
       where: { id },
-      data: { healthStatus: "HEALTHY" },
+      data: { healthStatus: "HEALTHY", updatedBy: actorId },
     });
     if (!model) {
       return fail(reply, "NOT_FOUND", "Model not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
@@ -68,6 +74,7 @@ export async function modelRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: current,
       afterData: model,
+      actorId,
     });
     return ok(reply, {
       id: model.id,
@@ -77,6 +84,7 @@ export async function modelRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/v1/models/:id/publish", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const model = await prisma.model.findUnique({ where: { id } });
     if (!model) {
@@ -89,7 +97,7 @@ export async function modelRoutes(app: FastifyInstance) {
     }
     const updated = await prisma.model.update({
       where: { id },
-      data: { status: "ACTIVE" },
+      data: { status: "ACTIVE", updatedBy: actorId },
     });
     await writeAuditLog({
       action: "PUBLISH",
@@ -97,6 +105,7 @@ export async function modelRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: model,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
+import { getActorId } from "../services/auth.js";
 
 const createSkillSchema = z.object({
   id: z.string().min(1),
@@ -56,6 +57,7 @@ export async function skillRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/v1/skills", async (req, reply) => {
+    const actorId = getActorId(req);
     const parsed = createSkillSchema.safeParse(req.body);
     if (!parsed.success) {
       return fail(reply, "VALIDATION_ERROR", "Invalid input", [
@@ -86,6 +88,8 @@ export async function skillRoutes(app: FastifyInstance) {
         version: parsed.data.version,
         tags: parsed.data.tags,
         definition: { markdown: parsed.data.definitionMarkdown, avatar: parsed.data.avatar ?? "" } as Prisma.InputJsonValue,
+        createdBy: actorId,
+        updatedBy: actorId,
       },
     });
     await writeAuditLog({
@@ -93,11 +97,13 @@ export async function skillRoutes(app: FastifyInstance) {
       entityType: "SKILL",
       entityId: skill.id,
       afterData: skill,
+      actorId,
     });
     return ok(reply, skill);
   });
 
   app.patch("/api/v1/skills/:id", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const parsed = updateSkillSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -153,6 +159,7 @@ export async function skillRoutes(app: FastifyInstance) {
               } as Prisma.InputJsonValue,
             }
           : {}),
+        updatedBy: actorId,
       },
     });
 
@@ -162,11 +169,13 @@ export async function skillRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: skill,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });
 
   app.post("/api/v1/skills/:id/publish", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const skill = await prisma.skill.findUnique({ where: { id } });
     if (!skill) {
@@ -190,7 +199,7 @@ export async function skillRoutes(app: FastifyInstance) {
 
     const updated = await prisma.skill.update({
       where: { id },
-      data: { status: "ACTIVE" },
+      data: { status: "ACTIVE", updatedBy: actorId },
     });
     await writeAuditLog({
       action: "PUBLISH",
@@ -198,11 +207,13 @@ export async function skillRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: skill,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });
 
   app.post("/api/v1/skills/:id/deprecate", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const skill = await prisma.skill.findUnique({ where: { id } });
     if (!skill) {
@@ -215,7 +226,7 @@ export async function skillRoutes(app: FastifyInstance) {
     }
     const updated = await prisma.skill.update({
       where: { id },
-      data: { status: "DEPRECATED" },
+      data: { status: "DEPRECATED", updatedBy: actorId },
     });
     await writeAuditLog({
       action: "DEPRECATE",
@@ -223,6 +234,7 @@ export async function skillRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: skill,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });

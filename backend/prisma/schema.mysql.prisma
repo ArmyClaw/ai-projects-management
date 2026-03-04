@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -68,7 +68,7 @@ model Skill {
   name       String
   version    String
   status     CapabilityStatus @default(DRAFT)
-  tags       String[]
+  tags       Json             @default("[]")
   definition Json
   createdBy  String           @default("system")
   updatedBy  String           @default("system")
@@ -85,7 +85,7 @@ model Mcp {
   transport  String
   endpoint   String
   status     CapabilityStatus @default(DRAFT)
-  tags       String[]
+  tags       Json             @default("[]")
   definition Json
   createdBy  String           @default("system")
   updatedBy  String           @default("system")
@@ -102,7 +102,7 @@ model Agent {
   roleId         String
   workload       Int
   defaultModelId String?
-  skillIds       String[] @default([])
+  skillIds       Json     @default("[]")
   workflow       Json?
   createdBy      String   @default("system")
   updatedBy      String   @default("system")
@@ -115,7 +115,7 @@ model Agent {
 
 model AgentRoleProfile {
   roleId            String   @id
-  skillIds          String[] @default([])
+  skillIds          Json     @default("[]")
   workflow          Json?
   workloadMarkdown  String   @default("")
   primaryModelId    String

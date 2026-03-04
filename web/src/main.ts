@@ -14,6 +14,7 @@ const router = createRouter({
     { path: "/mcps", component: () => import("./pages/McpsPage.vue") },
     { path: "/agents", component: () => import("./pages/AgentsPage.vue") },
     { path: "/bootstrap", component: () => import("./pages/BootstrapPage.vue") },
+    { path: "/tasks", component: () => import("./pages/TasksPage.vue") },
   ],
 });
 

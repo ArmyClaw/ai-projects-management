@@ -4,6 +4,7 @@ import { z } from "zod";
 import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
+import { getActorId } from "../services/auth.js";
 
 const createAgentSchema = z.object({
   id: z.string().min(1),
@@ -60,6 +61,7 @@ export async function agentRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/v1/agents", async (req, reply) => {
+    const actorId = getActorId(req);
     const parsed = createAgentSchema.safeParse(req.body);
     if (!parsed.success) {
       return fail(reply, "VALIDATION_ERROR", "Invalid input", [
@@ -108,12 +110,13 @@ export async function agentRoutes(app: FastifyInstance) {
     }
 
     if (parsed.data.mcpIds.length > 0) {
-      const activeMcpRows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT "id"
-        FROM "Mcp"
-        WHERE "status" = 'ACTIVE'
-          AND "id" IN (${Prisma.join(parsed.data.mcpIds)})
-      `);
+      const activeMcpRows = await prisma.mcp.findMany({
+        where: {
+          id: { in: parsed.data.mcpIds },
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
       const activeMcpSet = new Set(activeMcpRows.map((mcpRow) => mcpRow.id));
       const missing = parsed.data.mcpIds.find((id) => !activeMcpSet.has(id));
       if (missing) {
@@ -144,6 +147,8 @@ export async function agentRoutes(app: FastifyInstance) {
         defaultModelId: parsed.data.defaultModelId,
         skillIds: parsed.data.skillIds,
         workflow: workflowPayload as Prisma.InputJsonValue,
+        createdBy: actorId,
+        updatedBy: actorId,
       },
     });
     await writeAuditLog({
@@ -151,11 +156,13 @@ export async function agentRoutes(app: FastifyInstance) {
       entityType: "AGENT",
       entityId: agent.id,
       afterData: agent,
+      actorId,
     });
     return ok(reply, agent);
   });
 
   app.patch("/api/v1/agents/:id", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const parsed = updateAgentSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -206,12 +213,13 @@ export async function agentRoutes(app: FastifyInstance) {
     }
 
     if (data.mcpIds && data.mcpIds.length > 0) {
-      const activeMcpRows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT "id"
-        FROM "Mcp"
-        WHERE "status" = 'ACTIVE'
-          AND "id" IN (${Prisma.join(data.mcpIds)})
-      `);
+      const activeMcpRows = await prisma.mcp.findMany({
+        where: {
+          id: { in: data.mcpIds },
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
       const activeMcpSet = new Set(activeMcpRows.map((mcpRow) => mcpRow.id));
       const missing = data.mcpIds.find((mcpId) => !activeMcpSet.has(mcpId));
       if (missing) {
@@ -262,6 +270,7 @@ export async function agentRoutes(app: FastifyInstance) {
         ...(data.defaultModelId !== undefined ? { defaultModelId: data.defaultModelId ?? null } : {}),
         ...(data.skillIds !== undefined ? { skillIds: data.skillIds } : {}),
         workflow: workflowPayload as Prisma.InputJsonValue,
+        updatedBy: actorId,
       },
     });
 
@@ -271,11 +280,13 @@ export async function agentRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: before,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });
 
   app.patch("/api/v1/agents/:id/model", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const parsed = updateAgentModelSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -295,7 +306,7 @@ export async function agentRoutes(app: FastifyInstance) {
     }
     const updated = await prisma.agent.update({
       where: { id },
-      data: { defaultModelId: parsed.data.defaultModelId },
+      data: { defaultModelId: parsed.data.defaultModelId, updatedBy: actorId },
     });
     await writeAuditLog({
       action: "UPDATE_MODEL",
@@ -303,11 +314,13 @@ export async function agentRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: agent,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });
 
   app.patch("/api/v1/agents/:id/capabilities", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const parsed = updateAgentCapabilitiesSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -343,6 +356,7 @@ export async function agentRoutes(app: FastifyInstance) {
       data: {
         skillIds: parsed.data.skillIds,
         workflow: parsed.data.workflow as Prisma.InputJsonValue,
+        updatedBy: actorId,
       },
     });
 
@@ -352,6 +366,7 @@ export async function agentRoutes(app: FastifyInstance) {
       entityId: id,
       beforeData: agent,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });
@@ -378,6 +393,7 @@ export async function agentRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/v1/agents/role-groups/:roleId/config", async (req, reply) => {
+    const actorId = getActorId(req);
     const roleId = (req.params as { roleId: string }).roleId;
     const parsed = updateRoleGroupSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -434,6 +450,8 @@ export async function agentRoutes(app: FastifyInstance) {
         workloadMarkdown: parsed.data.workloadMarkdown,
         primaryModelId: parsed.data.primaryModelId,
         assistantModelId: parsed.data.assistantModelId,
+        createdBy: actorId,
+        updatedBy: actorId,
       },
       update: {
         skillIds: parsed.data.skillIds,
@@ -441,6 +459,7 @@ export async function agentRoutes(app: FastifyInstance) {
         workloadMarkdown: parsed.data.workloadMarkdown,
         primaryModelId: parsed.data.primaryModelId,
         assistantModelId: parsed.data.assistantModelId,
+        updatedBy: actorId,
       },
     });
 
@@ -450,6 +469,7 @@ export async function agentRoutes(app: FastifyInstance) {
       entityId: roleId,
       beforeData: before,
       afterData: updated,
+      actorId,
     });
     return ok(reply, updated);
   });

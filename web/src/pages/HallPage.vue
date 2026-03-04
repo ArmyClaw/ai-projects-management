@@ -88,6 +88,10 @@
             <span class="time">{{ formatShortTime(msg.at) }}</span>
             <p>{{ msg.message }}</p>
           </div>
+          <div v-if="(hall?.worldChannel?.length ?? 0) === 0" class="chat-line empty-line">
+            <span class="time">--:--</span>
+            <p>{{ locale === "zh-CN" ? "世界频道暂时安静，等待新的任务与编排日志。" : "World channel is calm now, waiting for new quest and pipeline logs." }}</p>
+          </div>
         </div>
       </article>
     </section>
@@ -112,6 +116,13 @@
               <p class="muted">{{ p.id }}</p>
             </div>
             <span class="luxury-badge">{{ p.assignmentsCount }}</span>
+          </div>
+          <div v-if="(hall?.projectLuxuryTop?.length ?? 0) === 0" class="luxury-card empty-luxury">
+            <div>
+              <strong>{{ locale === "zh-CN" ? "暂无项目展台" : "No Luxury Project Yet" }}</strong>
+              <p class="muted">{{ locale === "zh-CN" ? "先去项目编排创建一支队伍，再回来冲榜。" : "Create a team in Bootstrap first, then come back for ranking." }}</p>
+            </div>
+            <span class="luxury-badge">0</span>
           </div>
         </div>
       </article>
@@ -572,6 +583,11 @@ onMounted(load);
   margin: 0;
   line-height: 1.35;
   word-break: break-word;
+}
+
+.empty-line,
+.empty-luxury {
+  border-style: solid;
 }
 
 .time {

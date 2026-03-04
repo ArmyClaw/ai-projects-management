@@ -3,15 +3,22 @@
 ## Current Status
 - Docs are ready under `doc/design`.
 - Engineering scaffold is initialized for `backend` and `web`.
-- MVP API is now backed by PostgreSQL + Prisma.
+- MVP API is backed by Prisma, defaulting to PostgreSQL and supporting MySQL initialization.
 
 ## Run (after installing dependencies)
 1. `npm install`
-2. Configure DB URL from `backend/.env.example`
-3. `npm --workspace backend run prisma:generate`
-4. `npm --workspace backend run prisma:migrate`
+2. Configure DB from `backend/.env.example` (PostgreSQL) or `backend/.env.mysql.example` (MySQL)
+3. Initialize schema with `npm --workspace backend run db:init`
+4. (Optional, PostgreSQL migration workflow) `npm --workspace backend run prisma:migrate`
 5. `npm run dev:backend`
 6. `npm run dev:web`
+
+## Database Config
+- Default: `DATABASE_PROVIDER=postgresql` with `backend/prisma/schema.prisma`
+- MySQL: set `DATABASE_PROVIDER=mysql` and run `npm --workspace backend run db:init`
+- Init script auto-selects schema:
+  - PostgreSQL: `backend/prisma/schema.prisma`
+  - MySQL: `backend/prisma/schema.mysql.prisma`
 
 ## MVP Scope in Code
 - Model Library API

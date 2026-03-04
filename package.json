@@ -9,6 +9,7 @@
   "scripts": {
     "dev:backend": "npm --workspace backend run dev",
     "dev:web": "npm --workspace web run dev",
+    "dev:all": "npm --workspace backend run build && node scripts/dev-all.mjs",
     "build": "npm --workspace backend run build && npm --workspace web run build"
   }
 }

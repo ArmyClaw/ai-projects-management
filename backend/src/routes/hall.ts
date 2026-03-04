@@ -83,10 +83,43 @@ export async function hallRoutes(app: FastifyInstance) {
     const modelById = new Map(topModelRows.map((m) => [m.id, m]));
     const agentById = new Map(topAgentRows.map((a) => [a.id, a]));
 
-    const worldChannel = recentLogs.map((log) => ({
-      message: `${log.entityType}#${log.entityId} ${log.action}`,
-      at: log.createdAt,
-    }));
+    const worldChannelRaw =
+      recentLogs.length > 0
+        ? recentLogs.map((log) => ({
+            message: `${log.entityType}#${log.entityId} ${log.action}`,
+            at: log.createdAt,
+          }))
+        : [
+            ...projects.slice(0, 3).map((project) => ({
+              message: `PROJECT#${project.id} READY`,
+              at: project.createdAt,
+            })),
+            ...agents.slice(0, 3).map((agent) => ({
+              message: `AGENT#${agent.id} ONLINE`,
+              at: new Date(),
+            })),
+          ];
+
+    const worldChannel =
+      worldChannelRaw.length > 0
+        ? worldChannelRaw
+        : [
+            { message: "SYSTEM#LOBBY READY", at: new Date() },
+            { message: "SYSTEM#CHANNEL WAITING_FOR_EVENTS", at: new Date() },
+          ];
+
+    const projectLuxuryTopRaw = projects
+      .map((p) => ({ id: p.id, name: p.name, assignmentsCount: p.assignments.length }))
+      .sort((a, b) => b.assignmentsCount - a.assignmentsCount)
+      .slice(0, 8);
+
+    const projectLuxuryTop =
+      projectLuxuryTopRaw.length > 0
+        ? projectLuxuryTopRaw
+        : [
+            { id: "SHOWCASE-001", name: "Starter Pipeline", assignmentsCount: 0 },
+            { id: "SHOWCASE-002", name: "Empty Slot - Create Your First Team", assignmentsCount: 0 },
+          ];
 
     return ok(reply, {
       generatedAt: new Date(),
@@ -125,10 +158,7 @@ export async function hallRoutes(app: FastifyInstance) {
               }
             : null,
       },
-      projectLuxuryTop: projects
-        .map((p) => ({ id: p.id, name: p.name, assignmentsCount: p.assignments.length }))
-        .sort((a, b) => b.assignmentsCount - a.assignmentsCount)
-        .slice(0, 8),
+      projectLuxuryTop,
       worldChannel,
     });
   });

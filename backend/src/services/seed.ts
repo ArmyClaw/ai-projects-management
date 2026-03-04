@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma.js";
 
 export async function seedIfEmpty() {
@@ -13,37 +12,30 @@ export async function seedIfEmpty() {
     });
   }
 
-  const mcpCountRows = await prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
-    SELECT COUNT(*)::bigint AS count FROM "Mcp"
-  `);
-  const mcpCount = Number(mcpCountRows[0]?.count ?? 0);
+  const mcpCount = await prisma.mcp.count();
   if (mcpCount === 0) {
-    await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO "Mcp" ("id", "name", "transport", "endpoint", "status", "tags", "definition", "createdAt", "updatedAt")
-      VALUES
-      (
-        'mcp-jira',
-        'Jira MCP',
-        'SSE',
-        'https://mcp.example.com/jira',
-        'ACTIVE',
-        ARRAY['pm','issue-tracking']::text[],
-        '{"markdown":"# Jira MCP\\n- Query issues\\n- Update workflow"}'::jsonb,
-        NOW(),
-        NOW()
-      ),
-      (
-        'mcp-github',
-        'GitHub MCP',
-        'HTTP',
-        'https://mcp.example.com/github',
-        'ACTIVE',
-        ARRAY['dev','repo']::text[],
-        '{"markdown":"# GitHub MCP\\n- PR review\\n- Repo search"}'::jsonb,
-        NOW(),
-        NOW()
-      )
-    `);
+    await prisma.mcp.createMany({
+      data: [
+        {
+          id: "mcp-jira",
+          name: "Jira MCP",
+          transport: "SSE",
+          endpoint: "https://mcp.example.com/jira",
+          status: "ACTIVE",
+          tags: ["pm", "issue-tracking"],
+          definition: { markdown: "# Jira MCP\n- Query issues\n- Update workflow" },
+        },
+        {
+          id: "mcp-github",
+          name: "GitHub MCP",
+          transport: "HTTP",
+          endpoint: "https://mcp.example.com/github",
+          status: "ACTIVE",
+          tags: ["dev", "repo"],
+          definition: { markdown: "# GitHub MCP\n- PR review\n- Repo search" },
+        },
+      ],
+    });
   }
 
   const project = await prisma.project.findUnique({ where: { id: "project-demo-1" } });

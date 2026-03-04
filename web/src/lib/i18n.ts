@@ -23,6 +23,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "nav.mcps": "MCPs",
     "nav.agents": "Agents",
     "nav.bootstrap": "Bootstrap",
+    "nav.tasks": "Quests",
     "common.none": "None",
     "common.all": "ALL",
     "common.search": "Search",
@@ -98,6 +99,9 @@ const messages: Record<Locale, Record<string, string>> = {
     "bootstrap.registry": "Project Registry",
     "bootstrap.new": "+ New Raid Plan",
     "bootstrap.noFound": "No projects yet.",
+    "tasks.title": "Quest Board",
+    "tasks.subtitle": "Publish tasks, apply with your project team, and adopt one champion lineup.",
+    "tasks.new": "+ Publish Quest",
   },
   "zh-CN": {
     "lang.zh": "中文",
@@ -108,6 +112,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "nav.mcps": "MCP 工具",
     "nav.agents": "智能体",
     "nav.bootstrap": "项目编排",
+    "nav.tasks": "任务发布",
     "common.none": "无",
     "common.all": "全部",
     "common.search": "搜索",
@@ -183,6 +188,9 @@ const messages: Record<Locale, Record<string, string>> = {
     "bootstrap.registry": "项目列表",
     "bootstrap.new": "+ 新建攻略计划",
     "bootstrap.noFound": "暂无项目。",
+    "tasks.title": "任务大厅",
+    "tasks.subtitle": "发布任务，携带项目编排团队报名，发布者采纳一支冠军队伍。",
+    "tasks.new": "+ 发布任务",
   },
 };
 

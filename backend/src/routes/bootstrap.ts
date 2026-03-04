@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
+import { getActorId } from "../services/auth.js";
 import { RoleAssignment, ValidationErrorDetail } from "../types/domain.js";
 
 const assignmentAgentSchema = z.object({
@@ -153,6 +154,8 @@ export async function bootstrapRoutes(app: FastifyInstance) {
       rows.map((project) => ({
         id: project.id,
         name: project.name,
+        createdBy: project.createdBy,
+        updatedBy: project.updatedBy,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         assignmentsCount: project._count.assignments,
@@ -161,6 +164,7 @@ export async function bootstrapRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/v1/projects", async (req, reply) => {
+    const actorId = getActorId(req);
     const parsed = createProjectSchema.safeParse(req.body);
     if (!parsed.success) {
       return fail(reply, "VALIDATION_ERROR", "Invalid input", [
@@ -175,6 +179,8 @@ export async function bootstrapRoutes(app: FastifyInstance) {
       data: {
         id: parsed.data.id,
         name: parsed.data.name,
+        createdBy: actorId,
+        updatedBy: actorId,
       },
     });
     await writeAuditLog({
@@ -182,6 +188,7 @@ export async function bootstrapRoutes(app: FastifyInstance) {
       entityType: "PROJECT",
       entityId: project.id,
       afterData: project,
+      actorId,
     });
     return ok(reply, project);
   });
@@ -283,6 +290,7 @@ export async function bootstrapRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/v1/projects/:id/role-agents", async (req, reply) => {
+    const actorId = getActorId(req);
     const projectId = (req.params as { id: string }).id;
     const parsed = updateRoleAgentsSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -319,12 +327,18 @@ export async function bootstrapRoutes(app: FastifyInstance) {
         assignmentRole: a.assignmentRole,
         modelId: a.modelId,
         priority: a.priority,
+        createdBy: actorId,
+        updatedBy: actorId,
       })),
     );
 
     await prisma.$transaction(async (tx) => {
       await tx.projectRoleAgent.deleteMany({ where: { projectId } });
       await tx.projectRoleAgent.createMany({ data: createRows });
+      await tx.project.update({
+        where: { id: projectId },
+        data: { updatedBy: actorId },
+      });
     });
 
     const after = await prisma.projectRoleAgent.findMany({ where: { projectId } });
@@ -334,6 +348,7 @@ export async function bootstrapRoutes(app: FastifyInstance) {
       entityId: projectId,
       beforeData: before,
       afterData: after,
+      actorId,
     });
 
     return ok(reply, { projectId, updated: after.length });
