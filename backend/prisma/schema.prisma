@@ -63,6 +63,21 @@ model Skill {
   @@index([status])
 }
 
+model Mcp {
+  id         String           @id
+  name       String
+  transport  String
+  endpoint   String
+  status     CapabilityStatus @default(DRAFT)
+  tags       String[]
+  definition Json
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([name, endpoint])
+  @@index([status])
+}
+
 model Agent {
   id             String  @id
   name           String

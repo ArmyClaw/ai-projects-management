@@ -5,4 +5,5 @@ coverage/
 dist/
 *.log
 backend/node_modules/
+backend/.npm-cache/
 web/node_modules/

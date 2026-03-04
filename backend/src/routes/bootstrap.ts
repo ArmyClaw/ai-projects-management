@@ -50,6 +50,11 @@ const updateRoleAgentsSchema = z.object({
   roleAgentAssignments: z.array(roleAssignmentSchema).min(1),
 });
 
+const createProjectSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+});
+
 const validateAssignments = (
   assignments: RoleAssignment[],
   modelMap: Map<string, { healthStatus: string; tier: string }>,
@@ -136,6 +141,113 @@ const validateTemplate = (
 };
 
 export async function bootstrapRoutes(app: FastifyInstance) {
+  app.get("/api/v1/projects", async (_, reply) => {
+    const rows = await prisma.project.findMany({
+      orderBy: { updatedAt: "desc" },
+      include: {
+        _count: { select: { assignments: true } },
+      },
+    });
+    return ok(
+      reply,
+      rows.map((project) => ({
+        id: project.id,
+        name: project.name,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        assignmentsCount: project._count.assignments,
+      })),
+    );
+  });
+
+  app.post("/api/v1/projects", async (req, reply) => {
+    const parsed = createProjectSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fail(reply, "VALIDATION_ERROR", "Invalid input", [
+        { field: "body", reason: parsed.error.issues[0]?.message ?? "INVALID" },
+      ], 400);
+    }
+    const exists = await prisma.project.findUnique({ where: { id: parsed.data.id } });
+    if (exists) {
+      return fail(reply, "CONFLICT", "Project id already exists", [{ field: "id", reason: "DUPLICATE" }], 409);
+    }
+    const project = await prisma.project.create({
+      data: {
+        id: parsed.data.id,
+        name: parsed.data.name,
+      },
+    });
+    await writeAuditLog({
+      action: "CREATE",
+      entityType: "PROJECT",
+      entityId: project.id,
+      afterData: project,
+    });
+    return ok(reply, project);
+  });
+
+  app.get("/api/v1/projects/:id/export", async (req, reply) => {
+    const projectId = (req.params as { id: string }).id;
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        assignments: {
+          orderBy: [{ roleId: "asc" }, { priority: "asc" }],
+          include: {
+            agent: { select: { id: true, name: true } },
+            model: { select: { id: true, name: true, provider: true, modelId: true, tier: true } },
+          },
+        },
+      },
+    });
+    if (!project) {
+      return fail(reply, "NOT_FOUND", "Project not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+
+    const roleMap = new Map<
+      string,
+      Array<{
+        assignmentRole: string;
+        priority: number;
+        agent: { id: string; name: string };
+        model: { id: string; name: string; provider: string; modelId: string; tier: string };
+      }>
+    >();
+    for (const row of project.assignments) {
+      const list = roleMap.get(row.roleId) ?? [];
+      list.push({
+        assignmentRole: row.assignmentRole,
+        priority: row.priority,
+        agent: { id: row.agent.id, name: row.agent.name },
+        model: {
+          id: row.model.id,
+          name: row.model.name,
+          provider: row.model.provider,
+          modelId: row.model.modelId,
+          tier: row.model.tier,
+        },
+      });
+      roleMap.set(row.roleId, list);
+    }
+
+    return ok(reply, {
+      project: {
+        id: project.id,
+        name: project.name,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      },
+      summary: {
+        roles: roleMap.size,
+        assignments: project.assignments.length,
+        primaryCount: project.assignments.filter((a) => a.assignmentRole === "PRIMARY").length,
+        assistantCount: project.assignments.filter((a) => a.assignmentRole === "ASSISTANT").length,
+      },
+      roles: [...roleMap.entries()].map(([roleId, assignments]) => ({ roleId, assignments })),
+      exportedAt: new Date().toISOString(),
+    });
+  });
+
   app.post("/api/v1/projects/bootstrap/validate", async (req, reply) => {
     const parsed = validateSchema.safeParse(req.body);
     if (!parsed.success) {

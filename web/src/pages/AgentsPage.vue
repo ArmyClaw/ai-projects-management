@@ -1,169 +1,585 @@
 <template>
   <section>
-    <h1 class="page-title">Agents</h1>
-    <p class="muted page-subtitle">Role-group configuration: shared skills, markdown workload plan, and separate PRIMARY/ASSISTANT models.</p>
+    <h1 class="page-title">{{ t("agents.title") }}</h1>
+    <p class="muted page-subtitle">{{ t("agents.subtitle") }}</p>
 
     <div class="card">
+      <div class="section-head">
+        <h3 class="section-title">{{ t("agents.registry") }}</h3>
+        <button class="button primary" @click="openCreateModal">{{ t("agents.new") }}</button>
+      </div>
       <table class="table">
         <thead>
           <tr>
-            <th>Role</th>
-            <th>Skills</th>
-            <th>Workload (Markdown)</th>
-            <th>PRIMARY Model</th>
-            <th>ASSISTANT Model</th>
-            <th>Actions</th>
+            <th>{{ t("common.id") }}</th>
+            <th>{{ t("common.name") }}</th>
+            <th>{{ t("agents.role") }}</th>
+            <th>{{ t("agents.models") }}</th>
+            <th>{{ t("skills.title") }}</th>
+            <th>{{ t("nav.mcps") }}</th>
+            <th>{{ t("agents.workload") }}</th>
+            <th>{{ t("agents.persona") }}</th>
+            <th>{{ t("common.updated") }}</th>
+            <th>{{ t("common.action") }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="g in groups" :key="g.roleId">
+          <tr v-for="a in pagedAgents" :key="a.id">
+            <td><code>{{ a.id }}</code></td>
+            <td>{{ a.name }}</td>
+            <td><span class="tag">{{ a.roleId }}</span></td>
             <td>
-              <span class="tag">{{ g.roleId }}</span>
-            </td>
-            <td>
-              <div class="skill-list">
-                <label v-for="s in activeSkills" :key="`${g.roleId}-${s.id}`" class="skill-item">
-                  <input
-                    type="checkbox"
-                    :checked="selectedSkills[g.roleId]?.includes(s.id)"
-                    @change="toggleSkill(g.roleId, s.id, ($event.target as HTMLInputElement).checked)"
-                  />
-                  <span class="skill-text">{{ s.name }}@{{ s.version }}</span>
-                </label>
+              <div class="model-stack">
+                <span>{{ locale === "zh-CN" ? "主模型" : "Primary" }}: {{ a.defaultModelId || "-" }}</span>
+                <span>{{ locale === "zh-CN" ? "副模型" : "Assistant" }}: {{ extractAssistantModelId(a) || "-" }}</span>
               </div>
             </td>
-            <td class="workload-col">
-              <textarea
-                v-model="workloadMarkdown[g.roleId]"
-                class="input"
-                rows="6"
-                placeholder="## Sprint Workload&#10;- PRIMARY: API design / code review&#10;- ASSISTANT: task delivery / test fix"
-              />
-              <details class="preview">
-                <summary>Preview</summary>
-                <div class="md-preview" v-html="renderMarkdown(workloadMarkdown[g.roleId] || '')" />
-              </details>
-            </td>
+            <td>{{ summarizeSkills(a.skillIds) }}</td>
+            <td>{{ summarizeMcps(extractMcpIds(a)) }}</td>
+            <td>{{ a.workload }}%</td>
+            <td>{{ extractPersonaSummary(a) }}</td>
+            <td>{{ formatDateTime(a.updatedAt) }}</td>
             <td>
-              <select v-model="primaryModels[g.roleId]" class="select">
-                <option disabled value="">Choose ACTIVE model</option>
-                <option v-for="m in activeModels" :key="m.id" :value="m.id">{{ m.id }}</option>
-              </select>
+              <button class="button" @click="openEditModal(a)">{{ t("common.edit") }}</button>
             </td>
-            <td>
-              <select v-model="assistantModels[g.roleId]" class="select">
-                <option disabled value="">Choose ACTIVE model</option>
-                <option v-for="m in activeModels" :key="m.id" :value="m.id">{{ m.id }}</option>
-              </select>
-            </td>
-            <td>
-              <button class="button primary action-btn" @click="saveGroup(g.roleId)">
-                Save Role Config
-              </button>
-            </td>
+          </tr>
+          <tr v-if="agents.length === 0">
+            <td colspan="10" class="muted">{{ t("agents.noFound") }}</td>
           </tr>
         </tbody>
       </table>
+      <PaginationBar
+        :total="agents.length"
+        :page="currentPage"
+        :page-size="pageSize"
+        :locale="locale"
+        @update:page="currentPage = $event"
+        @update:page-size="pageSize = $event"
+      />
       <p v-if="tableError" class="error-text">{{ tableError }}</p>
+    </div>
+
+    <div v-if="createModalOpen" class="modal-backdrop" @click.self="closeCreateModal">
+      <div class="modal-panel fancy-modal">
+        <div class="create-layout">
+          <aside class="persona-side">
+            <h3 class="builder-title">Agent Builder</h3>
+            <p class="muted builder-note">{{ locale === "zh-CN" ? "选择你的队友画像并调校能力。" : "Pick your teammate profile and tune capabilities." }}</p>
+            <div class="avatar-card">
+              <img :src="newAvatarData || defaultAgentAvatar" alt="agent avatar" class="agent-avatar" />
+              <input ref="avatarInputRef" type="file" class="hidden-input" accept="image/*" @change="handleAvatarFile" />
+              <div class="avatar-actions">
+                <button class="button" @click="pickAvatarFile">{{ locale === "zh-CN" ? "设置头像" : "Set Avatar" }}</button>
+                <button class="button" @click="resetAvatar">{{ t("common.reset") }}</button>
+              </div>
+            </div>
+            <h3 class="persona-name">{{ newAgentName || (locale === "zh-CN" ? "未命名 Agent" : "Unnamed Agent") }}</h3>
+            <p class="muted">{{ newRoleId || (locale === "zh-CN" ? "未知角色" : "role-unknown") }}</p>
+            <div class="persona-badges">
+              <span class="tag">{{ t("skills.title") }}: {{ newSkillIds.length }}</span>
+              <span class="tag">MCP: {{ newMcpIds.length }}</span>
+              <span class="tag">{{ locale === "zh-CN" ? "负载" : "Load" }}: {{ newWorkload }}%</span>
+            </div>
+          </aside>
+
+          <div class="form-side">
+            <h3 class="section-title">{{ editingAgentId ? `${t("common.edit")} Agent` : `${t("common.create")} Agent` }}</h3>
+            <div class="row">
+              <div>
+                <label for="agent-id">Agent ID</label>
+                <input id="agent-id" v-model="newAgentId" :disabled="Boolean(editingAgentId)" class="input" placeholder="agent.backend.primary" />
+              </div>
+              <div>
+                <label for="agent-name">{{ t("common.name") }}</label>
+                <input id="agent-name" v-model="newAgentName" class="input" placeholder="Backend Primary Agent" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="agent-role">{{ locale === "zh-CN" ? "角色 ID" : "Role ID" }}</label>
+                <input id="agent-role" v-model="newRoleId" class="input" placeholder="backend" />
+              </div>
+              <div>
+                <label for="agent-workload">{{ locale === "zh-CN" ? "负载 (0-100)" : "Workload (0-100)" }}</label>
+                <input id="agent-workload" v-model.number="newWorkload" type="number" min="0" max="100" class="input" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="agent-model-primary">{{ locale === "zh-CN" ? "主模型（可选）" : "Primary Model (optional)" }}</label>
+                <select id="agent-model-primary" v-model="newDefaultModelId" class="select">
+                  <option value="">{{ t("common.none") }}</option>
+                  <option v-for="m in activeModels" :key="m.id" :value="m.id">{{ m.id }}</option>
+                </select>
+              </div>
+              <div>
+                <label for="agent-model-assistant">{{ locale === "zh-CN" ? "副模型（可选）" : "Assistant Model (optional)" }}</label>
+                <select id="agent-model-assistant" v-model="newAssistantModelId" class="select">
+                  <option value="">{{ t("common.none") }}</option>
+                  <option v-for="m in activeModels" :key="`assistant-${m.id}`" :value="m.id">{{ m.id }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>{{ t("skills.title") }} (ACTIVE)</label>
+                <div class="mcp-picker">
+                  <div class="mcp-selected">
+                    <span v-if="newSkillIds.length === 0" class="muted">{{ locale === "zh-CN" ? "尚未选择技能。" : "No Skill selected." }}</span>
+                    <span v-for="skillId in newSkillIds" :key="`picked-skill-${skillId}`" class="tag">
+                      {{ getSkillDisplay(skillId) }}
+                      <button class="remove-chip" @click="removeSelectedSkill(skillId)">x</button>
+                    </span>
+                  </div>
+                  <div class="mcp-picker-actions">
+                    <select v-model="pendingSkillId" class="select">
+                      <option value="">{{ locale === "zh-CN" ? "选择要添加的技能" : "Choose Skill to add" }}</option>
+                      <option v-for="s in availableSkillsToAdd" :key="`pick-skill-${s.id}`" :value="s.id">{{ s.name }}@{{ s.version }}</option>
+                    </select>
+                    <button class="button" @click="addSelectedSkill">{{ locale === "zh-CN" ? "+ 添加技能" : "+ Add Skill" }}</button>
+                    <button class="button" @click="goToSkillRepo">{{ locale === "zh-CN" ? "前往技能仓库" : "Go Skill Repo" }}</button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label>{{ locale === "zh-CN" ? "MCP 工具" : "MCP Tools" }} (ACTIVE)</label>
+                <div class="mcp-picker">
+                  <div class="mcp-selected">
+                    <span v-if="newMcpIds.length === 0" class="muted">{{ locale === "zh-CN" ? "尚未选择 MCP。" : "No MCP selected." }}</span>
+                    <span v-for="mcpId in newMcpIds" :key="`picked-${mcpId}`" class="tag">
+                      {{ getMcpDisplay(mcpId) }}
+                      <button class="remove-chip" @click="removeSelectedMcp(mcpId)">x</button>
+                    </span>
+                  </div>
+                  <div class="mcp-picker-actions">
+                    <select v-model="pendingMcpId" class="select">
+                      <option value="">{{ locale === "zh-CN" ? "选择要添加的 MCP" : "Choose MCP to add" }}</option>
+                      <option v-for="m in availableMcpsToAdd" :key="`pick-${m.id}`" :value="m.id">{{ m.name }} ({{ m.transport }})</option>
+                    </select>
+                    <button class="button" @click="addSelectedMcp">{{ locale === "zh-CN" ? "+ 添加 MCP" : "+ Add MCP" }}</button>
+                    <button class="button" @click="goToMcpRepo">{{ locale === "zh-CN" ? "前往 MCP 仓库" : "Go MCP Repo" }}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="docs-card">
+              <label>{{ locale === "zh-CN" ? "Agent 文档（点击查看/编辑）" : "Agent Docs (click to view/edit)" }}</label>
+              <div class="doc-row">
+                <div>
+                  <strong>AGENTS.md</strong>
+                  <p class="muted">{{ summarizeDoc(newAgentsMarkdown) }}</p>
+                </div>
+                <div class="doc-actions">
+                  <button class="button" @click="openDocEditor('agents', 'view')">{{ t("common.view") }}</button>
+                  <button class="button" @click="openDocEditor('agents', 'edit')">{{ t("common.edit") }}</button>
+                </div>
+              </div>
+              <div class="doc-row">
+                <div>
+                  <strong>User.md 人物说明</strong>
+                  <p class="muted">{{ summarizeDoc(newUserMarkdown) }}</p>
+                </div>
+                <div class="doc-actions">
+                  <button class="button" @click="openDocEditor('user', 'view')">{{ t("common.view") }}</button>
+                  <button class="button" @click="openDocEditor('user', 'edit')">{{ t("common.edit") }}</button>
+                </div>
+              </div>
+              <div class="doc-row">
+                <div>
+                  <strong>SOUL.md</strong>
+                  <p class="muted">{{ summarizeDoc(newSoulMarkdown) }}</p>
+                </div>
+                <div class="doc-actions">
+                  <button class="button" @click="openDocEditor('soul', 'view')">{{ t("common.view") }}</button>
+                  <button class="button" @click="openDocEditor('soul', 'edit')">{{ t("common.edit") }}</button>
+                </div>
+              </div>
+            </div>
+
+            <p v-if="createError" class="error-text">{{ createError }}</p>
+            <div class="modal-actions">
+              <button class="button" @click="closeCreateModal">{{ t("common.cancel") }}</button>
+              <button class="button primary" @click="submitAgent">{{ editingAgentId ? `${t("common.save")} Agent` : `${t("common.create")} Agent` }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="docEditorOpen" class="modal-backdrop" @click.self="closeDocEditor">
+      <div class="modal-panel">
+        <h3 class="section-title">{{ currentDocTitle }} - {{ docEditorMode === "view" ? t("common.view") : t("common.edit") }}</h3>
+        <MarkdownEditor
+          v-model="docEditorContent"
+          :label="currentDocTitle"
+          :rows="12"
+          :readonly="docEditorMode === 'view'"
+          :preview-only="docEditorMode === 'view'"
+        />
+        <div class="modal-actions">
+          <button class="button" @click="closeDocEditor">{{ t("common.close") }}</button>
+          <button v-if="docEditorMode === 'edit'" class="button primary" @click="applyDocEditor">{{ t("common.apply") }}</button>
+        </div>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import { apiGet, apiPut } from "../lib/api";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import { apiGet, apiPatch, apiPost } from "../lib/api";
+import MarkdownEditor from "../components/MarkdownEditor.vue";
+import PaginationBar from "../components/PaginationBar.vue";
+import { useI18n } from "../lib/i18n";
 
-type RoleGroupConfig = {
-  roleId: string;
-  config: {
-    roleId: string;
-    skillIds: string[];
-    workflow?: Record<string, unknown>;
-    workloadMarkdown?: string;
-    primaryModelId: string;
-    assistantModelId: string;
-  } | null;
-};
 type Model = { id: string; status: string };
 type Skill = { id: string; name: string; version: string; status: string };
+type Mcp = { id: string; name: string; transport: string; status: string };
+type Agent = {
+  id: string;
+  name: string;
+  roleId: string;
+  workload: number;
+  defaultModelId?: string | null;
+  skillIds: string[];
+  workflow?: Record<string, unknown> | null;
+  updatedAt?: string;
+};
 
-const groups = ref<RoleGroupConfig[]>([]);
+const agents = ref<Agent[]>([]);
+const { t, locale } = useI18n();
+const activeMcps = ref<Mcp[]>([]);
 const activeModels = ref<Model[]>([]);
 const activeSkills = ref<Skill[]>([]);
-const primaryModels = ref<Record<string, string>>({});
-const assistantModels = ref<Record<string, string>>({});
-const selectedSkills = ref<Record<string, string[]>>({});
-const workloadMarkdown = ref<Record<string, string>>({});
 const tableError = ref("");
+const createError = ref("");
+
+const createModalOpen = ref(false);
+const editingAgentId = ref("");
+const docEditorOpen = ref(false);
+const docEditorMode = ref<"view" | "edit">("edit");
+const editingDocKey = ref<"agents" | "user" | "soul">("agents");
+const docEditorContent = ref("");
+
+const newAgentId = ref("");
+const newAgentName = ref("");
+const newRoleId = ref("");
+const newWorkload = ref(50);
+const newDefaultModelId = ref("");
+const newAssistantModelId = ref("");
+const newSkillIds = ref<string[]>([]);
+const pendingSkillId = ref("");
+const newMcpIds = ref<string[]>([]);
+const pendingMcpId = ref("");
+const newAgentsMarkdown = ref("## Behavior\n- Always verify assumptions\n- Communicate constraints clearly");
+const newUserMarkdown = ref("## User Profile\n- Team size:\n- Domain:\n- Preferred communication:");
+const newSoulMarkdown = ref("## Personality\n- Calm, precise, pragmatic\n- Enjoys elegant solutions");
+const newAvatarData = ref("");
+const avatarInputRef = ref<HTMLInputElement | null>(null);
+const defaultAgentAvatar =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>
+      <rect width='120' height='120' fill='white'/>
+      <circle cx='60' cy='38' r='22' fill='white' stroke='black' stroke-width='3'/>
+      <circle cx='52' cy='36' r='3' fill='black'/>
+      <circle cx='68' cy='36' r='3' fill='black'/>
+      <path d='M50 48 Q60 56 70 48' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'/>
+      <rect x='30' y='66' width='60' height='38' rx='12' fill='white' stroke='black' stroke-width='3'/>
+      <path d='M16 22 h88 M16 98 h88' stroke='black' stroke-width='2' stroke-dasharray='4 4'/>
+    </svg>`,
+  );
+
+const router = useRouter();
+const currentPage = ref(1);
+const pageSize = ref(10);
+const availableMcpsToAdd = computed(() => activeMcps.value.filter((m) => !newMcpIds.value.includes(m.id)));
+const availableSkillsToAdd = computed(() => activeSkills.value.filter((s) => !newSkillIds.value.includes(s.id)));
+const skillById = computed(() => Object.fromEntries(activeSkills.value.map((s) => [s.id, s] as const)));
+const mcpById = computed(() => Object.fromEntries(activeMcps.value.map((m) => [m.id, m] as const)));
+const totalPages = computed(() => Math.max(1, Math.ceil(agents.value.length / pageSize.value)));
+const pagedAgents = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return agents.value.slice(start, start + pageSize.value);
+});
+const currentDocTitle = computed(() => {
+  if (editingDocKey.value === "agents") return "AGENTS.md";
+  if (editingDocKey.value === "user") return locale.value === "zh-CN" ? "User.md 人物说明" : "User.md Profile";
+  return "SOUL.md";
+});
+
+const extractMcpIds = (agent: Agent): string[] => {
+  const raw = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>).mcpIds : [];
+  return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
+};
+
+const extractAssistantModelId = (agent: Agent): string => {
+  const workflow = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>) : null;
+  if (!workflow) return "";
+  if (typeof workflow.assistantModelId === "string") return workflow.assistantModelId;
+  const modelProfile = workflow.modelProfile && typeof workflow.modelProfile === "object" ? (workflow.modelProfile as Record<string, unknown>) : null;
+  return modelProfile && typeof modelProfile.assistantModelId === "string" ? modelProfile.assistantModelId : "";
+};
+
+const extractPersonaSummary = (agent: Agent): string => {
+  const workflow = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>) : null;
+  const persona = workflow && typeof workflow.persona === "object" ? (workflow.persona as Record<string, unknown>) : null;
+  if (!persona) return locale.value === "zh-CN" ? "无人格配置" : "No persona";
+  const markers = [
+    typeof persona.agents === "string" && (persona.agents as string).trim().length > 0 ? "AGENTS" : "",
+    typeof persona.user === "string" && (persona.user as string).trim().length > 0 ? "USER" : "",
+    typeof persona.soul === "string" && (persona.soul as string).trim().length > 0 ? "SOUL" : "",
+  ].filter(Boolean);
+  return markers.length > 0 ? markers.join(" / ") : locale.value === "zh-CN" ? "无人格配置" : "No persona";
+};
+const extractPersonaDocs = (agent: Agent): { agents: string; user: string; soul: string; avatar: string } => {
+  const workflow = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>) : null;
+  const persona = workflow && typeof workflow.persona === "object" ? (workflow.persona as Record<string, unknown>) : null;
+  return {
+    agents: persona && typeof persona.agents === "string" ? persona.agents : "",
+    user: persona && typeof persona.user === "string" ? persona.user : "",
+    soul: persona && typeof persona.soul === "string" ? persona.soul : "",
+    avatar: persona && typeof persona.avatar === "string" ? persona.avatar : "",
+  };
+};
+const pickAvatarFile = () => {
+  avatarInputRef.value?.click();
+};
+
+const handleAvatarFile = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result === "string") newAvatarData.value = reader.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = "";
+};
+
+const resetAvatar = () => {
+  newAvatarData.value = "";
+};
+
+const getSkillDisplay = (skillId: string) => {
+  const skill = skillById.value[skillId];
+  return skill ? `${skill.name}@${skill.version}` : skillId;
+};
+
+const getMcpDisplay = (mcpId: string) => {
+  const mcp = mcpById.value[mcpId];
+  return mcp ? `${mcp.name} (${mcp.transport})` : mcpId;
+};
+
+const summarizeSkills = (skillIds: string[]) => {
+  if (skillIds.length === 0) return "0";
+  const labels = skillIds.slice(0, 2).map(getSkillDisplay).join(", ");
+  const suffix = skillIds.length > 2 ? ` +${skillIds.length - 2}` : "";
+  return `${skillIds.length}: ${labels}${suffix}`;
+};
+
+const summarizeMcps = (mcpIds: string[]) => {
+  if (mcpIds.length === 0) return "0";
+  const labels = mcpIds.slice(0, 2).map(getMcpDisplay).join(", ");
+  const suffix = mcpIds.length > 2 ? ` +${mcpIds.length - 2}` : "";
+  return `${mcpIds.length}: ${labels}${suffix}`;
+};
+
+const formatDateTime = (input?: string) => {
+  if (!input) return "-";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
+};
 
 const load = async () => {
   tableError.value = "";
-  groups.value = await apiGet<RoleGroupConfig[]>("/agents/role-groups");
-  const models = await apiGet<Model[]>("/models");
-  const skills = await apiGet<Skill[]>("/skills?status=ACTIVE");
-  activeModels.value = models.filter((m) => m.status === "ACTIVE");
-  activeSkills.value = skills;
-
-  const fallbackPrimary = activeModels.value.find((m) => true)?.id ?? "";
-  const fallbackAssistant = activeModels.value.find((m) => true)?.id ?? "";
-  const nextPrimary: Record<string, string> = {};
-  const nextAssistant: Record<string, string> = {};
-  const nextSkills: Record<string, string[]> = {};
-  const nextWorkload: Record<string, string> = {};
-  for (const g of groups.value) {
-    nextPrimary[g.roleId] = g.config?.primaryModelId || fallbackPrimary;
-    nextAssistant[g.roleId] = g.config?.assistantModelId || fallbackAssistant;
-    nextSkills[g.roleId] = [...(g.config?.skillIds || [])];
-    nextWorkload[g.roleId] = g.config?.workloadMarkdown || "## Workload\n- PRIMARY:\n- ASSISTANT:";
-  }
-  primaryModels.value = nextPrimary;
-  assistantModels.value = nextAssistant;
-  selectedSkills.value = nextSkills;
-  workloadMarkdown.value = nextWorkload;
-};
-
-const toggleSkill = (roleId: string, skillId: string, checked: boolean) => {
-  const existing = selectedSkills.value[roleId] || [];
-  selectedSkills.value[roleId] = checked
-    ? Array.from(new Set([...existing, skillId]))
-    : existing.filter((id) => id !== skillId);
-};
-
-const saveGroup = async (roleId: string) => {
-  tableError.value = "";
+  createError.value = "";
   try {
-    await apiPut(`/agents/role-groups/${roleId}/config`, {
-      skillIds: selectedSkills.value[roleId] || [],
-      workflow: {},
-      workloadMarkdown: workloadMarkdown.value[roleId] || "",
-      primaryModelId: primaryModels.value[roleId],
-      assistantModelId: assistantModels.value[roleId],
-    });
-    await load();
+    agents.value = await apiGet<Agent[]>("/agents");
+    activeMcps.value = await apiGet<Mcp[]>("/mcps?status=ACTIVE");
+    const models = await apiGet<Model[]>("/models");
+    const skills = await apiGet<Skill[]>("/skills?status=ACTIVE");
+    activeModels.value = models.filter((m) => m.status === "ACTIVE");
+    activeSkills.value = skills;
   } catch (e) {
     tableError.value = String(e);
   }
 };
 
-const escapeHtml = (input: string) =>
-  input
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+watch(totalPages, (next) => {
+  if (currentPage.value > next) currentPage.value = next;
+});
 
-const renderMarkdown = (md: string) => {
-  const lines = escapeHtml(md).split("\n");
-  return lines
-    .map((line) => {
-      if (line.startsWith("### ")) return `<h4>${line.slice(4)}</h4>`;
-      if (line.startsWith("## ")) return `<h3>${line.slice(3)}</h3>`;
-      if (line.startsWith("# ")) return `<h2>${line.slice(2)}</h2>`;
-      if (line.startsWith("- ")) return `<li>${line.slice(2)}</li>`;
-      return line.trim() ? `<p>${line}</p>` : "<br />";
-    })
-    .join("")
-    .replace(/(<li>.*<\/li>)/g, "<ul>$1</ul>")
-    .replace(/<\/ul><ul>/g, "");
+const openCreateModal = () => {
+  createError.value = "";
+  editingAgentId.value = "";
+  resetForm();
+  createModalOpen.value = true;
+};
+
+const closeCreateModal = () => {
+  createModalOpen.value = false;
+};
+const openEditModal = (agent: Agent) => {
+  createError.value = "";
+  editingAgentId.value = agent.id;
+  newAgentId.value = agent.id;
+  newAgentName.value = agent.name;
+  newRoleId.value = agent.roleId;
+  newWorkload.value = agent.workload;
+  newDefaultModelId.value = agent.defaultModelId || "";
+  newAssistantModelId.value = extractAssistantModelId(agent);
+  newSkillIds.value = [...agent.skillIds];
+  newMcpIds.value = extractMcpIds(agent);
+  pendingSkillId.value = "";
+  pendingMcpId.value = "";
+  const persona = extractPersonaDocs(agent);
+  newAgentsMarkdown.value = persona.agents || "## Behavior\n- Always verify assumptions\n- Communicate constraints clearly";
+  newUserMarkdown.value = persona.user || "## User Profile\n- Team size:\n- Domain:\n- Preferred communication:";
+  newSoulMarkdown.value = persona.soul || "## Personality\n- Calm, precise, pragmatic\n- Enjoys elegant solutions";
+  newAvatarData.value = persona.avatar || "";
+  createModalOpen.value = true;
+};
+
+const addSelectedSkill = () => {
+  if (!pendingSkillId.value) return;
+  if (newSkillIds.value.includes(pendingSkillId.value)) return;
+  newSkillIds.value = [...newSkillIds.value, pendingSkillId.value];
+  pendingSkillId.value = "";
+};
+
+const removeSelectedSkill = (skillId: string) => {
+  newSkillIds.value = newSkillIds.value.filter((id) => id !== skillId);
+};
+
+const addSelectedMcp = () => {
+  if (!pendingMcpId.value) return;
+  if (newMcpIds.value.includes(pendingMcpId.value)) return;
+  newMcpIds.value = [...newMcpIds.value, pendingMcpId.value];
+  pendingMcpId.value = "";
+};
+
+const removeSelectedMcp = (mcpId: string) => {
+  newMcpIds.value = newMcpIds.value.filter((id) => id !== mcpId);
+};
+
+const goToMcpRepo = () => {
+  createModalOpen.value = false;
+  router.push("/mcps");
+};
+
+const goToSkillRepo = () => {
+  createModalOpen.value = false;
+  router.push("/skills");
+};
+
+const summarizeDoc = (doc: string) => {
+  const flat = doc.replace(/\s+/g, " ").trim();
+  if (!flat) return t("common.empty");
+  return flat.length > 92 ? `${flat.slice(0, 92)}...` : flat;
+};
+
+const getDocValue = (key: "agents" | "user" | "soul") => {
+  if (key === "agents") return newAgentsMarkdown.value;
+  if (key === "user") return newUserMarkdown.value;
+  return newSoulMarkdown.value;
+};
+
+const setDocValue = (key: "agents" | "user" | "soul", value: string) => {
+  if (key === "agents") newAgentsMarkdown.value = value;
+  else if (key === "user") newUserMarkdown.value = value;
+  else newSoulMarkdown.value = value;
+};
+
+const openDocEditor = (key: "agents" | "user" | "soul", mode: "view" | "edit") => {
+  editingDocKey.value = key;
+  docEditorMode.value = mode;
+  docEditorContent.value = getDocValue(key);
+  docEditorOpen.value = true;
+};
+
+const closeDocEditor = () => {
+  docEditorOpen.value = false;
+};
+
+const applyDocEditor = () => {
+  setDocValue(editingDocKey.value, docEditorContent.value);
+  docEditorOpen.value = false;
+};
+
+const resetForm = () => {
+  newAgentId.value = "";
+  newAgentName.value = "";
+  newRoleId.value = "";
+  newWorkload.value = 50;
+  newDefaultModelId.value = "";
+  newAssistantModelId.value = "";
+  newSkillIds.value = [];
+  pendingSkillId.value = "";
+  newMcpIds.value = [];
+  pendingMcpId.value = "";
+  newAgentsMarkdown.value = "## Behavior\n- Always verify assumptions\n- Communicate constraints clearly";
+  newUserMarkdown.value = "## User Profile\n- Team size:\n- Domain:\n- Preferred communication:";
+  newSoulMarkdown.value = "## Personality\n- Calm, precise, pragmatic\n- Enjoys elegant solutions";
+  newAvatarData.value = "";
+};
+
+const submitAgent = async () => {
+  createError.value = "";
+  const id = newAgentId.value.trim();
+  const name = newAgentName.value.trim();
+  const roleId = newRoleId.value.trim();
+  const workload = Number(newWorkload.value);
+  if (!id || !name || !roleId || Number.isNaN(workload)) {
+    createError.value = locale.value === "zh-CN" ? "请填写 id、name、roleId 和 workload。" : "Please provide id, name, roleId and workload.";
+    return;
+  }
+  if (workload < 0 || workload > 100) {
+    createError.value = locale.value === "zh-CN" ? "Workload 需要在 0-100 之间。" : "Workload must be between 0 and 100.";
+    return;
+  }
+  try {
+    if (!editingAgentId.value) {
+      await apiPost("/agents", {
+        id,
+        name,
+        roleId,
+        workload,
+        defaultModelId: newDefaultModelId.value || undefined,
+        assistantModelId: newAssistantModelId.value || undefined,
+        skillIds: newSkillIds.value,
+        mcpIds: newMcpIds.value,
+        agentsMarkdown: newAgentsMarkdown.value,
+        userMarkdown: newUserMarkdown.value,
+        soulMarkdown: newSoulMarkdown.value,
+        avatar: newAvatarData.value || undefined,
+        workflow: {},
+      });
+    } else {
+      await apiPatch(`/agents/${editingAgentId.value}`, {
+        name,
+        roleId,
+        workload,
+        defaultModelId: newDefaultModelId.value || null,
+        assistantModelId: newAssistantModelId.value || null,
+        skillIds: newSkillIds.value,
+        mcpIds: newMcpIds.value,
+        agentsMarkdown: newAgentsMarkdown.value,
+        userMarkdown: newUserMarkdown.value,
+        soulMarkdown: newSoulMarkdown.value,
+        avatar: newAvatarData.value || "",
+      });
+    }
+    resetForm();
+    editingAgentId.value = "";
+    createModalOpen.value = false;
+    await load();
+  } catch (e) {
+    createError.value = String(e);
+  }
 };
 
 onMounted(load);
@@ -174,60 +590,202 @@ onMounted(load);
   margin: 0 0 14px;
 }
 
-.skill-list {
-  display: grid;
-  gap: 6px;
-  min-width: 220px;
-}
-
-.skill-item {
+.section-title {
   margin: 0;
+  font-size: 16px;
+}
+
+.section-head {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: #fffcf7;
+  margin-bottom: 10px;
 }
 
-.skill-text {
-  font-size: 13px;
-}
-
-.workload-col {
-  min-width: 260px;
-}
-
-.action-btn {
-  min-width: 136px;
-}
-
-.preview {
-  margin-top: 6px;
-}
-
-.preview summary {
-  cursor: pointer;
-  color: var(--text-secondary);
+.model-stack {
+  display: grid;
+  gap: 2px;
   font-size: 12px;
 }
 
-.md-preview {
-  margin-top: 6px;
-  border: 1px dashed var(--border);
+.mcp-picker {
+  border: 1px solid #ece7dd;
   border-radius: 10px;
   padding: 8px;
   background: #fff;
 }
 
-.md-preview :deep(h2),
-.md-preview :deep(h3),
-.md-preview :deep(h4) {
-  margin: 0 0 6px;
+.mcp-selected {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
-.md-preview :deep(p),
-.md-preview :deep(ul) {
+.remove-chip {
+  margin-left: 6px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.mcp-picker-actions {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+}
+
+.docs-card {
+  margin-top: 10px;
+  border: 1px solid #ece7dd;
+  border-radius: 10px;
+  padding: 8px;
+  background: #fff;
+}
+
+.doc-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  border: 1px dashed #efe8dc;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.doc-row p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.doc-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 18, 36, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 16px;
+}
+
+.modal-panel {
+  width: min(1200px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.fancy-modal {
+  background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+}
+
+.create-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 14px;
+}
+
+.persona-side {
+  border: 1px solid #1f1f1f;
+  border-radius: 12px;
+  padding: 12px;
+  background: repeating-linear-gradient(45deg, #fff, #fff 8px, #f6f6f6 8px, #f6f6f6 16px);
+  text-align: center;
+}
+
+.builder-title {
   margin: 0 0 4px;
+}
+
+.builder-note {
+  margin: 0;
+}
+
+.avatar-card {
+  margin: 10px 0;
+  border: 1px dashed #333;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+  text-align: center;
+}
+
+.agent-avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 2px solid #111;
+  background: #fff;
+  object-fit: cover;
+}
+
+.avatar-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.persona-name {
+  margin: 0 0 2px;
+}
+
+.persona-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.form-side {
+  border: 1px solid #efeae2;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.modal-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 980px) {
+  .create-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mcp-picker-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .avatar-actions {
+    flex-direction: column;
+  }
 }
 </style>

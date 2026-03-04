@@ -11,6 +11,15 @@ const createSkillSchema = z.object({
   version: z.string().min(1),
   tags: z.array(z.string().min(1)).default([]),
   definitionMarkdown: z.string().min(1),
+  avatar: z.string().optional(),
+});
+
+const updateSkillSchema = z.object({
+  name: z.string().min(1).optional(),
+  version: z.string().min(1).optional(),
+  tags: z.array(z.string().min(1)).optional(),
+  definitionMarkdown: z.string().min(1).optional(),
+  avatar: z.string().optional(),
 });
 
 const listSkillQuerySchema = z.object({
@@ -76,7 +85,7 @@ export async function skillRoutes(app: FastifyInstance) {
         name: parsed.data.name,
         version: parsed.data.version,
         tags: parsed.data.tags,
-        definition: { markdown: parsed.data.definitionMarkdown } as Prisma.InputJsonValue,
+        definition: { markdown: parsed.data.definitionMarkdown, avatar: parsed.data.avatar ?? "" } as Prisma.InputJsonValue,
       },
     });
     await writeAuditLog({
@@ -86,6 +95,75 @@ export async function skillRoutes(app: FastifyInstance) {
       afterData: skill,
     });
     return ok(reply, skill);
+  });
+
+  app.patch("/api/v1/skills/:id", async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    const parsed = updateSkillSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fail(reply, "VALIDATION_ERROR", "Invalid input", [
+        { field: "body", reason: parsed.error.issues[0]?.message ?? "INVALID" },
+      ], 400);
+    }
+
+    const skill = await prisma.skill.findUnique({ where: { id } });
+    if (!skill) {
+      return fail(reply, "NOT_FOUND", "Skill not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+
+    const nextName = parsed.data.name ?? skill.name;
+    const nextVersion = parsed.data.version ?? skill.version;
+    const duplicate = await prisma.skill.findFirst({
+      where: {
+        name: nextName,
+        version: nextVersion,
+        id: { not: id },
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return fail(reply, "CONFLICT", "Skill name+version already exists", [
+        { field: "name", reason: "DUPLICATE_VERSION" },
+      ], 409);
+    }
+
+    const updated = await prisma.skill.update({
+      where: { id },
+      data: {
+        ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
+        ...(parsed.data.version !== undefined ? { version: parsed.data.version } : {}),
+        ...(parsed.data.tags !== undefined ? { tags: parsed.data.tags } : {}),
+        ...((parsed.data.definitionMarkdown !== undefined || parsed.data.avatar !== undefined)
+          ? {
+              definition: {
+                markdown:
+                  parsed.data.definitionMarkdown ??
+                  (skill.definition &&
+                  typeof skill.definition === "object" &&
+                  typeof (skill.definition as { markdown?: unknown }).markdown === "string"
+                    ? ((skill.definition as { markdown: string }).markdown ?? "")
+                    : ""),
+                avatar:
+                  parsed.data.avatar ??
+                  (skill.definition &&
+                  typeof skill.definition === "object" &&
+                  typeof (skill.definition as { avatar?: unknown }).avatar === "string"
+                    ? ((skill.definition as { avatar: string }).avatar ?? "")
+                    : ""),
+              } as Prisma.InputJsonValue,
+            }
+          : {}),
+      },
+    });
+
+    await writeAuditLog({
+      action: "UPDATE",
+      entityType: "SKILL",
+      entityId: id,
+      beforeData: skill,
+      afterData: updated,
+    });
+    return ok(reply, updated);
   });
 
   app.post("/api/v1/skills/:id/publish", async (req, reply) => {
