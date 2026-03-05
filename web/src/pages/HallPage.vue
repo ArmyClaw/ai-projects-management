@@ -61,7 +61,7 @@
         </div>
       </article>
 
-      <article class="card panel">
+      <article class="card panel action-panel">
         <h3>{{ locale === "zh-CN" ? "行动工位" : "Action Desk" }}</h3>
         <div class="action-grid">
           <button class="button" @click="go('/bootstrap')">{{ locale === "zh-CN" ? "团队编排" : "Team Plan" }}</button>
@@ -268,18 +268,21 @@ onMounted(load);
 <style scoped>
 .hall-shell {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   max-width: 100%;
   overflow-x: clip;
+  height: calc(100vh - 84px);
+  overflow-y: hidden;
 }
 
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-  gap: 14px;
+  gap: 10px;
   border-radius: 16px;
   border: 1px solid #202020;
   background: #fff;
+  padding: 10px;
 }
 
 .hero-main,
@@ -293,8 +296,8 @@ onMounted(load);
 }
 
 .hero-main h1 {
-  margin: 6px 0;
-  font-size: 30px;
+  margin: 4px 0;
+  font-size: 25px;
 }
 
 .kicker {
@@ -305,20 +308,20 @@ onMounted(load);
 }
 
 .status-chips {
-  margin-top: 10px;
+  margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .chip {
   border: 1px solid #222;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 4px 9px;
   background: #fff;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .chip strong {
@@ -333,19 +336,20 @@ onMounted(load);
 .hero-side {
   border: 1px dashed #9c9c9c;
   border-radius: 12px;
-  padding: 10px;
+  padding: 8px;
   background: rgba(255, 255, 255, 0.84);
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 6px;
 }
 
 .pulse {
   border: 1px solid #1f1f1f;
   border-radius: 10px;
-  padding: 8px;
+  padding: 6px;
   background: #fff;
   font-weight: 700;
+  font-size: 12px;
 }
 
 .mini-matrix {
@@ -357,7 +361,7 @@ onMounted(load);
 .mini-cell {
   border: 1px dashed #b7b7b7;
   border-radius: 8px;
-  padding: 6px 7px;
+  padding: 4px 6px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -369,23 +373,23 @@ onMounted(load);
 }
 
 .metric-ribbon {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-  gap: 6px;
+  gap: 4px;
 }
 
 .metric-tile {
   border: 1px solid #bdbdbd;
   border-radius: 8px;
-  padding: 6px;
+  padding: 5px;
   display: grid;
-  gap: 3px;
-  min-height: 48px;
+  gap: 2px;
+  min-height: 42px;
   background: #fff;
 }
 
@@ -396,16 +400,19 @@ onMounted(load);
 }
 
 .metric-tile strong {
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
 }
 
 .ticker-wrap {
   border-radius: 14px;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 .ticker-wrap h3 {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
+  font-size: 14px;
 }
 
 .ticker {
@@ -420,7 +427,7 @@ onMounted(load);
 .ticker-track {
   display: flex;
   gap: 24px;
-  padding: 9px 0;
+  padding: 6px 0;
   width: max-content;
   max-width: none;
   animation: world-scroll 36s linear infinite;
@@ -433,7 +440,7 @@ onMounted(load);
 .ticker-item {
   flex: 0 0 auto;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 12px;
   padding-left: 14px;
   position: relative;
 }
@@ -452,27 +459,37 @@ onMounted(load);
 .main-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 10px;
+  gap: 8px;
+  min-height: 0;
 }
 
 .panel {
-  min-height: 270px;
+  min-height: 0;
+  max-height: 100%;
+  overflow: auto;
+  padding: 10px;
+}
+
+.action-panel {
+  overflow: visible;
+  max-height: none;
 }
 
 .panel h3 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  font-size: 14px;
 }
 
 .move-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .move {
   border: 1px solid #c5c5c5;
   border-radius: 12px;
   text-align: left;
-  padding: 10px;
+  padding: 8px;
   background: #fff;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -485,26 +502,26 @@ onMounted(load);
 }
 
 .move strong {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .move p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: #555;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .focus-box {
-  margin-top: 10px;
+  margin-top: 6px;
   border: 1px dashed #b4b4b4;
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: #fcfcfc;
 }
 
@@ -523,18 +540,18 @@ onMounted(load);
 }
 
 .focus-box li {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .project-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .project-item {
   border: 1px solid #cbcbcb;
   border-radius: 10px;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -548,8 +565,8 @@ onMounted(load);
 .pill {
   border: 1px solid #212121;
   border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 3px 8px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -612,6 +629,11 @@ onMounted(load);
   .hero,
   .main-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hall-shell {
+    height: auto;
+    overflow-y: visible;
   }
 }
 

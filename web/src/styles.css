@@ -1,19 +1,19 @@
 :root,
 :root[data-theme="classic"] {
   --bg: #ffffff;
-  --bg-accent: #ffffff;
+  --bg-accent: #f7f7f7;
   --surface: #ffffff;
-  --surface-soft: #fbfbfb;
-  --text-primary: #232027;
-  --text-secondary: #706978;
-  --border: #ececec;
-  --focus: #d9d9d9;
-  --primary: #35313e;
-  --primary-soft: #f6f6f8;
+  --surface-soft: #f8f8f8;
+  --text-primary: #222222;
+  --text-secondary: #666666;
+  --border: #dddddd;
+  --focus: #bdbdbd;
+  --primary: #1f1f1f;
+  --primary-soft: #f1f1f1;
   --success: #2f8f64;
   --error: #b00020;
-  --shadow: 0 5px 14px rgba(20, 20, 20, 0.05);
-  --ring: 0 0 0 3px rgba(53, 49, 62, 0.08);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --ring: 0 0 0 3px rgba(0, 0, 0, 0.08);
 }
 
 * {
@@ -25,7 +25,15 @@ body {
   font-family: "Nunito", "Avenir Next", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   background: var(--bg);
   color: var(--text-primary);
-  background-image: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
+  background-image: linear-gradient(180deg, #ffffff 0%, #fdfdfd 100%);
+}
+
+:root[data-theme="classic"] body {
+  background-image:
+    linear-gradient(rgba(20, 20, 20, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 20, 20, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, #ffffff 0%, #fcfcfc 100%);
+  background-size: 22px 22px, 22px 22px, auto;
 }
 
 .layout {
@@ -77,9 +85,9 @@ body {
 
 .nav-link.router-link-active {
   background: var(--primary-soft);
-  border-color: #e7e7ee;
+  border-color: #d9d9d9;
   font-weight: 700;
-  box-shadow: inset 0 0 0 1px #f0f0f6;
+  box-shadow: inset 0 0 0 1px #ececec;
 }
 
 .nav-link:hover {
@@ -198,7 +206,7 @@ body {
 
 .card {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 14px;
   margin-bottom: 14px;
   background: var(--surface);
@@ -212,10 +220,11 @@ body {
   position: absolute;
   right: 10px;
   top: 10px;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
-  background: #f2f2f2;
+  background: #e8e8e8;
+  border: 1px solid #d6d6d6;
   pointer-events: none;
 }
 
@@ -249,7 +258,7 @@ textarea:focus {
   max-width: 220px;
   background: #fff;
   font-weight: 700;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
 }
 
@@ -261,7 +270,8 @@ textarea:focus {
 
 .button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(35, 32, 39, 0.14);
+  border-color: #bdbdbd;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .table {
@@ -293,6 +303,97 @@ textarea:focus {
   padding: 2px 10px;
   font-size: 12px;
   background: #fafafa;
+}
+
+:root[data-theme="classic"] .sidebar {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
+}
+
+:root[data-theme="classic"] .brand {
+  letter-spacing: 0.3px;
+}
+
+:root[data-theme="classic"] .brand-text {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+:root[data-theme="classic"] .nav-link {
+  border-color: #e3e3e3;
+  background: #ffffff;
+  padding-left: 14px;
+  padding-right: 14px;
+  border-radius: 10px;
+}
+
+:root[data-theme="classic"] .nav-link:hover {
+  border-color: #cfcfcf;
+  background: #f8f8f8;
+}
+
+:root[data-theme="classic"] .nav-link.router-link-active {
+  border-color: #c8c8c8;
+  background: #f1f1f1;
+  box-shadow: inset 0 0 0 1px #e7e7e7;
+}
+
+:root[data-theme="classic"] .nav-link.router-link-active::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 14px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  border: 0;
+  background: #7d7d7d;
+}
+
+:root[data-theme="classic"] .card {
+  border-color: #d8d8d8;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
+  transition: transform 0.15s ease, box-shadow 0.18s ease;
+  border-radius: 12px;
+}
+
+:root[data-theme="classic"] .card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="classic"] .input,
+:root[data-theme="classic"] .select,
+:root[data-theme="classic"] textarea {
+  border-color: #d8d8d8;
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+:root[data-theme="classic"] .button {
+  border-color: #cfcfcf;
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+:root[data-theme="classic"] .button.primary {
+  border-color: #111111;
+  background: #1a1a1a;
+}
+
+:root[data-theme="classic"] .tag {
+  border-color: #d2d2d2;
+  background: #f7f7f7;
+  border-radius: 8px;
+}
+
+:root[data-theme="classic"] .table th {
+  font-family: "JetBrains Mono", "IBM Plex Mono", "Cascadia Mono", monospace;
+  letter-spacing: 0.04em;
+}
+
+:root[data-theme="classic"] .page-title {
+  letter-spacing: 0.03em;
 }
 
 .tag.primary {

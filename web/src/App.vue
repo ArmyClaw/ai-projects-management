@@ -353,16 +353,32 @@ onMounted(async () => {
   border-radius: 0 0 8px 8px;
 }
 
+:global(body.theme-classic) .brand-mark {
+  border-width: 2px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
+}
+
+:global(body.theme-classic) .sidebar-bottom {
+  border-radius: 11px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+:global(body.theme-classic) .host-entry,
+:global(body.theme-classic) .host-login-btn {
+  border-color: #cfcfcf;
+  background: #fff;
+}
+
 .sidebar-bottom {
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 8px;
+  padding: 6px;
   display: grid;
-  gap: 8px;
+  gap: 5px;
   position: fixed;
   left: 12px;
   bottom: 12px;
-  width: min(204px, calc(100vw - 24px));
+  width: min(182px, calc(100vw - 24px));
   background: var(--surface);
   box-shadow: 0 6px 22px rgba(20, 20, 20, 0.12);
   z-index: 1200;
@@ -375,37 +391,37 @@ onMounted(async () => {
 
 .locale-label {
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   font-weight: 700;
 }
 
 .locale-select {
   width: 100%;
-  height: 30px;
+  height: 28px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface-soft);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 0 10px;
+  padding: 0 8px;
 }
 
 .host-entry {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 4px 10px 4px 4px;
+  padding: 3px 8px 3px 3px;
   background: var(--surface-soft);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
 }
 
 .host-avatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1px solid var(--border);
   object-fit: cover;
@@ -420,12 +436,12 @@ onMounted(async () => {
 
 .host-name {
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .host-handle {
   color: #656565;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .host-login-btn {
@@ -433,8 +449,9 @@ onMounted(async () => {
   border-radius: 999px;
   background: var(--surface-soft);
   color: var(--text-primary);
-  padding: 8px 12px;
+  padding: 6px 10px;
   font-weight: 800;
+  font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -659,7 +676,7 @@ onMounted(async () => {
   .sidebar-bottom {
     left: 8px;
     bottom: 8px;
-    width: min(220px, calc(100vw - 16px));
+    width: min(180px, calc(100vw - 16px));
   }
 
   .auth-layout {
