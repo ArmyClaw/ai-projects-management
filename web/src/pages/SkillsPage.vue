@@ -56,7 +56,7 @@
             <td><code>{{ s.id }}</code></td>
             <td>{{ s.name }}</td>
             <td>{{ s.version }}</td>
-            <td><span class="tag">{{ s.status }}</span></td>
+            <td><span class="status-chip" :class="statusClass(s.status)">{{ s.status }}</span></td>
             <td>{{ s.tags.join(", ") || "-" }}</td>
             <td>{{ summarizeDoc(extractDefinitionMarkdown(s)) }}</td>
             <td>{{ formatDateTime(s.updatedAt) }}</td>
@@ -183,6 +183,8 @@ import { apiGet, apiPatch, apiPost } from "../lib/api";
 import MarkdownEditor from "../components/MarkdownEditor.vue";
 import PaginationBar from "../components/PaginationBar.vue";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
+import { pushToast } from "../lib/toast";
 
 type Skill = {
   id: string;
@@ -191,11 +193,13 @@ type Skill = {
   status: string;
   tags: string[];
   definition?: Record<string, unknown> | null;
+  createdBy: string;
   updatedAt?: string;
 };
 
 const skills = ref<Skill[]>([]);
 const { t, locale } = useI18n();
+const { user, isLoggedIn } = useAuth();
 const createError = ref("");
 const tableError = ref("");
 const searchKeyword = ref("");
@@ -241,6 +245,8 @@ const currentTagsCount = computed(() =>
     .map((x) => x.trim())
     .filter(Boolean).length,
 );
+const canManageSkill = (skill: Skill) => isLoggedIn.value && skill.createdBy === user.value?.id;
+const statusClass = (value: string) => `status-${value.toLowerCase()}`;
 
 const filteredSkills = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase();
@@ -358,6 +364,11 @@ const openCreateModal = () => {
 };
 
 const openEditModal = (skill: Skill) => {
+  if (!canManageSkill(skill)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可编辑。" : "Only creator can edit.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   createError.value = "";
   editingSkillId.value = skill.id;
   form.id = skill.id;
@@ -390,6 +401,11 @@ const applyDocEditor = () => {
 
 const submitSkill = async () => {
   createError.value = "";
+  if (!isLoggedIn.value) {
+    createError.value = locale.value === "zh-CN" ? "请先登录再保存技能。" : "Please login before saving skill.";
+    pushToast(createError.value, "warning");
+    return;
+  }
   const tags = form.tagsText
     .split(",")
     .map((x) => x.trim())
@@ -417,29 +433,47 @@ const submitSkill = async () => {
     modalOpen.value = false;
     editingSkillId.value = "";
     resetForm();
+    pushToast(locale.value === "zh-CN" ? "技能已保存" : "Skill saved", "success");
     await load();
   } catch (e) {
     createError.value = String(e);
+    pushToast(createError.value, "error");
   }
 };
 
 const publish = async (id: string) => {
   tableError.value = "";
+  const skill = skills.value.find((item) => item.id === id);
+  if (!skill || !canManageSkill(skill)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可操作。" : "Only creator can operate.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   try {
     await apiPost(`/skills/${id}/publish`, {});
+    pushToast(locale.value === "zh-CN" ? "技能已发布" : "Skill published", "success");
     await load();
   } catch (e) {
     tableError.value = String(e);
+    pushToast(tableError.value, "error");
   }
 };
 
 const deprecate = async (id: string) => {
   tableError.value = "";
+  const skill = skills.value.find((item) => item.id === id);
+  if (!skill || !canManageSkill(skill)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可操作。" : "Only creator can operate.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   try {
     await apiPost(`/skills/${id}/deprecate`, {});
+    pushToast(locale.value === "zh-CN" ? "技能已弃用" : "Skill deprecated", "success");
     await load();
   } catch (e) {
     tableError.value = String(e);
+    pushToast(tableError.value, "error");
   }
 };
 

@@ -4,6 +4,7 @@ import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
 import { getActorId } from "../services/auth.js";
+import { buildCapabilityListWhere, canReadCapability, requireOwner } from "../services/access.js";
 
 const createModelSchema = z.object({
   id: z.string().min(1),
@@ -13,9 +14,19 @@ const createModelSchema = z.object({
   tier: z.enum(["PREMIUM", "BALANCED", "ECONOMY"]),
 });
 
+const listModelQuerySchema = z.object({
+  status: z.enum(["DRAFT", "ACTIVE", "DEPRECATED", "ARCHIVED"]).optional(),
+});
+
 export async function modelRoutes(app: FastifyInstance) {
-  app.get("/api/v1/models", async (_, reply) => {
-    const rows = await prisma.model.findMany({ orderBy: { createdAt: "desc" } });
+  app.get("/api/v1/models", async (req, reply) => {
+    const parsed = listModelQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return fail(reply, "VALIDATION_ERROR", "Invalid query", [{ field: "query", reason: "INVALID" }], 400);
+    }
+    const actorId = getActorId(req);
+    const where = buildCapabilityListWhere(actorId, parsed.data.status);
+    const rows = await prisma.model.findMany({ where, orderBy: { createdAt: "desc" } });
     return ok(reply, rows);
   });
 
@@ -61,6 +72,7 @@ export async function modelRoutes(app: FastifyInstance) {
     if (!current) {
       return fail(reply, "NOT_FOUND", "Model not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, current.createdBy, "Only creator can health-check model")) return;
     const model = await prisma.model.update({
       where: { id },
       data: { healthStatus: "HEALTHY", updatedBy: actorId },
@@ -90,6 +102,10 @@ export async function modelRoutes(app: FastifyInstance) {
     if (!model) {
       return fail(reply, "NOT_FOUND", "Model not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!canReadCapability(model.status, model.createdBy, actorId)) {
+      return fail(reply, "NOT_FOUND", "Model not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (!requireOwner(reply, req, model.createdBy, "Only creator can publish model")) return;
     if (!["HEALTHY", "DEGRADED"].includes(model.healthStatus)) {
       return fail(reply, "MODEL_UNAVAILABLE", "Model is not healthy", [
         { field: "healthStatus", reason: model.healthStatus },

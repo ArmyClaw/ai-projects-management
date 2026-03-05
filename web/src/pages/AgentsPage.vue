@@ -129,12 +129,18 @@
                     </span>
                   </div>
                   <div class="mcp-picker-actions">
-                    <select v-model="pendingSkillId" class="select">
-                      <option value="">{{ locale === "zh-CN" ? "选择要添加的技能" : "Choose Skill to add" }}</option>
-                      <option v-for="s in availableSkillsToAdd" :key="`pick-skill-${s.id}`" :value="s.id">{{ s.name }}@{{ s.version }}</option>
-                    </select>
-                    <button class="button" @click="addSelectedSkill">{{ locale === "zh-CN" ? "+ 添加技能" : "+ Add Skill" }}</button>
+                    <input v-model.trim="skillKeyword" class="input" :placeholder="locale === 'zh-CN' ? '搜索技能名 / id / 版本' : 'Search skill name / id / version'" />
+                    <button class="button" @click="selectAllFilteredSkills">{{ locale === "zh-CN" ? "全选结果" : "Select Filtered" }}</button>
+                    <button class="button" @click="clearSkills">{{ locale === "zh-CN" ? "清空已选" : "Clear" }}</button>
                     <button class="button" @click="goToSkillRepo">{{ locale === "zh-CN" ? "前往技能仓库" : "Go Skill Repo" }}</button>
+                  </div>
+                  <div class="mcp-pool">
+                    <label v-for="skill in filteredSkillPool" :key="`pool-skill-${skill.id}`" class="pool-item">
+                      <input type="checkbox" :checked="newSkillIds.includes(skill.id)" @change="toggleSkill(skill.id)" />
+                      <span class="pool-main">{{ skill.name }}</span>
+                      <span class="pool-sub">{{ skill.id }} · {{ skill.version }}</span>
+                    </label>
+                    <p v-if="filteredSkillPool.length === 0" class="muted">{{ locale === "zh-CN" ? "无匹配技能" : "No matched skills" }}</p>
                   </div>
                 </div>
               </div>
@@ -149,12 +155,18 @@
                     </span>
                   </div>
                   <div class="mcp-picker-actions">
-                    <select v-model="pendingMcpId" class="select">
-                      <option value="">{{ locale === "zh-CN" ? "选择要添加的 MCP" : "Choose MCP to add" }}</option>
-                      <option v-for="m in availableMcpsToAdd" :key="`pick-${m.id}`" :value="m.id">{{ m.name }} ({{ m.transport }})</option>
-                    </select>
-                    <button class="button" @click="addSelectedMcp">{{ locale === "zh-CN" ? "+ 添加 MCP" : "+ Add MCP" }}</button>
+                    <input v-model.trim="mcpKeyword" class="input" :placeholder="locale === 'zh-CN' ? '搜索工具名 / id / 协议' : 'Search tool name / id / transport'" />
+                    <button class="button" @click="selectAllFilteredMcps">{{ locale === "zh-CN" ? "全选结果" : "Select Filtered" }}</button>
+                    <button class="button" @click="clearMcps">{{ locale === "zh-CN" ? "清空已选" : "Clear" }}</button>
                     <button class="button" @click="goToMcpRepo">{{ locale === "zh-CN" ? "前往工具仓库" : "Go Tools Repo" }}</button>
+                  </div>
+                  <div class="mcp-pool">
+                    <label v-for="mcp in filteredMcpPool" :key="`pool-mcp-${mcp.id}`" class="pool-item">
+                      <input type="checkbox" :checked="newMcpIds.includes(mcp.id)" @change="toggleMcp(mcp.id)" />
+                      <span class="pool-main">{{ mcp.name }}</span>
+                      <span class="pool-sub">{{ mcp.id }} · {{ mcp.transport }}</span>
+                    </label>
+                    <p v-if="filteredMcpPool.length === 0" class="muted">{{ locale === "zh-CN" ? "无匹配工具" : "No matched tools" }}</p>
                   </div>
                 </div>
               </div>
@@ -230,6 +242,8 @@ import { apiGet, apiPatch, apiPost } from "../lib/api";
 import MarkdownEditor from "../components/MarkdownEditor.vue";
 import PaginationBar from "../components/PaginationBar.vue";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
+import { pushToast } from "../lib/toast";
 
 type Model = { id: string; status: string; tier: "PREMIUM" | "BALANCED" | "ECONOMY" };
 type Skill = { id: string; name: string; version: string; status: string };
@@ -242,11 +256,13 @@ type Agent = {
   defaultModelId?: string | null;
   skillIds: string[];
   workflow?: Record<string, unknown> | null;
+  createdBy: string;
   updatedAt?: string;
 };
 
 const agents = ref<Agent[]>([]);
 const { t, locale } = useI18n();
+const { user, isLoggedIn } = useAuth();
 const activeMcps = ref<Mcp[]>([]);
 const activeModels = ref<Model[]>([]);
 const activeSkills = ref<Skill[]>([]);
@@ -265,9 +281,9 @@ const newAgentName = ref("");
 const newWorkload = ref(50);
 const newDefaultModelId = ref("");
 const newSkillIds = ref<string[]>([]);
-const pendingSkillId = ref("");
 const newMcpIds = ref<string[]>([]);
-const pendingMcpId = ref("");
+const skillKeyword = ref("");
+const mcpKeyword = ref("");
 const newAgentsMarkdown = ref("## Behavior\n- Always verify assumptions\n- Communicate constraints clearly");
 const newUserMarkdown = ref("## User Profile\n- Team size:\n- Domain:\n- Preferred communication:");
 const newSoulMarkdown = ref("## Personality\n- Calm, precise, pragmatic\n- Enjoys elegant solutions");
@@ -291,10 +307,22 @@ const router = useRouter();
 const formSideRef = ref<HTMLElement | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(10);
-const availableMcpsToAdd = computed(() => activeMcps.value.filter((m) => !newMcpIds.value.includes(m.id)));
-const availableSkillsToAdd = computed(() => activeSkills.value.filter((s) => !newSkillIds.value.includes(s.id)));
 const skillById = computed(() => Object.fromEntries(activeSkills.value.map((s) => [s.id, s] as const)));
 const mcpById = computed(() => Object.fromEntries(activeMcps.value.map((m) => [m.id, m] as const)));
+const filteredSkillPool = computed(() => {
+  const keyword = skillKeyword.value.toLowerCase();
+  return activeSkills.value.filter((skill) => {
+    if (!keyword) return true;
+    return [skill.id, skill.name, skill.version].join(" ").toLowerCase().includes(keyword);
+  });
+});
+const filteredMcpPool = computed(() => {
+  const keyword = mcpKeyword.value.toLowerCase();
+  return activeMcps.value.filter((mcp) => {
+    if (!keyword) return true;
+    return [mcp.id, mcp.name, mcp.transport].join(" ").toLowerCase().includes(keyword);
+  });
+});
 const totalPages = computed(() => Math.max(1, Math.ceil(agents.value.length / pageSize.value)));
 const pagedAgents = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
@@ -305,6 +333,7 @@ const currentDocTitle = computed(() => {
   if (editingDocKey.value === "user") return locale.value === "zh-CN" ? "User.md 人物说明" : "User.md Profile";
   return "SOUL.md";
 });
+const canManageAgent = (agent: Agent) => isLoggedIn.value && agent.createdBy === user.value?.id;
 
 const extractMcpIds = (agent: Agent): string[] => {
   const raw = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>).mcpIds : [];
@@ -403,7 +432,8 @@ watch(totalPages, (next) => {
 });
 
 const openCreateModal = () => {
-  createError.value = "";
+  createError.value = isLoggedIn.value ? "" : locale.value === "zh-CN" ? "可先填写，保存时需要登录。" : "You can fill form first; login is required when saving.";
+  if (!isLoggedIn.value) pushToast(createError.value, "warning");
   editingAgentId.value = "";
   resetForm();
   createModalOpen.value = true;
@@ -413,6 +443,11 @@ const closeCreateModal = () => {
   createModalOpen.value = false;
 };
 const openEditModal = (agent: Agent) => {
+  if (!canManageAgent(agent)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可编辑。" : "Only creator can edit.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   createError.value = "";
   editingAgentId.value = agent.id;
   newAgentId.value = agent.id;
@@ -421,8 +456,8 @@ const openEditModal = (agent: Agent) => {
   newDefaultModelId.value = agent.defaultModelId || "";
   newSkillIds.value = [...agent.skillIds];
   newMcpIds.value = extractMcpIds(agent);
-  pendingSkillId.value = "";
-  pendingMcpId.value = "";
+  skillKeyword.value = "";
+  mcpKeyword.value = "";
   const persona = extractPersonaDocs(agent);
   newAgentsMarkdown.value = persona.agents || "## Behavior\n- Always verify assumptions\n- Communicate constraints clearly";
   newUserMarkdown.value = persona.user || "## User Profile\n- Team size:\n- Domain:\n- Preferred communication:";
@@ -431,26 +466,46 @@ const openEditModal = (agent: Agent) => {
   createModalOpen.value = true;
 };
 
-const addSelectedSkill = () => {
-  if (!pendingSkillId.value) return;
-  if (newSkillIds.value.includes(pendingSkillId.value)) return;
-  newSkillIds.value = [...newSkillIds.value, pendingSkillId.value];
-  pendingSkillId.value = "";
+const toggleSkill = (skillId: string) => {
+  if (newSkillIds.value.includes(skillId)) {
+    newSkillIds.value = newSkillIds.value.filter((id) => id !== skillId);
+    return;
+  }
+  newSkillIds.value = [...newSkillIds.value, skillId];
 };
 
 const removeSelectedSkill = (skillId: string) => {
   newSkillIds.value = newSkillIds.value.filter((id) => id !== skillId);
 };
 
-const addSelectedMcp = () => {
-  if (!pendingMcpId.value) return;
-  if (newMcpIds.value.includes(pendingMcpId.value)) return;
-  newMcpIds.value = [...newMcpIds.value, pendingMcpId.value];
-  pendingMcpId.value = "";
+const selectAllFilteredSkills = () => {
+  const merged = new Set([...newSkillIds.value, ...filteredSkillPool.value.map((item) => item.id)]);
+  newSkillIds.value = [...merged];
+};
+
+const clearSkills = () => {
+  newSkillIds.value = [];
+};
+
+const toggleMcp = (mcpId: string) => {
+  if (newMcpIds.value.includes(mcpId)) {
+    newMcpIds.value = newMcpIds.value.filter((id) => id !== mcpId);
+    return;
+  }
+  newMcpIds.value = [...newMcpIds.value, mcpId];
 };
 
 const removeSelectedMcp = (mcpId: string) => {
   newMcpIds.value = newMcpIds.value.filter((id) => id !== mcpId);
+};
+
+const selectAllFilteredMcps = () => {
+  const merged = new Set([...newMcpIds.value, ...filteredMcpPool.value.map((item) => item.id)]);
+  newMcpIds.value = [...merged];
+};
+
+const clearMcps = () => {
+  newMcpIds.value = [];
 };
 
 const goToMcpRepo = () => {
@@ -503,9 +558,9 @@ const resetForm = () => {
   newWorkload.value = 50;
   newDefaultModelId.value = "";
   newSkillIds.value = [];
-  pendingSkillId.value = "";
   newMcpIds.value = [];
-  pendingMcpId.value = "";
+  skillKeyword.value = "";
+  mcpKeyword.value = "";
   newAgentsMarkdown.value = "## Behavior\n- Always verify assumptions\n- Communicate constraints clearly";
   newUserMarkdown.value = "## User Profile\n- Team size:\n- Domain:\n- Preferred communication:";
   newSoulMarkdown.value = "## Personality\n- Calm, precise, pragmatic\n- Enjoys elegant solutions";
@@ -531,6 +586,10 @@ const pickSmartModelId = () => {
 
 const submitAgent = async () => {
   createError.value = "";
+  if (!isLoggedIn.value) {
+    createError.value = locale.value === "zh-CN" ? "请先登录再保存智能体。" : "Please login before saving agent.";
+    return;
+  }
   const id = newAgentId.value.trim();
   const name = newAgentName.value.trim();
   const workload = Number(newWorkload.value);
@@ -580,9 +639,11 @@ const submitAgent = async () => {
     resetForm();
     editingAgentId.value = "";
     createModalOpen.value = false;
+    pushToast(locale.value === "zh-CN" ? "智能体已保存" : "Agent saved", "success");
     await load();
   } catch (e) {
     createError.value = String(e);
+    pushToast(createError.value, "error");
   }
 };
 
@@ -632,8 +693,40 @@ onMounted(load);
 
 .mcp-picker-actions {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 8px;
+}
+
+.mcp-pool {
+  margin-top: 8px;
+  border: 1px dashed #d8d2c8;
+  border-radius: 8px;
+  padding: 8px;
+  max-height: 190px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.pool-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  align-items: start;
+  border: 1px solid #ece7dd;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+}
+
+.pool-main {
+  font-weight: 600;
+}
+
+.pool-sub {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .docs-card {

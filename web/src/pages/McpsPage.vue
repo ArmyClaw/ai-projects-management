@@ -51,7 +51,7 @@
             <td>{{ m.name }}</td>
             <td>{{ m.transport }}</td>
             <td class="endpoint-cell">{{ m.endpoint }}</td>
-            <td><span class="tag">{{ m.status }}</span></td>
+            <td><span class="status-chip" :class="statusClass(m.status)">{{ m.status }}</span></td>
             <td>{{ m.tags.join(", ") || "-" }}</td>
             <td>{{ summarizeDoc(extractDefinitionMarkdown(m)) }}</td>
             <td>
@@ -102,16 +102,9 @@
                 <div class="meter-fill" :style="{ width: `${mcpDocScore}%` }" />
               </div>
             </div>
-
-            <div class="template-list">
-              <button class="button" @click="applyTemplate('http')">HTTP Tool</button>
-              <button class="button" @click="applyTemplate('sse')">SSE Stream Tool</button>
-              <button class="button" @click="applyTemplate('stdio')">STDIO Local Tool</button>
-            </div>
-
             <div class="persona-badges">
               <span class="tag">{{ locale === "zh-CN" ? "标签" : "Tags" }}: {{ currentTagsCount }}</span>
-              <span class="tag">{{ locale === "zh-CN" ? "字符" : "Chars" }}: {{ definitionMarkdown.length }}</span>
+              <span class="tag">{{ locale === "zh-CN" ? "就绪度" : "Ready" }}: {{ mcpDocScore }}%</span>
             </div>
           </aside>
 
@@ -130,12 +123,42 @@
             <div class="row">
               <div>
                 <label for="mcp-transport">{{ t("mcps.transport") }}</label>
-                <input id="mcp-transport" v-model="form.transport" class="input" placeholder="HTTP / SSE / STDIO" />
+                <select id="mcp-transport" v-model="form.transport" class="select">
+                  <option value="HTTP">HTTP</option>
+                  <option value="SSE">SSE</option>
+                  <option value="STDIO">STDIO</option>
+                </select>
               </div>
               <div>
-                <label for="mcp-endpoint">{{ t("mcps.endpoint") }}</label>
-                <input id="mcp-endpoint" v-model="form.endpoint" class="input" placeholder="https://mcp.example.com/jira" />
+                <template v-if="form.transport !== 'STDIO'">
+                  <label for="mcp-endpoint">{{ t("mcps.endpoint") }}</label>
+                  <input id="mcp-endpoint" v-model="form.endpoint" class="input" placeholder="https://mcp.example.com/jira" />
+                </template>
+                <template v-else>
+                  <label for="mcp-command">{{ locale === "zh-CN" ? "本地命令" : "Local Command" }}</label>
+                  <input id="mcp-command" v-model="form.command" class="input" placeholder="npx @modelcontextprotocol/server-filesystem" />
+                </template>
               </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="mcp-timeout">{{ locale === "zh-CN" ? "超时(ms)" : "Timeout (ms)" }}</label>
+                <input id="mcp-timeout" v-model.number="form.timeoutMs" type="number" min="500" max="120000" class="input" />
+              </div>
+              <div>
+                <label for="mcp-args">{{ locale === "zh-CN" ? "命令参数 CSV" : "Command Args CSV" }}</label>
+                <input id="mcp-args" v-model="form.argsText" class="input" :disabled="form.transport !== 'STDIO'" placeholder="--path,/workspace,--readonly" />
+              </div>
+            </div>
+            <div v-if="form.transport !== 'STDIO'" class="headers-switch">
+              <label class="switch-label">
+                <input v-model="form.useHeaders" type="checkbox" />
+                {{ locale === "zh-CN" ? "启用请求头 JSON" : "Enable headers JSON" }}
+              </label>
+            </div>
+            <div v-if="form.transport !== 'STDIO' && form.useHeaders">
+              <label for="mcp-headers">{{ locale === "zh-CN" ? "请求头 JSON（HTTP/SSE）" : "Headers JSON (HTTP/SSE)" }}</label>
+              <textarea id="mcp-headers" v-model="form.headersText" class="input" rows="3" placeholder='{"Authorization":"Bearer ${TOKEN}"}' />
             </div>
             <div>
               <label for="mcp-tags">{{ locale === "zh-CN" ? "标签 CSV" : "Tags CSV" }}</label>
@@ -143,17 +166,22 @@
             </div>
 
             <div class="docs-card">
-              <label>{{ locale === "zh-CN" ? "MCP.md（点击查看/编辑）" : "MCP.md (click to view/edit)" }}</label>
               <div class="doc-row">
                 <div>
-                  <strong>{{ locale === "zh-CN" ? "定义 Markdown" : "Definition Markdown" }}</strong>
-                  <p class="muted">{{ summarizeDoc(definitionMarkdown) }}</p>
+                  <strong>{{ locale === "zh-CN" ? "最终配置 JSON（实时预览）" : "Final Config JSON (Live Preview)" }}</strong>
+                  <p class="muted">
+                    {{
+                      locale === "zh-CN"
+                        ? "按 MCP Server 协议结构实时展示。"
+                        : "Live preview in MCP server protocol style."
+                    }}
+                  </p>
                 </div>
                 <div class="doc-actions">
-                  <button class="button" @click="openDocEditor('view')">{{ t("common.view") }}</button>
-                  <button class="button" @click="openDocEditor('edit')">{{ t("common.edit") }}</button>
+                  <button class="button" @click="copyConfigPreview">{{ locale === "zh-CN" ? "复制 JSON" : "Copy JSON" }}</button>
                 </div>
               </div>
+              <pre class="json-preview">{{ configPreviewText }}</pre>
             </div>
 
             <p v-if="createError" class="error-text">{{ createError }}</p>
@@ -166,31 +194,16 @@
       </div>
     </div>
 
-    <div v-if="docEditorOpen" class="modal-backdrop" @click.self="closeDocEditor">
-      <div class="modal-panel">
-        <h3 class="section-title">MCP.md - {{ docEditorMode === 'view' ? t("common.view") : t("common.edit") }}</h3>
-        <MarkdownEditor
-          v-model="docEditorContent"
-          label="MCP.md"
-          :rows="12"
-          :readonly="docEditorMode === 'view'"
-          :preview-only="docEditorMode === 'view'"
-        />
-        <div class="modal-actions">
-          <button class="button" @click="closeDocEditor">{{ t("common.close") }}</button>
-          <button v-if="docEditorMode === 'edit'" class="button primary" @click="applyDocEditor">{{ t("common.apply") }}</button>
-        </div>
-      </div>
-    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { apiGet, apiPatch, apiPost } from "../lib/api";
-import MarkdownEditor from "../components/MarkdownEditor.vue";
 import PaginationBar from "../components/PaginationBar.vue";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
+import { pushToast } from "../lib/toast";
 
 type Mcp = {
   id: string;
@@ -200,10 +213,12 @@ type Mcp = {
   status: string;
   tags: string[];
   definition?: Record<string, unknown> | null;
+  createdBy: string;
 };
 
 const mcps = ref<Mcp[]>([]);
 const { t, locale } = useI18n();
+const { user, isLoggedIn } = useAuth();
 const tableError = ref("");
 const copyMessage = ref("");
 const createError = ref("");
@@ -215,10 +230,6 @@ const searchKeyword = ref("");
 const loadTimer = ref<number | null>(null);
 const avatarData = ref("");
 const avatarInputRef = ref<HTMLInputElement | null>(null);
-const definitionMarkdown = ref("# MCP\n- Purpose:\n- Endpoints:\n- Auth:");
-const docEditorOpen = ref(false);
-const docEditorMode = ref<"view" | "edit">("edit");
-const docEditorContent = ref("");
 const currentPage = ref(1);
 const pageSize = ref(10);
 
@@ -229,6 +240,11 @@ const form = reactive({
   name: "",
   transport: "HTTP",
   endpoint: "",
+  command: "",
+  argsText: "",
+  useHeaders: false,
+  headersText: "",
+  timeoutMs: 30000,
   tagsText: "",
 });
 
@@ -251,11 +267,60 @@ const currentTagsCount = computed(() =>
     .map((x) => x.trim())
     .filter(Boolean).length,
 );
+const canManageMcp = (mcp: Mcp) => isLoggedIn.value && mcp.createdBy === user.value?.id;
+const statusClass = (value: string) => `status-${value.toLowerCase()}`;
 const mcpPreviewName = computed(() => form.name.trim() || "Unnamed MCP");
 const mcpPreviewTransport = computed(() => `${form.transport || "HTTP"} transport`);
 const mcpDocScore = computed(() => {
-  const len = definitionMarkdown.value.trim().length;
-  return Math.max(14, Math.min(100, Math.round(len / 6)));
+  const readyId = form.id.trim().length > 0;
+  const readyName = form.name.trim().length > 0;
+  const readyRuntime = form.transport === "STDIO" ? form.command.trim().length > 0 : form.endpoint.trim().length > 0;
+  const readyHeaders = form.transport === "STDIO" ? true : !form.useHeaders || !parseHeadersText(form.headersText).error;
+  const score = [readyId, readyName, readyRuntime, readyHeaders].filter(Boolean).length;
+  return Math.round((score / 4) * 100);
+});
+
+const parseCsv = (value: string) =>
+  value
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+const parseHeadersText = (raw: string): { value: Record<string, string>; error: string } => {
+  if (!raw.trim()) return { value: {}, error: "" };
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const filtered = Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "string")) as Record<string, string>;
+    return { value: filtered, error: "" };
+  } catch {
+    return { value: {}, error: locale.value === "zh-CN" ? "Headers JSON 解析失败" : "Invalid headers JSON" };
+  }
+};
+
+const configPreviewText = computed(() => {
+  const args = parseCsv(form.argsText);
+  const headersResult = parseHeadersText(form.headersText);
+  const useHeaders = form.transport !== "STDIO" && form.useHeaders;
+  const serverId = form.id.trim() || "<mcp-server-id>";
+  const serverConfig: Record<string, unknown> =
+    form.transport === "HTTP"
+      ? { type: "streamable-http", url: form.endpoint || "", timeoutMs: form.timeoutMs }
+      : form.transport === "SSE"
+        ? { type: "sse", url: form.endpoint || "", timeoutMs: form.timeoutMs }
+        : { type: "stdio", command: form.command || "", args, timeoutMs: form.timeoutMs };
+  if (useHeaders && Object.keys(headersResult.value).length > 0) {
+    serverConfig.headers = headersResult.value;
+  }
+  return JSON.stringify(
+    {
+      mcpServers: {
+        [serverId]: serverConfig,
+      },
+      ...(headersResult.error ? { _warning: headersResult.error } : {}),
+    },
+    null,
+    2,
+  );
 });
 
 const filteredMcps = computed(() => {
@@ -282,6 +347,31 @@ const extractAvatar = (mcp: Mcp) => {
   return typeof raw === "string" ? raw : "";
 };
 
+const extractConfig = (mcp: Mcp) => {
+  const raw = mcp.definition && typeof mcp.definition === "object" ? (mcp.definition as Record<string, unknown>).config : null;
+  if (!raw || typeof raw !== "object") {
+    return {
+      command: "",
+      argsText: "",
+      headersText: "",
+      timeoutMs: 30000,
+    };
+  }
+  const cfg = raw as Record<string, unknown>;
+  const args = Array.isArray(cfg.args) ? cfg.args.filter((x): x is string => typeof x === "string") : [];
+  const headers = cfg.headers && typeof cfg.headers === "object" ? (cfg.headers as Record<string, unknown>) : {};
+  const safeHeaders: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === "string") safeHeaders[key] = value;
+  }
+  return {
+    command: typeof cfg.command === "string" ? cfg.command : "",
+    argsText: args.join(","),
+    headersText: Object.keys(safeHeaders).length > 0 ? JSON.stringify(safeHeaders, null, 2) : "",
+    timeoutMs: typeof cfg.timeoutMs === "number" ? cfg.timeoutMs : 30000,
+  };
+};
+
 const summarizeDoc = (doc: string) => {
   const flat = doc.replace(/\s+/g, " ").trim();
   if (!flat) return "Empty";
@@ -293,24 +383,13 @@ const resetForm = () => {
   form.name = "";
   form.transport = "HTTP";
   form.endpoint = "";
+  form.command = "";
+  form.argsText = "";
+  form.useHeaders = false;
+  form.headersText = "";
+  form.timeoutMs = 30000;
   form.tagsText = "";
-  definitionMarkdown.value = "# MCP\n- Purpose:\n- Endpoints:\n- Auth:";
   avatarData.value = "";
-};
-
-const applyTemplate = (kind: "http" | "sse" | "stdio") => {
-  if (kind === "sse") {
-    form.transport = "SSE";
-    definitionMarkdown.value = "# MCP SSE Tool\n- Purpose: Real-time stream context\n- Endpoints: /events\n- Auth: Bearer token\n- Notes: reconnect strategy";
-    return;
-  }
-  if (kind === "stdio") {
-    form.transport = "STDIO";
-    definitionMarkdown.value = "# MCP STDIO Tool\n- Purpose: Local secure tool bridge\n- Endpoints: local process stdin/stdout\n- Auth: process-level control\n- Notes: sandbox execution";
-    return;
-  }
-  form.transport = "HTTP";
-  definitionMarkdown.value = "# MCP HTTP Tool\n- Purpose: API orchestration\n- Endpoints: /invoke, /health\n- Auth: API key or OAuth\n- Notes: timeout + retry";
 };
 
 const pickAvatarFile = () => {
@@ -357,40 +436,58 @@ const openCreateModal = () => {
 };
 
 const openEditModal = (mcp: Mcp) => {
+  if (!canManageMcp(mcp)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可编辑。" : "Only creator can edit.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   createError.value = "";
   editingMcpId.value = mcp.id;
   form.id = mcp.id;
   form.name = mcp.name;
   form.transport = mcp.transport;
-  form.endpoint = mcp.endpoint;
+  form.endpoint = mcp.transport === "STDIO" ? "" : mcp.endpoint;
+  const config = extractConfig(mcp);
+  form.command = config.command;
+  form.argsText = config.argsText;
+  form.useHeaders = config.headersText.trim().length > 0;
+  form.headersText = config.headersText;
+  form.timeoutMs = config.timeoutMs;
   form.tagsText = mcp.tags.join(", ");
-  definitionMarkdown.value = extractDefinitionMarkdown(mcp) || "# MCP\n- Purpose:\n- Endpoints:\n- Auth:";
   avatarData.value = extractAvatar(mcp) || "";
   modalOpen.value = true;
 };
 
 const closeModal = () => {
   modalOpen.value = false;
-};
-
-const openDocEditor = (mode: "view" | "edit") => {
-  docEditorMode.value = mode;
-  docEditorContent.value = definitionMarkdown.value;
-  docEditorOpen.value = true;
-};
-
-const closeDocEditor = () => {
-  docEditorOpen.value = false;
-};
-
-const applyDocEditor = () => {
-  definitionMarkdown.value = docEditorContent.value;
-  docEditorOpen.value = false;
+  editingMcpId.value = "";
+  createError.value = "";
+  resetForm();
 };
 
 const submitMcp = async () => {
   createError.value = "";
+  if (!isLoggedIn.value) {
+    createError.value = locale.value === "zh-CN" ? "请先登录再保存工具。" : "Please login before saving tool.";
+    pushToast(createError.value, "warning");
+    return;
+  }
   try {
+    const args = parseCsv(form.argsText);
+    const headersResult = parseHeadersText(form.headersText);
+    if (headersResult.error) {
+      createError.value = headersResult.error;
+      return;
+    }
+    const headers = form.transport !== "STDIO" && form.useHeaders ? headersResult.value : {};
+    if ((form.transport === "HTTP" || form.transport === "SSE") && !form.endpoint.trim()) {
+      createError.value = locale.value === "zh-CN" ? "HTTP/SSE 必须填写 endpoint。" : "Endpoint is required for HTTP/SSE.";
+      return;
+    }
+    if (form.transport === "STDIO" && !form.command.trim()) {
+      createError.value = locale.value === "zh-CN" ? "STDIO 必须填写本地命令。" : "Command is required for STDIO.";
+      return;
+    }
     const tags = form.tagsText
       .split(",")
       .map((x) => x.trim())
@@ -401,18 +498,24 @@ const submitMcp = async () => {
         id: form.id,
         name: form.name,
         transport: form.transport,
-        endpoint: form.endpoint,
+        endpoint: form.transport === "STDIO" ? undefined : form.endpoint,
+        command: form.transport === "STDIO" ? form.command : undefined,
+        args,
+        headers: form.transport !== "STDIO" && form.useHeaders ? headers : undefined,
+        timeoutMs: form.timeoutMs,
         tags,
-        definitionMarkdown: definitionMarkdown.value,
         avatar: avatarData.value || undefined,
       });
     } else {
       await apiPatch(`/mcps/${editingMcpId.value}`, {
         name: form.name,
         transport: form.transport,
-        endpoint: form.endpoint,
+        endpoint: form.transport === "STDIO" ? undefined : form.endpoint,
+        command: form.transport === "STDIO" ? form.command : undefined,
+        args,
+        headers: form.transport !== "STDIO" && form.useHeaders ? headers : undefined,
+        timeoutMs: form.timeoutMs,
         tags,
-        definitionMarkdown: definitionMarkdown.value,
         avatar: avatarData.value || "",
       });
     }
@@ -420,29 +523,68 @@ const submitMcp = async () => {
     resetForm();
     editingMcpId.value = "";
     modalOpen.value = false;
+    pushToast(locale.value === "zh-CN" ? "工具已保存" : "Tool saved", "success");
     await load();
   } catch (e) {
     createError.value = String(e);
+    pushToast(createError.value, "error");
   }
 };
 
+watch(
+  () => form.transport,
+  (next) => {
+    if (next === "STDIO") {
+      form.endpoint = "";
+      form.useHeaders = false;
+      form.headersText = "";
+    } else {
+      form.command = "";
+      form.argsText = "";
+    }
+  },
+);
+
+watch(
+  () => form.useHeaders,
+  (enabled) => {
+    if (!enabled) form.headersText = "";
+  },
+);
+
 const publishMcp = async (id: string) => {
   tableError.value = "";
+  const mcp = mcps.value.find((item) => item.id === id);
+  if (!mcp || !canManageMcp(mcp)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可操作。" : "Only creator can operate.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   try {
     await apiPost(`/mcps/${id}/publish`, {});
+    pushToast(locale.value === "zh-CN" ? "工具已发布" : "Tool published", "success");
     await load();
   } catch (e) {
     tableError.value = String(e);
+    pushToast(tableError.value, "error");
   }
 };
 
 const deprecateMcp = async (id: string) => {
   tableError.value = "";
+  const mcp = mcps.value.find((item) => item.id === id);
+  if (!mcp || !canManageMcp(mcp)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可操作。" : "Only creator can operate.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   try {
     await apiPost(`/mcps/${id}/deprecate`, {});
+    pushToast(locale.value === "zh-CN" ? "工具已弃用" : "Tool deprecated", "success");
     await load();
   } catch (e) {
     tableError.value = String(e);
+    pushToast(tableError.value, "error");
   }
 };
 
@@ -470,6 +612,15 @@ const copyEndpoint = async (endpoint: string) => {
     copyMessage.value = `Copied: ${endpoint}`;
   } catch (e) {
     tableError.value = `Copy failed: ${String(e)}`;
+  }
+};
+
+const copyConfigPreview = async () => {
+  try {
+    await navigator.clipboard.writeText(configPreviewText.value);
+    copyMessage.value = locale.value === "zh-CN" ? "已复制配置 JSON" : "Config JSON copied";
+  } catch (error) {
+    tableError.value = String(error);
   }
 };
 
@@ -632,12 +783,6 @@ onMounted(load);
   display: none;
 }
 
-.template-list {
-  display: grid;
-  gap: 8px;
-  margin: 10px 0;
-}
-
 .persona-badges {
   display: flex;
   gap: 6px;
@@ -702,6 +847,20 @@ onMounted(load);
 .doc-actions {
   display: flex;
   gap: 6px;
+}
+
+.json-preview {
+  margin: 8px 0 0;
+  border: 1px solid #ece7dd;
+  border-radius: 8px;
+  padding: 10px;
+  background: #faf9f6;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .modal-actions {

@@ -5,6 +5,7 @@ import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
 import { getActorId } from "../services/auth.js";
+import { isSystemActor, requireOwner } from "../services/access.js";
 
 const createAgentSchema = z.object({
   id: z.string().min(1),
@@ -53,8 +54,14 @@ const updateRoleGroupSchema = z.object({
 });
 
 export async function agentRoutes(app: FastifyInstance) {
-  app.get("/api/v1/agents", async (_, reply) => {
-    const rows = await prisma.agent.findMany({ orderBy: { createdAt: "desc" } });
+  app.get("/api/v1/agents", async (req, reply) => {
+    const actorId = getActorId(req);
+    const rows = await prisma.agent.findMany({
+      where: isSystemActor(actorId)
+        ? { createdBy: "system" }
+        : { OR: [{ createdBy: actorId }, { createdBy: "system" }] },
+      orderBy: { createdAt: "desc" },
+    });
     return ok(reply, rows);
   });
 
@@ -172,6 +179,7 @@ export async function agentRoutes(app: FastifyInstance) {
     if (!before) {
       return fail(reply, "NOT_FOUND", "Agent not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, before.createdBy, "Only creator can edit agent")) return;
 
     const data = parsed.data;
     const modelIds = [data.defaultModelId].filter((m): m is string => Boolean(m));
@@ -291,6 +299,7 @@ export async function agentRoutes(app: FastifyInstance) {
     if (!agent) {
       return fail(reply, "NOT_FOUND", "Agent not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, agent.createdBy, "Only creator can change model")) return;
     const model = await prisma.model.findUnique({ where: { id: parsed.data.defaultModelId } });
     if (!model || model.status !== "ACTIVE") {
       return fail(reply, "CAPABILITY_NOT_ACTIVE", "Model must be ACTIVE", [
@@ -326,6 +335,7 @@ export async function agentRoutes(app: FastifyInstance) {
     if (!agent) {
       return fail(reply, "NOT_FOUND", "Agent not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, agent.createdBy, "Only creator can edit capabilities")) return;
 
     if (parsed.data.skillIds.length > 0) {
       const activeSkillRows = await prisma.skill.findMany({
@@ -364,8 +374,12 @@ export async function agentRoutes(app: FastifyInstance) {
     return ok(reply, updated);
   });
 
-  app.get("/api/v1/agents/role-groups", async (_, reply) => {
+  app.get("/api/v1/agents/role-groups", async (req, reply) => {
+    const actorId = getActorId(req);
     const rows = await prisma.agent.findMany({
+      where: isSystemActor(actorId)
+        ? { createdBy: "system" }
+        : { OR: [{ createdBy: actorId }, { createdBy: "system" }] },
       select: {
         roleId: true,
       },
@@ -398,6 +412,11 @@ export async function agentRoutes(app: FastifyInstance) {
     const roleExists = await prisma.agent.findFirst({ where: { roleId }, select: { id: true } });
     if (!roleExists) {
       return fail(reply, "NOT_FOUND", "Role group not found", [{ field: "roleId", reason: "NOT_FOUND" }], 404);
+    }
+    const roleAgents = await prisma.agent.findMany({ where: { roleId }, select: { id: true, createdBy: true } });
+    const notOwned = roleAgents.find((item) => item.createdBy !== actorId);
+    if (notOwned) {
+      return fail(reply, "FORBIDDEN", "Only owner can configure this role group", [{ field: "roleId", reason: "FORBIDDEN" }], 403);
     }
 
     const modelIds = [parsed.data.primaryModelId, parsed.data.assistantModelId];

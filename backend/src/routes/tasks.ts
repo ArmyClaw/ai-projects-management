@@ -4,83 +4,7 @@ import { fail, ok } from "../services/http.js";
 import { getActorId } from "../services/auth.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
-
-const TASK_DETAIL_V2_PREFIX = "[TASK_DETAIL_V2]";
-
-type TaskDetailV2 = {
-  summary: string;
-  background: string;
-  objective: string;
-  plan: string;
-  conditions: string;
-  targetPath: string;
-  startedAt: string;
-  retreatedAt: string;
-  progressReports: Array<{
-    id: string;
-    applicationId: string;
-    reporterId: string;
-    report: string;
-    createdAt: string;
-  }>;
-};
-
-const parseTaskDetail = (detail: string): TaskDetailV2 => {
-  if (!detail.startsWith(TASK_DETAIL_V2_PREFIX)) {
-    return {
-      summary: detail,
-      background: detail,
-      objective: "",
-      plan: "",
-      conditions: "",
-      targetPath: "",
-      startedAt: "",
-      retreatedAt: "",
-      progressReports: [],
-    };
-  }
-  const payloadRaw = detail.slice(TASK_DETAIL_V2_PREFIX.length).trim();
-  try {
-    const payload = JSON.parse(payloadRaw) as Partial<TaskDetailV2>;
-    return {
-      summary: payload.summary ?? "",
-      background: payload.background ?? "",
-      objective: payload.objective ?? "",
-      plan: payload.plan ?? "",
-      conditions: payload.conditions ?? "",
-      targetPath: payload.targetPath ?? "",
-      startedAt: payload.startedAt ?? "",
-      retreatedAt: payload.retreatedAt ?? "",
-      progressReports: Array.isArray(payload.progressReports)
-        ? payload.progressReports
-            .filter((item): item is TaskDetailV2["progressReports"][number] => Boolean(item && typeof item === "object"))
-            .map((item) => ({
-              id: typeof item.id === "string" ? item.id : "",
-              applicationId: typeof item.applicationId === "string" ? item.applicationId : "",
-              reporterId: typeof item.reporterId === "string" ? item.reporterId : "",
-              report: typeof item.report === "string" ? item.report : "",
-              createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
-            }))
-            .filter((item) => item.id && item.applicationId && item.reporterId && item.report)
-        : [],
-    };
-  } catch {
-    return {
-      summary: detail,
-      background: detail,
-      objective: "",
-      plan: "",
-      conditions: "",
-      targetPath: "",
-      startedAt: "",
-      retreatedAt: "",
-      progressReports: [],
-    };
-  }
-};
-
-const encodeTaskDetail = (payload: TaskDetailV2): string =>
-  `${TASK_DETAIL_V2_PREFIX} ${JSON.stringify(payload)}`;
+import { canViewTask, encodeTaskDetail, parseTaskDetail } from "../services/task-detail.js";
 
 const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(80),
@@ -129,7 +53,7 @@ export async function taskRoutes(app: FastifyInstance) {
       return fail(reply, "VALIDATION_ERROR", "Invalid query", [{ field: "query", reason: "INVALID" }], 400);
     }
     const actorId = getActorId(req);
-    const tasks = await prisma.taskQuest.findMany({
+    const rawTasks = await prisma.taskQuest.findMany({
       where: {
         status: parsed.data.status,
       },
@@ -150,6 +74,8 @@ export async function taskRoutes(app: FastifyInstance) {
         },
       },
     });
+
+    const tasks = rawTasks.filter((task) => canViewTask(parseTaskDetail(task.detail), task.publisherId, actorId));
 
     const userIds = new Set<string>();
     for (const task of tasks) {
@@ -179,6 +105,8 @@ export async function taskRoutes(app: FastifyInstance) {
           targetPath: detail.targetPath,
           startedAt: detail.startedAt || null,
           retreatedAt: detail.retreatedAt || null,
+          isPublished: detail.isPublished,
+          deletedAt: detail.deletedAt || null,
           progressReports: detail.progressReports.map((report) => ({
             id: report.id,
             applicationId: report.applicationId,
@@ -236,6 +164,8 @@ export async function taskRoutes(app: FastifyInstance) {
           targetPath: parsed.data.targetPath,
           startedAt: "",
           retreatedAt: "",
+          isPublished: true,
+          deletedAt: "",
           progressReports: [],
         }),
         reward: parsed.data.reward,
@@ -283,6 +213,8 @@ export async function taskRoutes(app: FastifyInstance) {
       targetPath: parsed.data.targetPath ?? currentDetail.targetPath,
       startedAt: currentDetail.startedAt,
       retreatedAt: currentDetail.retreatedAt,
+      isPublished: currentDetail.isPublished,
+      deletedAt: currentDetail.deletedAt,
       progressReports: currentDetail.progressReports,
     });
 
@@ -306,6 +238,91 @@ export async function taskRoutes(app: FastifyInstance) {
     return ok(reply, updated);
   });
 
+  app.post("/api/v1/tasks/:id/publish", async (req, reply) => {
+    const actorId = getActorId(req);
+    const taskId = (req.params as { id: string }).id;
+    const task = await prisma.taskQuest.findUnique({ where: { id: taskId } });
+    if (!task) {
+      return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (task.publisherId !== actorId) {
+      return fail(reply, "FORBIDDEN", "Only publisher can publish", [{ field: "publisherId", reason: "FORBIDDEN" }], 403);
+    }
+    const detail = parseTaskDetail(task.detail);
+    const updated = await prisma.taskQuest.update({
+      where: { id: taskId },
+      data: {
+        detail: encodeTaskDetail({ ...detail, isPublished: true, deletedAt: "" }),
+      },
+    });
+    await writeAuditLog({
+      action: "PUBLISH",
+      entityType: "TASK",
+      entityId: taskId,
+      beforeData: task,
+      afterData: updated,
+      actorId,
+    });
+    return ok(reply, { taskId, isPublished: true });
+  });
+
+  app.post("/api/v1/tasks/:id/unpublish", async (req, reply) => {
+    const actorId = getActorId(req);
+    const taskId = (req.params as { id: string }).id;
+    const task = await prisma.taskQuest.findUnique({ where: { id: taskId } });
+    if (!task) {
+      return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (task.publisherId !== actorId) {
+      return fail(reply, "FORBIDDEN", "Only publisher can unpublish", [{ field: "publisherId", reason: "FORBIDDEN" }], 403);
+    }
+    const detail = parseTaskDetail(task.detail);
+    const updated = await prisma.taskQuest.update({
+      where: { id: taskId },
+      data: {
+        detail: encodeTaskDetail({ ...detail, isPublished: false }),
+      },
+    });
+    await writeAuditLog({
+      action: "UNPUBLISH",
+      entityType: "TASK",
+      entityId: taskId,
+      beforeData: task,
+      afterData: updated,
+      actorId,
+    });
+    return ok(reply, { taskId, isPublished: false });
+  });
+
+  app.post("/api/v1/tasks/:id/delete", async (req, reply) => {
+    const actorId = getActorId(req);
+    const taskId = (req.params as { id: string }).id;
+    const task = await prisma.taskQuest.findUnique({ where: { id: taskId } });
+    if (!task) {
+      return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (task.publisherId !== actorId) {
+      return fail(reply, "FORBIDDEN", "Only publisher can delete", [{ field: "publisherId", reason: "FORBIDDEN" }], 403);
+    }
+    const detail = parseTaskDetail(task.detail);
+    const deletedAt = new Date().toISOString();
+    const updated = await prisma.taskQuest.update({
+      where: { id: taskId },
+      data: {
+        detail: encodeTaskDetail({ ...detail, isPublished: false, deletedAt }),
+      },
+    });
+    await writeAuditLog({
+      action: "DELETE",
+      entityType: "TASK",
+      entityId: taskId,
+      beforeData: task,
+      afterData: updated,
+      actorId,
+    });
+    return ok(reply, { taskId, deletedAt });
+  });
+
   app.post("/api/v1/tasks/:id/apply", async (req, reply) => {
     const actorId = getActorId(req);
     if (actorId === "system") {
@@ -326,6 +343,10 @@ export async function taskRoutes(app: FastifyInstance) {
     ]);
     if (!task) {
       return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    const taskDetail = parseTaskDetail(task.detail);
+    if (taskDetail.deletedAt || !taskDetail.isPublished) {
+      return fail(reply, "FORBIDDEN", "Task is not publicly available", [{ field: "id", reason: "NOT_PUBLIC" }], 403);
     }
     if (task.status !== "OPEN") {
       return fail(reply, "VALIDATION_ERROR", "Task is not open", [{ field: "status", reason: task.status }], 400);
@@ -452,6 +473,10 @@ export async function taskRoutes(app: FastifyInstance) {
     const adoptedApplication = await prisma.taskQuestApplication.findUnique({ where: { id: task.adoptedApplicationId } });
     if (!adoptedApplication) {
       return fail(reply, "NOT_FOUND", "Adopted application not found", [{ field: "adoptedApplicationId", reason: "NOT_FOUND" }], 404);
+    }
+    const canStart = task.publisherId === actorId || adoptedApplication.applicantId === actorId;
+    if (!canStart) {
+      return fail(reply, "FORBIDDEN", "Only publisher or adopted team can start", [{ field: "actorId", reason: "FORBIDDEN" }], 403);
     }
 
     const startedAt = new Date().toISOString();

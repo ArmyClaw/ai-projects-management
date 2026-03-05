@@ -4,6 +4,7 @@ import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
 import { getActorId } from "../services/auth.js";
+import { isSystemActor, requireOwner } from "../services/access.js";
 import { RoleAssignment, ValidationErrorDetail } from "../types/domain.js";
 
 const assignmentAgentSchema = z.object({
@@ -134,8 +135,12 @@ const validateTemplate = (
 };
 
 export async function bootstrapRoutes(app: FastifyInstance) {
-  app.get("/api/v1/projects", async (_, reply) => {
+  app.get("/api/v1/projects", async (req, reply) => {
+    const actorId = getActorId(req);
     const rows = await prisma.project.findMany({
+      where: isSystemActor(actorId)
+        ? { createdBy: "system" }
+        : { OR: [{ createdBy: actorId }, { createdBy: "system" }] },
       orderBy: { updatedAt: "desc" },
       include: {
         _count: { select: { assignments: true } },
@@ -186,6 +191,7 @@ export async function bootstrapRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/v1/projects/:id/export", async (req, reply) => {
+    const actorId = getActorId(req);
     const projectId = (req.params as { id: string }).id;
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -201,6 +207,9 @@ export async function bootstrapRoutes(app: FastifyInstance) {
     });
     if (!project) {
       return fail(reply, "NOT_FOUND", "Project not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (project.createdBy !== actorId && project.createdBy !== "system") {
+      return fail(reply, "FORBIDDEN", "Only owner can export project", [{ field: "id", reason: "FORBIDDEN" }], 403);
     }
 
     const roleMap = new Map<
@@ -245,6 +254,7 @@ export async function bootstrapRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/v1/projects/bootstrap/validate", async (req, reply) => {
+    const actorId = getActorId(req);
     const parsed = validateSchema.safeParse(req.body);
     if (!parsed.success) {
       return fail(reply, "VALIDATION_ERROR", "Invalid input", [
@@ -254,8 +264,17 @@ export async function bootstrapRoutes(app: FastifyInstance) {
     const modelIds = parsed.data.roleAgentAssignments.flatMap((r) => r.agents.map((a) => a.modelId));
     const agentIds = parsed.data.roleAgentAssignments.flatMap((r) => r.agents.map((a) => a.agentId));
     const [modelRows, agentRows] = await Promise.all([
-      prisma.model.findMany({ where: { id: { in: modelIds } } }),
-      prisma.agent.findMany({ where: { id: { in: agentIds } } }),
+      prisma.model.findMany({
+        where: {
+          id: { in: modelIds },
+          OR: [{ status: "ACTIVE" }, { createdBy: actorId }],
+        },
+      }),
+      prisma.agent.findMany({
+        where: isSystemActor(actorId)
+          ? { id: { in: agentIds }, createdBy: "system" }
+          : { id: { in: agentIds }, OR: [{ createdBy: actorId }, { createdBy: "system" }] },
+      }),
     ]);
     const modelMap = new Map(modelRows.map((m) => [m.id, { healthStatus: m.healthStatus, tier: m.tier }]));
     const agentSet = new Set(agentRows.map((a) => a.id));
@@ -292,13 +311,23 @@ export async function bootstrapRoutes(app: FastifyInstance) {
     if (!project) {
       return fail(reply, "NOT_FOUND", "Project not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, project.createdBy, "Only owner can update project role agents")) return;
 
     const modelIds = parsed.data.roleAgentAssignments.flatMap((r) => r.agents.map((a) => a.modelId));
     const agentIds = parsed.data.roleAgentAssignments.flatMap((r) => r.agents.map((a) => a.agentId));
     const [modelRows, agentRows] = await Promise.all([
-      prisma.model.findMany({ where: { id: { in: modelIds } } }),
-      prisma.agent.findMany({ where: { id: { in: agentIds } } }),
-      ]);
+      prisma.model.findMany({
+        where: {
+          id: { in: modelIds },
+          OR: [{ status: "ACTIVE" }, { createdBy: actorId }],
+        },
+      }),
+      prisma.agent.findMany({
+        where: isSystemActor(actorId)
+          ? { id: { in: agentIds }, createdBy: "system" }
+          : { id: { in: agentIds }, OR: [{ createdBy: actorId }, { createdBy: "system" }] },
+      }),
+    ]);
     const modelMap = new Map(modelRows.map((m) => [m.id, { healthStatus: m.healthStatus, tier: m.tier }]));
     const agentSet = new Set(agentRows.map((a) => a.id));
     const details = validateAssignments(parsed.data.roleAgentAssignments, modelMap, agentSet);

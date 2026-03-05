@@ -22,26 +22,36 @@ export async function hallRoutes(app: FastifyInstance) {
   app.get("/api/v1/hall/overview", async (_, reply) => {
     const today = startOfToday();
     const [
-      models,
-      skills,
-      mcps,
+      totalModels,
+      totalSkills,
+      totalMcps,
+      totalProjects,
+      totalAssignments,
+      todayModels,
+      todaySkills,
+      todayMcps,
+      todayProjects,
       projects,
       agents,
-      projectAssignments,
       topModelUsage,
       topAgentUsage,
       recentLogs,
     ] = await Promise.all([
-      prisma.model.findMany({ select: { id: true, createdAt: true } }),
-      prisma.skill.findMany({ select: { id: true, createdAt: true } }),
-      prisma.mcp.findMany({ select: { id: true, createdAt: true } }),
+      prisma.model.count(),
+      prisma.skill.count(),
+      prisma.mcp.count(),
+      prisma.project.count(),
+      prisma.projectRoleAgent.count(),
+      prisma.model.count({ where: { createdAt: { gte: today } } }),
+      prisma.skill.count({ where: { createdAt: { gte: today } } }),
+      prisma.mcp.count({ where: { createdAt: { gte: today } } }),
+      prisma.project.count({ where: { createdAt: { gte: today } } }),
       prisma.project.findMany({
         select: { id: true, name: true, createdAt: true, assignments: { select: { id: true } } },
+        orderBy: { assignments: { _count: "desc" } },
+        take: 8,
       }),
       prisma.agent.findMany({ select: { id: true, name: true, skillIds: true, workflow: true } }),
-      prisma.projectRoleAgent.findMany({
-        select: { projectId: true, roleId: true, agentId: true, modelId: true, priority: true },
-      }),
       prisma.projectRoleAgent.groupBy({
         by: ["modelId"],
         _count: { modelId: true },
@@ -69,9 +79,13 @@ export async function hallRoutes(app: FastifyInstance) {
       .map((a) => ({ id: a.id, name: a.name, mcpCount: countMcpFromWorkflow(a.workflow) }))
       .sort((a, b) => b.mcpCount - a.mcpCount)[0] ?? null;
 
-    const luxuryProject = projects
-      .map((p) => ({ id: p.id, name: p.name, assignmentsCount: p.assignments.length }))
-      .sort((a, b) => b.assignmentsCount - a.assignmentsCount)[0] ?? null;
+    const projectLuxuryTopRaw = projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      assignmentsCount: p.assignments.length,
+      createdAt: p.createdAt,
+    }));
+    const luxuryProject = projectLuxuryTopRaw[0] ?? null;
 
     const modelIds = topModelUsage.map((x) => x.modelId);
     const agentIds = topAgentUsage.map((x) => x.agentId);
@@ -90,7 +104,7 @@ export async function hallRoutes(app: FastifyInstance) {
             at: log.createdAt,
           }))
         : [
-            ...projects.slice(0, 3).map((project) => ({
+            ...projectLuxuryTopRaw.slice(0, 3).map((project) => ({
               message: `PROJECT#${project.id} READY`,
               at: project.createdAt,
             })),
@@ -108,14 +122,13 @@ export async function hallRoutes(app: FastifyInstance) {
             { message: "SYSTEM#CHANNEL WAITING_FOR_EVENTS", at: new Date() },
           ];
 
-    const projectLuxuryTopRaw = projects
-      .map((p) => ({ id: p.id, name: p.name, assignmentsCount: p.assignments.length }))
-      .sort((a, b) => b.assignmentsCount - a.assignmentsCount)
-      .slice(0, 8);
-
     const projectLuxuryTop =
       projectLuxuryTopRaw.length > 0
-        ? projectLuxuryTopRaw
+        ? projectLuxuryTopRaw.map((item) => ({
+            id: item.id,
+            name: item.name,
+            assignmentsCount: item.assignmentsCount,
+          }))
         : [
             { id: "SHOWCASE-001", name: "Starter Pipeline", assignmentsCount: 0 },
             { id: "SHOWCASE-002", name: "Empty Slot - Create Your First Team", assignmentsCount: 0 },
@@ -124,18 +137,18 @@ export async function hallRoutes(app: FastifyInstance) {
     return ok(reply, {
       generatedAt: new Date(),
       today: {
-        modelsCreated: models.filter((x) => x.createdAt >= today).length,
-        skillsCreated: skills.filter((x) => x.createdAt >= today).length,
-        mcpsCreated: mcps.filter((x) => x.createdAt >= today).length,
-        projectsCreated: projects.filter((x) => x.createdAt >= today).length,
+        modelsCreated: todayModels,
+        skillsCreated: todaySkills,
+        mcpsCreated: todayMcps,
+        projectsCreated: todayProjects,
       },
       totals: {
-        models: models.length,
-        skills: skills.length,
-        mcps: mcps.length,
+        models: totalModels,
+        skills: totalSkills,
+        mcps: totalMcps,
         agents: agents.length,
-        projects: projects.length,
-        projectAssignments: projectAssignments.length,
+        projects: totalProjects,
+        projectAssignments: totalAssignments,
       },
       champions: {
         skillMaster,

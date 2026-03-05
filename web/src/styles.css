@@ -305,6 +305,62 @@ textarea:focus {
   background: #fafafa;
 }
 
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-soft) 82%, transparent);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.status-active,
+.status-open,
+.status-adopted,
+.status-healthy {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+  background: color-mix(in srgb, var(--success) 14%, var(--surface));
+}
+
+.status-draft,
+.status-unknown,
+.status-unpublished {
+  color: color-mix(in srgb, var(--text-primary) 76%, var(--text-secondary));
+  border-color: color-mix(in srgb, var(--border) 88%, var(--text-secondary));
+  background: color-mix(in srgb, var(--surface-soft) 90%, var(--text-secondary));
+}
+
+.status-deprecated,
+.status-archived,
+.status-closed,
+.status-rejected,
+.status-degraded {
+  color: color-mix(in srgb, #d97d1a 70%, var(--text-primary));
+  border-color: color-mix(in srgb, #d97d1a 36%, var(--border));
+  background: color-mix(in srgb, #d97d1a 13%, var(--surface));
+}
+
+.status-unhealthy,
+.status-deleted {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 36%, var(--border));
+  background: color-mix(in srgb, var(--error) 12%, var(--surface));
+}
+
 :root[data-theme="classic"] .sidebar {
   background: linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
 }

@@ -5,6 +5,7 @@ import { fail, ok } from "../services/http.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
 import { getActorId } from "../services/auth.js";
+import { buildCapabilityListWhere, canReadCapability, requireOwner } from "../services/access.js";
 
 const createSkillSchema = z.object({
   id: z.string().min(1),
@@ -36,10 +37,11 @@ export async function skillRoutes(app: FastifyInstance) {
         { field: "query", reason: parsed.error.issues[0]?.message ?? "INVALID" },
       ], 400);
     }
-
+    const actorId = getActorId(req);
+    const baseWhere = buildCapabilityListWhere(actorId, parsed.data.status);
     const rows = await prisma.skill.findMany({
       where: {
-        status: parsed.data.status,
+        ...baseWhere,
         tags: parsed.data.tag ? { has: parsed.data.tag } : undefined,
       },
       orderBy: { createdAt: "desc" },
@@ -48,9 +50,13 @@ export async function skillRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/v1/skills/:id", async (req, reply) => {
+    const actorId = getActorId(req);
     const id = (req.params as { id: string }).id;
     const skill = await prisma.skill.findUnique({ where: { id } });
     if (!skill) {
+      return fail(reply, "NOT_FOUND", "Skill not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (!canReadCapability(skill.status, skill.createdBy, actorId)) {
       return fail(reply, "NOT_FOUND", "Skill not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
     return ok(reply, skill);
@@ -116,6 +122,7 @@ export async function skillRoutes(app: FastifyInstance) {
     if (!skill) {
       return fail(reply, "NOT_FOUND", "Skill not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, skill.createdBy, "Only creator can edit skill")) return;
 
     const nextName = parsed.data.name ?? skill.name;
     const nextVersion = parsed.data.version ?? skill.version;
@@ -181,6 +188,7 @@ export async function skillRoutes(app: FastifyInstance) {
     if (!skill) {
       return fail(reply, "NOT_FOUND", "Skill not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, skill.createdBy, "Only creator can publish skill")) return;
     if (skill.status !== "DRAFT") {
       return fail(reply, "CAPABILITY_NOT_ACTIVE", "Skill must be DRAFT before publish", [
         { field: "status", reason: skill.status },
@@ -219,6 +227,7 @@ export async function skillRoutes(app: FastifyInstance) {
     if (!skill) {
       return fail(reply, "NOT_FOUND", "Skill not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
     }
+    if (!requireOwner(reply, req, skill.createdBy, "Only creator can deprecate skill")) return;
     if (skill.status !== "ACTIVE") {
       return fail(reply, "VALIDATION_ERROR", "Only ACTIVE skill can be deprecated", [
         { field: "status", reason: skill.status },

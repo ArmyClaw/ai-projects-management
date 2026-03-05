@@ -39,7 +39,11 @@
       <article v-for="task in pagedTasks" :key="task.id" class="quest-mini-card">
         <header class="mini-head">
           <h3 :title="task.title">{{ task.title }}</h3>
-          <span class="tag" :class="task.status.toLowerCase()">{{ task.status }}</span>
+          <div class="mini-tags">
+            <span class="status-chip" :class="statusClass(task.status)">{{ task.status }}</span>
+            <span v-if="!task.isPublished" class="status-chip status-unpublished">{{ locale === "zh-CN" ? "未发布" : "Unpublished" }}</span>
+            <span v-if="task.deletedAt" class="status-chip status-deleted">{{ locale === "zh-CN" ? "已删除" : "Deleted" }}</span>
+          </div>
         </header>
 
         <p v-if="task.reward" class="mini-reward" :title="task.reward">{{ task.reward }}</p>
@@ -63,25 +67,33 @@
 
         <div class="mini-actions">
           <button class="button tiny-btn" @click="openViewModal(task)">{{ locale === "zh-CN" ? "查看" : "View" }}</button>
-          <button class="button tiny-btn" :disabled="!canEditTask(task)" @click="openEditModal(task)">
+          <button class="button tiny-btn" @click="openEditModal(task)">
             {{ locale === "zh-CN" ? "编辑" : "Edit" }}
           </button>
-          <button class="button tiny-btn" :disabled="!canOpenProgress(task)" @click="openProgressModal(task)">
+          <button class="button tiny-btn" @click="openProgressModal(task)">
             {{ locale === "zh-CN" ? "进度" : "Progress" }}
           </button>
-          <button class="button tiny-btn danger" :disabled="!canRetreatTask(task)" @click="retreatTask(task.id)">
+          <button class="button tiny-btn danger" @click="retreatTask(task.id)">
             {{ locale === "zh-CN" ? "撤退" : "Retreat" }}
           </button>
           <button
             v-if="task.status === 'ADOPTED' && !task.startedAt"
             class="button tiny-btn primary"
-            :disabled="!canStartTask(task)"
             @click="startTask(task.id)"
           >
             {{ locale === "zh-CN" ? "开始出发" : "Start Mission" }}
           </button>
-          <button v-if="!isMyTask(task)" class="button tiny-btn" :disabled="!canApply(task)" @click="openApplyModal(task)">
+          <button v-if="!isMyTask(task)" class="button tiny-btn" @click="openApplyModal(task)">
             {{ locale === "zh-CN" ? "报名" : "Apply" }}
+          </button>
+          <button v-if="isMyTask(task) && !task.deletedAt && !task.isPublished" class="button tiny-btn" @click="publishTask(task.id)">
+            {{ locale === "zh-CN" ? "发布" : "Publish" }}
+          </button>
+          <button v-if="isMyTask(task) && !task.deletedAt && task.isPublished" class="button tiny-btn" @click="unpublishTask(task.id)">
+            {{ locale === "zh-CN" ? "撤回发布" : "Unpublish" }}
+          </button>
+          <button v-if="isMyTask(task) && !task.deletedAt" class="button tiny-btn danger" @click="deleteTask(task.id)">
+            {{ locale === "zh-CN" ? "删除" : "Delete" }}
           </button>
         </div>
       </article>
@@ -182,8 +194,8 @@
 
         <div class="modal-actions">
           <button class="button" @click="viewOpen = false">{{ t("common.cancel") }}</button>
-          <button class="button" :disabled="!canEditTask(currentTask)" @click="openEditModal(currentTask)">{{ locale === "zh-CN" ? "编辑任务" : "Edit" }}</button>
-          <button class="button" :disabled="!canOpenProgress(currentTask)" @click="openProgressModal(currentTask)">{{ locale === "zh-CN" ? "进度面板" : "Progress Panel" }}</button>
+          <button class="button" @click="openEditModal(currentTask)">{{ locale === "zh-CN" ? "编辑任务" : "Edit" }}</button>
+          <button class="button" @click="openProgressModal(currentTask)">{{ locale === "zh-CN" ? "进度面板" : "Progress Panel" }}</button>
         </div>
       </div>
     </div>
@@ -296,6 +308,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { apiGet, apiPatch, apiPost } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
+import { pushToast } from "../lib/toast";
 import MarkdownEditor from "../components/MarkdownEditor.vue";
 import PaginationBar from "../components/PaginationBar.vue";
 
@@ -330,6 +343,8 @@ type TaskRow = {
   targetPath: string;
   startedAt: string | null;
   retreatedAt: string | null;
+  isPublished: boolean;
+  deletedAt: string | null;
   progressReports: TaskProgressReport[];
   reward: string;
   status: "OPEN" | "ADOPTED" | "CLOSED";
@@ -365,8 +380,8 @@ const pagedTasks = computed(() => tasks.value.slice((page.value - 1) * pageSize.
 
 const isMyTask = (task: TaskRow) => task.publisherId === user.value?.id;
 const isMyAdoptedTeam = (task: TaskRow) => task.applications.some((application) => application.status === "ADOPTED" && application.applicantId === user.value?.id);
-const canEditTask = (task: TaskRow) => isLoggedIn.value && isMyTask(task);
-const canApply = (task: TaskRow) => isLoggedIn.value && task.status === "OPEN" && !isMyTask(task);
+const canEditTask = (task: TaskRow) => isLoggedIn.value && isMyTask(task) && !task.deletedAt;
+const canApply = (task: TaskRow) => isLoggedIn.value && task.status === "OPEN" && task.isPublished && !task.deletedAt && !isMyTask(task);
 const canStartTask = (task: TaskRow) => isLoggedIn.value && task.status === "ADOPTED" && !task.startedAt;
 const canOpenProgress = (task: TaskRow) => task.status === "ADOPTED" || task.progressReports.length > 0;
 const canRetreatTask = (task: TaskRow) =>
@@ -376,6 +391,7 @@ const canSubmitProgress = (task: TaskRow) =>
   (isMyTask(task) || isMyAdoptedTeam(task)) &&
   !!progressForm.applicationId &&
   progressForm.report.trim().length > 0;
+const statusClass = (value: string) => `status-${value.toLowerCase()}`;
 
 const adoptedTeamName = (task: TaskRow) => {
   const adopted = task.applications.find((item) => item.id === task.adoptedApplicationId);
@@ -415,6 +431,11 @@ const openViewModal = (task: TaskRow) => {
 };
 
 const openEditModal = (task: TaskRow) => {
+  if (!canEditTask(task)) {
+    errorText.value = locale.value === "zh-CN" ? "仅发布者可编辑且任务不能已删除。" : "Only publisher can edit, and task must not be deleted.";
+    pushToast(errorText.value, "warning");
+    return;
+  }
   currentTaskId.value = task.id;
   editForm.id = task.id;
   editForm.title = task.title;
@@ -428,6 +449,11 @@ const openEditModal = (task: TaskRow) => {
 };
 
 const openProgressModal = (task: TaskRow) => {
+  if (!canOpenProgress(task)) {
+    errorText.value = locale.value === "zh-CN" ? "当前任务还没有可查看的进度。" : "No progress available for this task yet.";
+    pushToast(errorText.value, "warning");
+    return;
+  }
   currentTaskId.value = task.id;
   progressForm.applicationId = task.adoptedApplicationId || task.applications[0]?.id || "";
   progressForm.report = "";
@@ -435,6 +461,11 @@ const openProgressModal = (task: TaskRow) => {
 };
 
 const openApplyModal = (task: TaskRow) => {
+  if (!canApply(task)) {
+    errorText.value = locale.value === "zh-CN" ? "当前状态不可报名，或你没有可用团队。" : "Cannot apply in current state or no eligible team.";
+    pushToast(errorText.value, "warning");
+    return;
+  }
   currentTaskId.value = task.id;
   applyForm.projectId = "";
   applyForm.message = "";
@@ -457,6 +488,7 @@ const load = async () => {
 const submitCreate = async () => {
   if (!isLoggedIn.value) {
     errorText.value = locale.value === "zh-CN" ? "请先登录后再保存任务。" : "Please login before saving this quest.";
+    pushToast(errorText.value, "warning");
     return;
   }
   errorText.value = "";
@@ -472,9 +504,11 @@ const submitCreate = async () => {
       targetPath: createForm.targetPath,
     });
     createOpen.value = false;
+    pushToast(locale.value === "zh-CN" ? "任务已发布" : "Task published", "success");
     await load();
   } catch (error) {
     errorText.value = String(error);
+    pushToast(errorText.value, "error");
   }
 };
 
@@ -498,9 +532,11 @@ const submitEdit = async () => {
       targetPath: editForm.targetPath,
     });
     editOpen.value = false;
+    pushToast(locale.value === "zh-CN" ? "任务已更新" : "Task updated", "success");
     await load();
   } catch (error) {
     errorText.value = String(error);
+    pushToast(errorText.value, "error");
   }
 };
 
@@ -510,9 +546,11 @@ const submitApply = async () => {
   try {
     await apiPost(`/tasks/${currentTask.value.id}/apply`, { projectId: applyForm.projectId, message: applyForm.message });
     applyOpen.value = false;
+    pushToast(locale.value === "zh-CN" ? "报名已提交" : "Applied successfully", "success");
     await load();
   } catch (error) {
     errorText.value = String(error);
+    pushToast(errorText.value, "error");
   }
 };
 
@@ -525,9 +563,11 @@ const submitProgress = async () => {
       report: progressForm.report,
     });
     progressForm.report = "";
+    pushToast(locale.value === "zh-CN" ? "进度已提交" : "Progress submitted", "success");
     await load();
   } catch (error) {
     errorText.value = String(error);
+    pushToast(errorText.value, "error");
   }
 };
 
@@ -535,31 +575,87 @@ const adoptTeam = async (taskId: string, applicationId: string) => {
   errorText.value = "";
   try {
     await apiPost(`/tasks/${taskId}/adopt`, { applicationId });
+    pushToast(locale.value === "zh-CN" ? "已采纳队伍" : "Team adopted", "success");
     await load();
   } catch (error) {
     errorText.value = String(error);
+    pushToast(errorText.value, "error");
   }
 };
 
 const startTask = async (taskId: string) => {
+  const task = tasks.value.find((item) => item.id === taskId);
+  if (!task || !canStartTask(task)) {
+    errorText.value = locale.value === "zh-CN" ? "当前不可开始出发。" : "Task cannot be started in current state.";
+    pushToast(errorText.value, "warning");
+    return;
+  }
   errorText.value = "";
   try {
     await apiPost(`/tasks/${taskId}/start`, {});
+    pushToast(locale.value === "zh-CN" ? "队伍已出发" : "Mission started", "success");
     await load();
   } catch (error) {
     errorText.value = String(error);
+    pushToast(errorText.value, "error");
   }
 };
 
 const retreatTask = async (taskId: string) => {
+  const task = tasks.value.find((item) => item.id === taskId);
+  if (!task || !canRetreatTask(task)) {
+    errorText.value = locale.value === "zh-CN" ? "仅已出发的采纳队伍可撤退。" : "Only started adopted team can retreat.";
+    pushToast(errorText.value, "warning");
+    return;
+  }
   const yes = window.confirm(locale.value === "zh-CN" ? "确认撤退？撤退后任务会回到 OPEN 状态。" : "Confirm retreat? Task will return to OPEN.");
   if (!yes) return;
   errorText.value = "";
   try {
     await apiPost(`/tasks/${taskId}/retreat`, {});
+    pushToast(locale.value === "zh-CN" ? "已撤退，任务回到 OPEN" : "Retreated, task back to OPEN", "success");
     await load();
   } catch (error) {
     errorText.value = String(error);
+    pushToast(errorText.value, "error");
+  }
+};
+
+const publishTask = async (taskId: string) => {
+  errorText.value = "";
+  try {
+    await apiPost(`/tasks/${taskId}/publish`, {});
+    pushToast(locale.value === "zh-CN" ? "任务已发布" : "Task published", "success");
+    await load();
+  } catch (error) {
+    errorText.value = String(error);
+    pushToast(errorText.value, "error");
+  }
+};
+
+const unpublishTask = async (taskId: string) => {
+  errorText.value = "";
+  try {
+    await apiPost(`/tasks/${taskId}/unpublish`, {});
+    pushToast(locale.value === "zh-CN" ? "任务已撤回发布" : "Task unpublished", "success");
+    await load();
+  } catch (error) {
+    errorText.value = String(error);
+    pushToast(errorText.value, "error");
+  }
+};
+
+const deleteTask = async (taskId: string) => {
+  const yes = window.confirm(locale.value === "zh-CN" ? "确认删除？删除后仅你自己可见。" : "Delete this task? It will only be visible to you.");
+  if (!yes) return;
+  errorText.value = "";
+  try {
+    await apiPost(`/tasks/${taskId}/delete`, {});
+    pushToast(locale.value === "zh-CN" ? "任务已删除（仅你可见）" : "Task deleted (only visible to you)", "success");
+    await load();
+  } catch (error) {
+    errorText.value = String(error);
+    pushToast(errorText.value, "error");
   }
 };
 
@@ -625,6 +721,13 @@ onMounted(load);
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
+}
+
+.mini-tags {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .mini-head h3 {
@@ -824,6 +927,12 @@ onMounted(load);
   border-color: var(--primary);
   background: var(--primary);
   color: color-mix(in srgb, var(--surface) 88%, white 12%);
+}
+
+.tag.muted-tag {
+  border-color: color-mix(in srgb, var(--border) 55%, transparent);
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-soft) 75%, var(--surface) 25%);
 }
 
 .modal-backdrop {

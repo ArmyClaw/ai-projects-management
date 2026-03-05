@@ -63,6 +63,19 @@
       <RouterView />
     </main>
 
+    <div class="toast-stack">
+      <button
+        v-for="toast in toasts"
+        :key="toast.id"
+        type="button"
+        class="toast-item"
+        :class="`toast-${toast.kind}`"
+        @click="dismissToast(toast.id)"
+      >
+        {{ toast.message }}
+      </button>
+    </div>
+
     <div v-if="authOpen" class="modal-backdrop" @click.self="closeAuthModal">
       <div class="modal-panel auth-panel">
         <div class="auth-layout">
@@ -159,10 +172,12 @@ import { NETWORK_ERROR_CODE } from "./lib/api-base";
 import { apiNetworkErrorBase, clearApiNetworkErrorBase } from "./lib/network-status";
 import type { ThemeMode } from "./lib/theme";
 import { useTheme } from "./lib/theme";
+import { dismissToast, useToast } from "./lib/toast";
 
 const { t, locale, setLocale } = useI18n();
 const { theme, setTheme } = useTheme();
 const { user, isLoggedIn, login, register, logout, refresh } = useAuth();
+const toasts = useToast();
 
 const defaultAvatar =
   "data:image/svg+xml;utf8," +
@@ -661,6 +676,39 @@ onMounted(async () => {
 .profile-panel h3,
 .profile-panel p {
   margin: 0;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 1600;
+  display: grid;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 24px));
+}
+
+.toast-item {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 9px 12px;
+  text-align: left;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.toast-success {
+  border-color: color-mix(in srgb, var(--success) 38%, var(--border));
+}
+
+.toast-warning {
+  border-color: color-mix(in srgb, #d97d1a 44%, var(--border));
+}
+
+.toast-error {
+  border-color: color-mix(in srgb, var(--error) 44%, var(--border));
 }
 
 .auth-actions {

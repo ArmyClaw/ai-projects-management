@@ -42,6 +42,7 @@
         @update:page="currentPage = $event"
         @update:page-size="pageSize = $event"
       />
+      <p v-if="tableError" class="error-text">{{ tableError }}</p>
     </div>
 
     <div v-if="wizardOpen" class="modal-backdrop" @click.self="closeWizardModal">
@@ -214,6 +215,8 @@ import { apiGet, apiPost, apiPut } from "../lib/api";
 import PaginationBar from "../components/PaginationBar.vue";
 import MarkdownEditor from "../components/MarkdownEditor.vue";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
+import { pushToast } from "../lib/toast";
 
 type Agent = {
   id: string;
@@ -231,6 +234,7 @@ type ProjectRow = {
   id: string;
   name: string;
   assignmentsCount: number;
+  createdBy: string;
   updatedAt: string;
 };
 
@@ -249,10 +253,12 @@ type PipelineStage = {
 
 const wizardOpen = ref(false);
 const { t, locale } = useI18n();
+const { user, isLoggedIn } = useAuth();
 const step = ref(1);
 const agents = ref<Agent[]>([]);
 const models = ref<Model[]>([]);
 const projects = ref<ProjectRow[]>([]);
+const tableError = ref("");
 const currentPage = ref(1);
 const pageSize = ref(10);
 const validationText = ref("No validation yet.");
@@ -300,6 +306,8 @@ const pagedProjects = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
   return projects.value.slice(start, start + pageSize.value);
 });
+const canPlanWithProject = (project: ProjectRow) => isLoggedIn.value && project.createdBy === user.value?.id;
+const canExportProject = (project: ProjectRow) => project.createdBy === "system" || (isLoggedIn.value && project.createdBy === user.value?.id);
 
 const getSuggestedModel = (agentId: string) => {
   const agent = agents.value.find((x) => x.id === agentId);
@@ -348,6 +356,10 @@ const openWizardModal = (project?: ProjectRow) => {
   if (project) {
     form.projectId = project.id;
     form.projectName = project.name;
+    if (!canPlanWithProject(project)) {
+      saveText.value = locale.value === "zh-CN" ? "你可以查看编排，保存仅项目创建者可执行。" : "You can review planning, but only owner can save.";
+      pushToast(saveText.value, "warning");
+    }
   }
   wizardOpen.value = true;
 };
@@ -459,6 +471,11 @@ const validateAndSave = async () => {
     validationText.value = JSON.stringify(validateRes, null, 2);
 
     const existing = projects.value.find((project) => project.id === form.projectId.trim());
+    if (existing && !canPlanWithProject(existing)) {
+      saveText.value = locale.value === "zh-CN" ? "仅项目创建者可保存编排。" : "Only project owner can save plan.";
+      pushToast(saveText.value, "warning");
+      return;
+    }
     if (!existing) {
       await apiPost("/projects", {
         id: form.projectId.trim(),
@@ -470,9 +487,11 @@ const validateAndSave = async () => {
       roleAgentAssignments: roleAgentAssignments.value,
     });
     saveText.value = JSON.stringify(saveRes, null, 2);
+    pushToast(locale.value === "zh-CN" ? "团队编排已保存" : "Team plan saved", "success");
     await load();
   } catch (e) {
     saveText.value = String(e);
+    pushToast(saveText.value, "error");
   }
 };
 
@@ -491,9 +510,14 @@ const goNext = () => {
 };
 
 const load = async () => {
-  projects.value = await apiGet<ProjectRow[]>("/projects");
-  agents.value = await apiGet<Agent[]>("/agents");
-  models.value = await apiGet<Model[]>("/models");
+  tableError.value = "";
+  try {
+    projects.value = await apiGet<ProjectRow[]>("/projects");
+    agents.value = await apiGet<Agent[]>("/agents");
+    models.value = await apiGet<Model[]>("/models");
+  } catch (error) {
+    tableError.value = String(error);
+  }
 };
 
 watch(totalPages, (next) => {
@@ -501,6 +525,11 @@ watch(totalPages, (next) => {
 });
 
 const exportProjectConfig = async (project: ProjectRow) => {
+  if (!canExportProject(project)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可导出该项目配置。" : "Only owner can export this project.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   try {
     const data = await apiGet<Record<string, unknown>>(`/projects/${project.id}/export`);
     const json = JSON.stringify(data, null, 2);
@@ -515,6 +544,7 @@ const exportProjectConfig = async (project: ProjectRow) => {
     URL.revokeObjectURL(url);
   } catch (error) {
     saveText.value = String(error);
+    pushToast(saveText.value, "error");
   }
 };
 

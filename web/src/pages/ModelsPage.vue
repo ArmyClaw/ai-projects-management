@@ -70,15 +70,14 @@
             <td>{{ m.name }}</td>
             <td>{{ m.provider }}</td>
             <td class="modelid-cell">{{ m.modelId }}</td>
-            <td><span class="tag">{{ m.tier }}</span></td>
+            <td><span class="status-chip" :class="statusClass(m.tier)">{{ m.tier }}</span></td>
             <td><span :class="healthClass(m.healthStatus)">{{ m.healthStatus }}</span></td>
-            <td><span class="tag">{{ m.status }}</span></td>
+            <td><span class="status-chip" :class="statusClass(m.status)">{{ m.status }}</span></td>
             <td>{{ formatDateTime(m.updatedAt) }}</td>
             <td>
               <button class="button" style="margin-right: 6px" @click="healthCheck(m.id)">{{ t("models.health") }}</button>
               <button
                 class="button"
-                :disabled="m.status === 'ACTIVE'"
                 @click="publish(m.id)"
               >
                 {{ t("common.publish") }}
@@ -186,6 +185,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { apiGet, apiPost } from "../lib/api";
 import PaginationBar from "../components/PaginationBar.vue";
 import { useI18n } from "../lib/i18n";
+import { useAuth } from "../lib/auth";
+import { pushToast } from "../lib/toast";
 
 type Model = {
   id: string;
@@ -195,11 +196,13 @@ type Model = {
   tier: "PREMIUM" | "BALANCED" | "ECONOMY";
   healthStatus: string;
   status: string;
+  createdBy: string;
   updatedAt?: string;
 };
 
 const models = ref<Model[]>([]);
 const { t, locale } = useI18n();
+const { user, isLoggedIn } = useAuth();
 const modalOpen = ref(false);
 const createError = ref("");
 const tableError = ref("");
@@ -280,11 +283,14 @@ const getTierAvatar = (tier: string) => {
   return balancedAvatar;
 };
 
+const canManageModel = (model: Model) => isLoggedIn.value && model.createdBy === user.value?.id;
+const statusClass = (value: string) => `status-${value.toLowerCase()}`;
+
 const healthClass = (health: string) => {
-  if (health === "HEALTHY") return "health healthy";
-  if (health === "DEGRADED") return "health degraded";
-  if (health === "UNHEALTHY") return "health unhealthy";
-  return "health";
+  if (health === "HEALTHY") return "status-chip status-healthy";
+  if (health === "DEGRADED") return "status-chip status-degraded";
+  if (health === "UNHEALTHY") return "status-chip status-unhealthy";
+  return "status-chip status-unknown";
 };
 
 const filteredModels = computed(() => {
@@ -385,6 +391,11 @@ const load = async () => {
 
 const createModel = async () => {
   createError.value = "";
+  if (!isLoggedIn.value) {
+    createError.value = locale.value === "zh-CN" ? "请先登录再新增模型。" : "Please login before creating model.";
+    pushToast(createError.value, "warning");
+    return;
+  }
   try {
     await apiPost("/models", {
       id: form.id,
@@ -394,29 +405,47 @@ const createModel = async () => {
       tier: form.tier,
     });
     closeModal();
+    pushToast(locale.value === "zh-CN" ? "模型已创建" : "Model created", "success");
     await load();
   } catch (error) {
     createError.value = String(error);
+    pushToast(createError.value, "error");
   }
 };
 
 const healthCheck = async (id: string) => {
   tableError.value = "";
+  const model = models.value.find((item) => item.id === id);
+  if (!model || !canManageModel(model)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可操作。" : "Only creator can operate.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   try {
     await apiPost(`/models/${id}/health-check`, {});
+    pushToast(locale.value === "zh-CN" ? "健康检查已触发" : "Health check triggered", "success");
     await load();
   } catch (error) {
     tableError.value = String(error);
+    pushToast(tableError.value, "error");
   }
 };
 
 const publish = async (id: string) => {
   tableError.value = "";
+  const model = models.value.find((item) => item.id === id);
+  if (!model || !canManageModel(model)) {
+    tableError.value = locale.value === "zh-CN" ? "仅创建者可操作。" : "Only creator can operate.";
+    pushToast(tableError.value, "warning");
+    return;
+  }
   try {
     await apiPost(`/models/${id}/publish`, {});
+    pushToast(locale.value === "zh-CN" ? "模型已发布" : "Model published", "success");
     await load();
   } catch (error) {
     tableError.value = String(error);
+    pushToast(tableError.value, "error");
   }
 };
 

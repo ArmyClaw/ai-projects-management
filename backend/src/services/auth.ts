@@ -41,13 +41,13 @@ export const resolveAuthUser = async (req: FastifyRequest) => {
 export const authGuard = async (req: FastifyRequest, reply: FastifyReply) => {
   const method = req.method.toUpperCase();
   const needAuth = method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE";
-  const path = ((req as unknown as { routerPath?: string }).routerPath ?? req.url.split("?")[0]) as string;
-  if (!needAuth || !path.startsWith("/api/v1")) return;
-  if (PUBLIC_MUTATION_PATHS.has(path)) return;
-
+  const path = (req.routeOptions?.url ?? req.url.split("?")[0]) as string;
+  if (!path.startsWith("/api/v1")) return;
   const user = await resolveAuthUser(req);
-  if (!user) {
+  if (user) req.authUser = user;
+  if (!needAuth) return;
+  if (PUBLIC_MUTATION_PATHS.has(path)) return;
+  if (!req.authUser) {
     return fail(reply, "UNAUTHORIZED", "Please login first", [{ field: "authorization", reason: "REQUIRED" }], 401);
   }
-  req.authUser = user;
 };
