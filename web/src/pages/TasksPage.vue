@@ -584,13 +584,13 @@ onMounted(load);
   justify-content: space-between;
   gap: 10px;
   background:
-    radial-gradient(circle at 10px 10px, #131313 1px, transparent 1px) 0 0 / 13px 13px,
-    linear-gradient(180deg, #fff 0%, #f9f9f9 100%);
+    radial-gradient(circle at 10px 10px, color-mix(in srgb, var(--text-primary) 55%, transparent) 1px, transparent 1px) 0 0 / 13px 13px,
+    linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
 }
 
 .quest-hero > div {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #e9e9e9;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
   border-radius: 10px;
   padding: 8px 10px;
 }
@@ -612,10 +612,10 @@ onMounted(load);
 }
 
 .quest-mini-card {
-  border: 1px solid #dcdcdc;
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
   border-radius: 12px;
   padding: 10px;
-  background: linear-gradient(180deg, #fff 0%, #fcfcfc 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-soft) 70%, var(--surface) 30%) 100%);
   display: grid;
   gap: 8px;
 }
@@ -636,13 +636,13 @@ onMounted(load);
 .mini-reward {
   margin: 0;
   font-size: 12px;
-  color: #575757;
+  color: var(--text-secondary);
 }
 
 .mini-summary {
   margin: 0;
   font-size: 12px;
-  color: #353535;
+  color: var(--text-primary);
   min-height: 34px;
 }
 
@@ -651,7 +651,7 @@ onMounted(load);
   flex-wrap: wrap;
   gap: 8px;
   font-size: 11px;
-  color: #5e5e5e;
+  color: var(--text-secondary);
 }
 
 .mini-path,
@@ -659,7 +659,7 @@ onMounted(load);
 .mini-retreated {
   margin: 0;
   font-size: 11px;
-  color: #555;
+  color: var(--text-secondary);
   word-break: break-all;
 }
 
@@ -676,9 +676,9 @@ onMounted(load);
 }
 
 .tiny-btn.danger {
-  border-color: #d7b4b4;
-  color: #6f1f1f;
-  background: #fff7f7;
+  border-color: color-mix(in srgb, var(--error) 45%, var(--border) 55%);
+  color: color-mix(in srgb, var(--error) 75%, var(--text-primary) 25%);
+  background: color-mix(in srgb, var(--error) 12%, var(--surface) 88%);
 }
 
 .detail-section {
@@ -706,12 +706,12 @@ onMounted(load);
   gap: 10px;
   margin-top: 10px;
   font-size: 12px;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .application-list {
   margin-top: 10px;
-  border: 1px dashed #d8d8d8;
+  border: 1px dashed color-mix(in srgb, var(--border) 55%, transparent);
   border-radius: 10px;
   padding: 8px;
   display: grid;
@@ -719,7 +719,7 @@ onMounted(load);
 }
 
 .application-item {
-  border: 1px solid #ececec;
+  border: 1px solid color-mix(in srgb, var(--border) 38%, transparent);
   border-radius: 10px;
   padding: 8px;
   display: flex;
@@ -750,10 +750,10 @@ onMounted(load);
 }
 
 .progress-stat {
-  border: 1px solid #e5e5e5;
+  border: 1px solid color-mix(in srgb, var(--border) 44%, transparent);
   border-radius: 10px;
   padding: 8px;
-  background: #fafafa;
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface) 28%);
   display: grid;
   gap: 2px;
 }
@@ -765,10 +765,10 @@ onMounted(load);
 }
 
 .progress-team-card {
-  border: 1px solid #e3e3e3;
+  border: 1px solid color-mix(in srgb, var(--border) 44%, transparent);
   border-radius: 10px;
   padding: 10px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .progress-team-card header {
@@ -787,10 +787,10 @@ onMounted(load);
 }
 
 .progress-log-item {
-  border: 1px dashed #d7d7d7;
+  border: 1px dashed color-mix(in srgb, var(--border) 48%, transparent);
   border-radius: 8px;
   padding: 8px;
-  background: #fcfcfc;
+  background: color-mix(in srgb, var(--surface-soft) 68%, var(--surface) 32%);
 }
 
 .progress-log-head {
@@ -798,7 +798,7 @@ onMounted(load);
   justify-content: space-between;
   gap: 8px;
   font-size: 12px;
-  color: #636363;
+  color: var(--text-secondary);
 }
 
 .progress-log-item p {
@@ -809,7 +809,7 @@ onMounted(load);
 
 .progress-form {
   margin-top: 10px;
-  border: 1px solid #e3e3e3;
+  border: 1px solid color-mix(in srgb, var(--border) 44%, transparent);
   border-radius: 10px;
   padding: 10px;
   display: grid;
@@ -817,13 +817,13 @@ onMounted(load);
 }
 
 .tag.open {
-  border-color: #2f2f2f;
+  border-color: var(--border);
 }
 
 .tag.adopted {
-  border-color: #111;
-  background: #111;
-  color: #fff;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: color-mix(in srgb, var(--surface) 88%, white 12%);
 }
 
 .modal-backdrop {
@@ -841,9 +841,9 @@ onMounted(load);
   width: min(920px, 100%);
   max-height: calc(100vh - 36px);
   overflow: auto;
-  border: 1px solid #1f1f1f;
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--surface);
   padding: 14px;
 }
 

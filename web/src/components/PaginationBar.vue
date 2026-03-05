@@ -65,14 +65,14 @@ const onPageSizeChange = (event: Event) => {
 <style scoped>
 .pager-wrap {
   margin-top: 10px;
-  border: 1px solid #1d1d1d;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 8px 10px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
   align-items: center;
-  background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
 }
 
 .pager-wrap.compact {
@@ -87,7 +87,7 @@ const onPageSizeChange = (event: Event) => {
 }
 
 .dot {
-  color: #a1a1a1;
+  color: var(--text-secondary);
 }
 
 .pager-controls {
@@ -103,10 +103,11 @@ const onPageSizeChange = (event: Event) => {
 
 .size-select {
   height: 28px;
-  border: 1px solid #d6d6d6;
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
   border-radius: 999px;
   padding: 0 10px;
-  background: #fff;
+  background: var(--surface);
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
 }
@@ -115,14 +116,16 @@ const onPageSizeChange = (event: Event) => {
   min-width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid #d3d3d3;
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  background: var(--surface);
+  color: var(--text-primary);
   cursor: pointer;
   font-weight: 700;
 }
 
 .pager-btn.current {
-  border-color: #1d1d1d;
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 70%, var(--surface) 30%);
 }
 
 .pager-btn:disabled {

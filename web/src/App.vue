@@ -39,6 +39,8 @@
           <option value="classic">{{ t("theme.classic") }}</option>
           <option value="dungeon">{{ t("theme.dungeon") }}</option>
           <option value="storybook">{{ t("theme.storybook") }}</option>
+          <option value="storybook-dusk">{{ t("theme.storybookDusk") }}</option>
+          <option value="ink-shanghai">{{ t("theme.inkShanghai") }}</option>
           <option value="cyber">{{ t("theme.cyber") }}</option>
         </select>
       </div>
@@ -210,7 +212,7 @@ const onLocaleChange = (event: Event) => {
 
 const onThemeChange = (event: Event) => {
   const value = (event.target as HTMLSelectElement).value as ThemeMode;
-  if (value === "classic" || value === "dungeon" || value === "storybook" || value === "cyber") setTheme(value);
+  if (value === "classic" || value === "dungeon" || value === "storybook" || value === "storybook-dusk" || value === "ink-shanghai" || value === "cyber") setTheme(value);
 };
 
 const closeAuthModal = () => {

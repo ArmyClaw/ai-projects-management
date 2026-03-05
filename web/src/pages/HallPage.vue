@@ -1,5 +1,5 @@
 <template>
-  <section class="hall-shell" :class="{ 'dungeon-mode': theme === 'dungeon', 'storybook-mode': theme === 'storybook', 'cyber-mode': theme === 'cyber' }">
+  <section class="hall-shell" :class="{ 'dungeon-mode': theme === 'dungeon', 'storybook-mode': theme === 'storybook', 'storybook-dusk-mode': theme === 'storybook-dusk', 'ink-shanghai-mode': theme === 'ink-shanghai', 'cyber-mode': theme === 'cyber' }">
     <header class="hero card">
       <div class="hero-main">
         <p class="kicker">{{ locale === "zh-CN" ? "团队大厅" : "Team Hall" }}</p>
@@ -280,8 +280,8 @@ onMounted(load);
   grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
   gap: 10px;
   border-radius: 16px;
-  border: 1px solid #202020;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
   padding: 10px;
 }
 
@@ -304,7 +304,7 @@ onMounted(load);
   margin: 0;
   font-size: 12px;
   letter-spacing: 0.14em;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .status-chips {
@@ -315,10 +315,10 @@ onMounted(load);
 }
 
 .chip {
-  border: 1px solid #222;
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 4px 9px;
-  background: #fff;
+  background: var(--surface);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -334,20 +334,20 @@ onMounted(load);
 }
 
 .hero-side {
-  border: 1px dashed #9c9c9c;
+  border: 1px dashed color-mix(in srgb, var(--border) 65%, transparent);
   border-radius: 12px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.84);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
   display: grid;
   align-content: start;
   gap: 6px;
 }
 
 .pulse {
-  border: 1px solid #1f1f1f;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 6px;
-  background: #fff;
+  background: var(--surface);
   font-weight: 700;
   font-size: 12px;
 }
@@ -359,7 +359,7 @@ onMounted(load);
 }
 
 .mini-cell {
-  border: 1px dashed #b7b7b7;
+  border: 1px dashed color-mix(in srgb, var(--border) 58%, transparent);
   border-radius: 8px;
   padding: 4px 6px;
   display: flex;
@@ -384,18 +384,18 @@ onMounted(load);
 }
 
 .metric-tile {
-  border: 1px solid #bdbdbd;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   border-radius: 8px;
   padding: 5px;
   display: grid;
   gap: 2px;
   min-height: 42px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .metric-tile span {
   font-size: 11px;
-  color: #525252;
+  color: var(--text-secondary);
   line-height: 1.1;
 }
 
@@ -416,10 +416,10 @@ onMounted(load);
 }
 
 .ticker {
-  border: 1px dashed #9f9f9f;
+  border: 1px dashed color-mix(in srgb, var(--border) 62%, transparent);
   border-radius: 10px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface);
   width: 100%;
   max-width: 100%;
 }
@@ -453,7 +453,7 @@ onMounted(load);
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  border: 1px solid #444;
+  border: 1px solid var(--border);
 }
 
 .main-grid {
@@ -466,7 +466,7 @@ onMounted(load);
 .panel {
   min-height: 0;
   max-height: 100%;
-  overflow: auto;
+  overflow: hidden;
   padding: 10px;
 }
 
@@ -486,18 +486,18 @@ onMounted(load);
 }
 
 .move {
-  border: 1px solid #c5c5c5;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   border-radius: 12px;
   text-align: left;
   padding: 8px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .move:hover {
   transform: translateY(-1px);
-  border-color: #a9a9a9;
+  border-color: color-mix(in srgb, var(--border) 80%, transparent);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
@@ -507,7 +507,7 @@ onMounted(load);
 
 .move p {
   margin: 4px 0 0;
-  color: #555;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -519,17 +519,17 @@ onMounted(load);
 
 .focus-box {
   margin-top: 6px;
-  border: 1px dashed #b4b4b4;
+  border: 1px dashed color-mix(in srgb, var(--border) 58%, transparent);
   border-radius: 10px;
   padding: 6px 8px;
-  background: #fcfcfc;
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface) 28%);
 }
 
 .focus-title {
   margin: 0 0 4px;
   font-size: 12px;
   letter-spacing: 0.1em;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .focus-box ul {
@@ -549,7 +549,7 @@ onMounted(load);
 }
 
 .project-item {
-  border: 1px solid #cbcbcb;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   border-radius: 10px;
   padding: 6px;
   display: flex;
@@ -563,7 +563,7 @@ onMounted(load);
 }
 
 .pill {
-  border: 1px solid #212121;
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 11px;
@@ -574,8 +574,8 @@ onMounted(load);
 .dungeon-mode .hero,
 .dungeon-mode .card {
   background:
-    radial-gradient(circle at 85% 20%, rgba(218, 145, 43, 0.2), transparent 46%),
-    linear-gradient(145deg, #fff5df 0%, #f5e6bf 100%);
+    radial-gradient(circle at 85% 20%, rgba(181, 82, 103, 0.2), transparent 46%),
+    linear-gradient(145deg, #202a40 0%, #182237 100%);
 }
 
 .storybook-mode .hero,
@@ -585,20 +585,53 @@ onMounted(load);
     linear-gradient(145deg, #f7fff9 0%, #eaf4ef 100%);
 }
 
+.storybook-dusk-mode .hero,
+.storybook-dusk-mode .card {
+  background:
+    radial-gradient(circle at 86% 18%, rgba(203, 164, 94, 0.2), transparent 44%),
+    linear-gradient(145deg, #e8ddc5 0%, #d0c09f 100%);
+}
+
+.ink-shanghai-mode .hero,
+.ink-shanghai-mode .card {
+  background:
+    radial-gradient(circle at 84% 16%, rgba(116, 155, 133, 0.2), transparent 42%),
+    linear-gradient(145deg, #f4f4ea 0%, #e6eadf 100%);
+}
+
 .cyber-mode .hero,
 .cyber-mode .card {
   background:
-    radial-gradient(circle at 85% 16%, rgba(44, 193, 255, 0.2), transparent 44%),
-    linear-gradient(145deg, #0f1b32 0%, #0b1224 100%);
-  color: #c4f3ff;
-  border-color: #2f6d98;
+    radial-gradient(circle at 85% 16%, rgba(255, 71, 194, 0.18), transparent 44%),
+    radial-gradient(circle at 10% 100%, rgba(31, 226, 255, 0.16), transparent 42%),
+    linear-gradient(145deg, #0f1b33 0%, #0b1225 100%);
+  color: #d4faff;
+  border-color: #337ab0;
+  box-shadow:
+    inset 0 0 0 1px rgba(24, 201, 255, 0.16),
+    0 0 18px rgba(24, 201, 255, 0.12);
+}
+
+.dungeon-mode .chip,
+.dungeon-mode .hero-side,
+.dungeon-mode .pulse,
+.dungeon-mode .mini-cell,
+.dungeon-mode .metric-tile,
+.dungeon-mode .ticker,
+.dungeon-mode .move,
+.dungeon-mode .focus-box,
+.dungeon-mode .project-item,
+.dungeon-mode .pill {
+  background: rgba(19, 28, 43, 0.82);
+  border-color: #3c4f72;
+  color: #dce6fa;
 }
 
 .cyber-mode .muted,
 .cyber-mode .kicker,
 .cyber-mode .move p,
 .cyber-mode .focus-title {
-  color: #8ac0da;
+  color: #92cae4;
 }
 
 .cyber-mode .chip,
@@ -611,9 +644,30 @@ onMounted(load);
 .cyber-mode .focus-box,
 .cyber-mode .project-item,
 .cyber-mode .pill {
-  background: rgba(10, 21, 40, 0.82);
-  border-color: #3c81af;
-  color: #c4f3ff;
+  background: rgba(10, 23, 44, 0.84);
+  border-color: #3b89bf;
+  color: #d6fbff;
+  box-shadow: 0 0 12px rgba(26, 204, 255, 0.14);
+}
+
+.cyber-mode .panel {
+  overflow: hidden;
+  max-height: none;
+}
+
+.ink-shanghai-mode .chip,
+.ink-shanghai-mode .hero-side,
+.ink-shanghai-mode .pulse,
+.ink-shanghai-mode .mini-cell,
+.ink-shanghai-mode .metric-tile,
+.ink-shanghai-mode .ticker,
+.ink-shanghai-mode .move,
+.ink-shanghai-mode .focus-box,
+.ink-shanghai-mode .project-item,
+.ink-shanghai-mode .pill {
+  background: rgba(244, 246, 238, 0.88);
+  border-color: #8ea590;
+  color: #334138;
 }
 
 @keyframes world-scroll {
