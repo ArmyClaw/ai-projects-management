@@ -8,7 +8,6 @@ import { RoleAssignment, ValidationErrorDetail } from "../types/domain.js";
 
 const assignmentAgentSchema = z.object({
   agentId: z.string().min(1),
-  assignmentRole: z.enum(["PRIMARY", "ASSISTANT"]),
   modelId: z.string().min(1),
   priority: z.number().int().positive(),
 });
@@ -63,11 +62,10 @@ const validateAssignments = (
 ): ValidationErrorDetail[] => {
   const errors: ValidationErrorDetail[] = [];
   for (const role of assignments) {
-    const primary = role.agents.filter((a) => a.assignmentRole === "PRIMARY");
-    if (primary.length !== 1) {
+    if (role.agents.length === 0) {
       errors.push({
         field: `roles[${role.roleId}]`,
-        reason: "MISSING_PRIMARY_AGENT",
+        reason: "MISSING_ROLE_AGENT",
       });
       continue;
     }
@@ -77,12 +75,6 @@ const validateAssignments = (
         errors.push({
           field: `agents[${entry.agentId}].model`,
           reason: "MODEL_UNAVAILABLE",
-        });
-      }
-      if (entry.assignmentRole === "PRIMARY" && model && !["PREMIUM", "BALANCED"].includes(model.tier)) {
-        errors.push({
-          field: `agents[${entry.agentId}].model`,
-          reason: "INVALID_PRIMARY_MODEL_TIER",
         });
       }
       if (!agentSet.has(entry.agentId)) {
@@ -214,7 +206,6 @@ export async function bootstrapRoutes(app: FastifyInstance) {
     const roleMap = new Map<
       string,
       Array<{
-        assignmentRole: string;
         priority: number;
         agent: { id: string; name: string };
         model: { id: string; name: string; provider: string; modelId: string; tier: string };
@@ -223,7 +214,6 @@ export async function bootstrapRoutes(app: FastifyInstance) {
     for (const row of project.assignments) {
       const list = roleMap.get(row.roleId) ?? [];
       list.push({
-        assignmentRole: row.assignmentRole,
         priority: row.priority,
         agent: { id: row.agent.id, name: row.agent.name },
         model: {
@@ -247,8 +237,7 @@ export async function bootstrapRoutes(app: FastifyInstance) {
       summary: {
         roles: roleMap.size,
         assignments: project.assignments.length,
-        primaryCount: project.assignments.filter((a) => a.assignmentRole === "PRIMARY").length,
-        assistantCount: project.assignments.filter((a) => a.assignmentRole === "ASSISTANT").length,
+        teammateCount: new Set(project.assignments.map((a) => a.agentId)).size,
       },
       roles: [...roleMap.entries()].map(([roleId, assignments]) => ({ roleId, assignments })),
       exportedAt: new Date().toISOString(),
@@ -324,7 +313,6 @@ export async function bootstrapRoutes(app: FastifyInstance) {
         projectId,
         roleId: r.roleId,
         agentId: a.agentId,
-        assignmentRole: a.assignmentRole,
         modelId: a.modelId,
         priority: a.priority,
         createdBy: actorId,

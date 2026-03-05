@@ -9,10 +9,9 @@ import { getActorId } from "../services/auth.js";
 const createAgentSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  roleId: z.string().min(1),
+  roleId: z.string().min(1).optional().default("general"),
   workload: z.number().int().min(0).max(100),
   defaultModelId: z.string().min(1).optional(),
-  assistantModelId: z.string().min(1).optional(),
   skillIds: z.array(z.string().min(1)).default([]),
   mcpIds: z.array(z.string().min(1)).default([]),
   agentsMarkdown: z.string().optional(),
@@ -31,7 +30,6 @@ const updateAgentSchema = z.object({
   roleId: z.string().min(1).optional(),
   workload: z.number().int().min(0).max(100).optional(),
   defaultModelId: z.string().min(1).nullable().optional(),
-  assistantModelId: z.string().min(1).nullable().optional(),
   skillIds: z.array(z.string().min(1)).optional(),
   mcpIds: z.array(z.string().min(1)).optional(),
   agentsMarkdown: z.string().optional(),
@@ -74,7 +72,7 @@ export async function agentRoutes(app: FastifyInstance) {
       return fail(reply, "CONFLICT", "Agent id already exists", [{ field: "id", reason: "DUPLICATE" }], 409);
     }
 
-    const modelIds = [parsed.data.defaultModelId, parsed.data.assistantModelId].filter((id): id is string => Boolean(id));
+    const modelIds = [parsed.data.defaultModelId].filter((id): id is string => Boolean(id));
     if (modelIds.length > 0) {
       const modelRows = await prisma.model.findMany({
         where: {
@@ -129,7 +127,6 @@ export async function agentRoutes(app: FastifyInstance) {
     const workflowPayload: Record<string, unknown> = {
       ...(parsed.data.workflow ?? {}),
       mcpIds: parsed.data.mcpIds,
-      assistantModelId: parsed.data.assistantModelId ?? "",
       persona: {
         agents: parsed.data.agentsMarkdown ?? "",
         user: parsed.data.userMarkdown ?? "",
@@ -177,7 +174,7 @@ export async function agentRoutes(app: FastifyInstance) {
     }
 
     const data = parsed.data;
-    const modelIds = [data.defaultModelId, data.assistantModelId].filter((m): m is string => Boolean(m));
+    const modelIds = [data.defaultModelId].filter((m): m is string => Boolean(m));
     if (modelIds.length > 0) {
       const modelRows = await prisma.model.findMany({
         where: {
@@ -245,10 +242,6 @@ export async function agentRoutes(app: FastifyInstance) {
 
     if (data.mcpIds) {
       workflowPayload.mcpIds = data.mcpIds;
-    }
-
-    if (data.assistantModelId !== undefined) {
-      workflowPayload.assistantModelId = data.assistantModelId ?? "";
     }
 
     if (data.agentsMarkdown !== undefined || data.userMarkdown !== undefined || data.soulMarkdown !== undefined || data.avatar !== undefined) {

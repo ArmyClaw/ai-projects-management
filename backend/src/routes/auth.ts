@@ -10,6 +10,7 @@ const registerSchema = z.object({
   displayName: z.string().trim().min(1).max(40),
   password: z.string().min(6).max(128),
   avatar: z.string().optional(),
+  codingCliTools: z.array(z.string().trim().min(1).max(60)).max(12).optional().default([]),
 });
 
 const loginSchema = z.object({
@@ -59,9 +60,10 @@ export async function authRoutes(app: FastifyInstance) {
         handle,
         displayName: parsed.data.displayName,
         avatar: parsed.data.avatar ?? "",
+        codingCliTools: parsed.data.codingCliTools,
         passwordHash: hashPassword(parsed.data.password),
       },
-      select: { id: true, handle: true, displayName: true, avatar: true },
+      select: { id: true, handle: true, displayName: true, avatar: true, codingCliTools: true },
     });
     const session = await makeSession(user.id);
     return ok(reply, { user, token: session.token, expiresAt: session.expiresAt });
@@ -84,6 +86,7 @@ export async function authRoutes(app: FastifyInstance) {
         handle: user.handle,
         displayName: user.displayName,
         avatar: user.avatar,
+        codingCliTools: user.codingCliTools,
       },
       token: session.token,
       expiresAt: session.expiresAt,

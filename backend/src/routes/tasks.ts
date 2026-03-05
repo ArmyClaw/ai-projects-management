@@ -5,10 +5,103 @@ import { getActorId } from "../services/auth.js";
 import { prisma } from "../services/prisma.js";
 import { writeAuditLog } from "../services/audit.js";
 
+const TASK_DETAIL_V2_PREFIX = "[TASK_DETAIL_V2]";
+
+type TaskDetailV2 = {
+  summary: string;
+  background: string;
+  objective: string;
+  plan: string;
+  conditions: string;
+  targetPath: string;
+  startedAt: string;
+  retreatedAt: string;
+  progressReports: Array<{
+    id: string;
+    applicationId: string;
+    reporterId: string;
+    report: string;
+    createdAt: string;
+  }>;
+};
+
+const parseTaskDetail = (detail: string): TaskDetailV2 => {
+  if (!detail.startsWith(TASK_DETAIL_V2_PREFIX)) {
+    return {
+      summary: detail,
+      background: detail,
+      objective: "",
+      plan: "",
+      conditions: "",
+      targetPath: "",
+      startedAt: "",
+      retreatedAt: "",
+      progressReports: [],
+    };
+  }
+  const payloadRaw = detail.slice(TASK_DETAIL_V2_PREFIX.length).trim();
+  try {
+    const payload = JSON.parse(payloadRaw) as Partial<TaskDetailV2>;
+    return {
+      summary: payload.summary ?? "",
+      background: payload.background ?? "",
+      objective: payload.objective ?? "",
+      plan: payload.plan ?? "",
+      conditions: payload.conditions ?? "",
+      targetPath: payload.targetPath ?? "",
+      startedAt: payload.startedAt ?? "",
+      retreatedAt: payload.retreatedAt ?? "",
+      progressReports: Array.isArray(payload.progressReports)
+        ? payload.progressReports
+            .filter((item): item is TaskDetailV2["progressReports"][number] => Boolean(item && typeof item === "object"))
+            .map((item) => ({
+              id: typeof item.id === "string" ? item.id : "",
+              applicationId: typeof item.applicationId === "string" ? item.applicationId : "",
+              reporterId: typeof item.reporterId === "string" ? item.reporterId : "",
+              report: typeof item.report === "string" ? item.report : "",
+              createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
+            }))
+            .filter((item) => item.id && item.applicationId && item.reporterId && item.report)
+        : [],
+    };
+  } catch {
+    return {
+      summary: detail,
+      background: detail,
+      objective: "",
+      plan: "",
+      conditions: "",
+      targetPath: "",
+      startedAt: "",
+      retreatedAt: "",
+      progressReports: [],
+    };
+  }
+};
+
+const encodeTaskDetail = (payload: TaskDetailV2): string =>
+  `${TASK_DETAIL_V2_PREFIX} ${JSON.stringify(payload)}`;
+
 const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(80),
-  detail: z.string().trim().min(1).max(2000),
-  reward: z.string().trim().min(1).max(120),
+  detail: z.string().trim().max(2000).optional().default(""),
+  reward: z.string().trim().max(120).optional().default(""),
+  background: z.string().trim().max(5000).optional().default(""),
+  objective: z.string().trim().max(5000).optional().default(""),
+  plan: z.string().trim().max(3000).optional().default(""),
+  conditions: z.string().trim().max(3000).optional().default(""),
+  targetPath: z.string().trim().max(500).optional().default(""),
+});
+
+const updateTaskSchema = z.object({
+  title: z.string().trim().min(1).max(80).optional(),
+  detail: z.string().trim().max(2000).optional(),
+  reward: z.string().trim().max(120).optional(),
+  background: z.string().trim().max(5000).optional(),
+  objective: z.string().trim().max(5000).optional(),
+  plan: z.string().trim().max(3000).optional(),
+  conditions: z.string().trim().max(3000).optional(),
+  targetPath: z.string().trim().max(500).optional(),
 });
 
 const applyTaskSchema = z.object({
@@ -18,6 +111,11 @@ const applyTaskSchema = z.object({
 
 const adoptTaskSchema = z.object({
   applicationId: z.string().min(1),
+});
+
+const progressTaskSchema = z.object({
+  applicationId: z.string().min(1).optional(),
+  report: z.string().trim().min(1).max(3000),
 });
 
 const listQuerySchema = z.object({
@@ -68,34 +166,52 @@ export async function taskRoutes(app: FastifyInstance) {
 
     return ok(
       reply,
-      tasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        detail: task.detail,
-        reward: task.reward,
-        status: task.status,
-        publisherId: task.publisherId,
-        publisher: userMap.get(task.publisherId) ?? null,
-        adoptedApplicationId: task.adoptedApplicationId,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-        myApplication: task.applications.find((x) => x.applicantId === actorId) ?? null,
-        applications: task.applications.map((application) => ({
-          id: application.id,
-          status: application.status,
-          message: application.message,
-          applicantId: application.applicantId,
-          applicant: userMap.get(application.applicantId) ?? null,
-          project: {
-            id: application.project.id,
-            name: application.project.name,
-            createdBy: application.project.createdBy,
-            assignmentsCount: application.project._count.assignments,
-          },
-          createdAt: application.createdAt,
-          updatedAt: application.updatedAt,
-        })),
-      })),
+      tasks.map((task) => {
+        const detail = parseTaskDetail(task.detail);
+        return {
+          id: task.id,
+          title: task.title,
+          detail: detail.summary,
+          background: detail.background,
+          objective: detail.objective,
+          plan: detail.plan,
+          conditions: detail.conditions,
+          targetPath: detail.targetPath,
+          startedAt: detail.startedAt || null,
+          retreatedAt: detail.retreatedAt || null,
+          progressReports: detail.progressReports.map((report) => ({
+            id: report.id,
+            applicationId: report.applicationId,
+            reporterId: report.reporterId,
+            reporter: userMap.get(report.reporterId) ?? null,
+            report: report.report,
+            createdAt: report.createdAt,
+          })),
+          reward: task.reward,
+          status: task.status,
+          publisherId: task.publisherId,
+          publisher: userMap.get(task.publisherId) ?? null,
+          adoptedApplicationId: task.adoptedApplicationId,
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+          myApplication: task.applications.find((x) => x.applicantId === actorId) ?? null,
+          applications: task.applications.map((application) => ({
+            id: application.id,
+            status: application.status,
+            message: application.message,
+            applicantId: application.applicantId,
+            applicant: userMap.get(application.applicantId) ?? null,
+            project: {
+              id: application.project.id,
+              name: application.project.name,
+              createdBy: application.project.createdBy,
+              assignmentsCount: application.project._count.assignments,
+            },
+            createdAt: application.createdAt,
+            updatedAt: application.updatedAt,
+          })),
+        };
+      }),
     );
   });
 
@@ -111,7 +227,17 @@ export async function taskRoutes(app: FastifyInstance) {
     const task = await prisma.taskQuest.create({
       data: {
         title: parsed.data.title,
-        detail: parsed.data.detail,
+        detail: encodeTaskDetail({
+          summary: parsed.data.detail,
+          background: parsed.data.background,
+          objective: parsed.data.objective,
+          plan: parsed.data.plan,
+          conditions: parsed.data.conditions,
+          targetPath: parsed.data.targetPath,
+          startedAt: "",
+          retreatedAt: "",
+          progressReports: [],
+        }),
         reward: parsed.data.reward,
         publisherId: actorId,
       },
@@ -124,6 +250,60 @@ export async function taskRoutes(app: FastifyInstance) {
       actorId,
     });
     return ok(reply, task);
+  });
+
+  app.patch("/api/v1/tasks/:id", async (req, reply) => {
+    const actorId = getActorId(req);
+    if (actorId === "system") {
+      return fail(reply, "UNAUTHORIZED", "Please login first", [{ field: "authorization", reason: "REQUIRED" }], 401);
+    }
+    const taskId = (req.params as { id: string }).id;
+    const parsed = updateTaskSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fail(reply, "VALIDATION_ERROR", "Invalid input", [{ field: "body", reason: "INVALID" }], 400);
+    }
+
+    const task = await prisma.taskQuest.findUnique({ where: { id: taskId } });
+    if (!task) {
+      return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (task.publisherId !== actorId) {
+      return fail(reply, "FORBIDDEN", "Only publisher can edit", [{ field: "publisherId", reason: "FORBIDDEN" }], 403);
+    }
+
+    const currentDetail = parseTaskDetail(task.detail);
+    const nextSummary =
+      parsed.data.detail ?? (parsed.data.background !== undefined ? parsed.data.background : currentDetail.summary);
+    const nextDetail = encodeTaskDetail({
+      summary: nextSummary,
+      background: parsed.data.background ?? currentDetail.background,
+      objective: parsed.data.objective ?? currentDetail.objective,
+      plan: parsed.data.plan ?? currentDetail.plan,
+      conditions: parsed.data.conditions ?? currentDetail.conditions,
+      targetPath: parsed.data.targetPath ?? currentDetail.targetPath,
+      startedAt: currentDetail.startedAt,
+      retreatedAt: currentDetail.retreatedAt,
+      progressReports: currentDetail.progressReports,
+    });
+
+    const updated = await prisma.taskQuest.update({
+      where: { id: taskId },
+      data: {
+        title: parsed.data.title ?? task.title,
+        reward: parsed.data.reward ?? task.reward,
+        detail: nextDetail,
+      },
+    });
+
+    await writeAuditLog({
+      action: "UPDATE",
+      entityType: "TASK",
+      entityId: taskId,
+      beforeData: task,
+      afterData: updated,
+      actorId,
+    });
+    return ok(reply, updated);
   });
 
   app.post("/api/v1/tasks/:id/apply", async (req, reply) => {
@@ -245,5 +425,177 @@ export async function taskRoutes(app: FastifyInstance) {
       actorId,
     });
     return ok(reply, { taskId, adoptedApplicationId: target.id });
+  });
+
+  app.post("/api/v1/tasks/:id/start", async (req, reply) => {
+    const actorId = getActorId(req);
+    if (actorId === "system") {
+      return fail(reply, "UNAUTHORIZED", "Please login first", [{ field: "authorization", reason: "REQUIRED" }], 401);
+    }
+    const taskId = (req.params as { id: string }).id;
+    const task = await prisma.taskQuest.findUnique({ where: { id: taskId } });
+    if (!task) {
+      return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (task.status !== "ADOPTED") {
+      return fail(reply, "VALIDATION_ERROR", "Task is not adopted yet", [{ field: "status", reason: task.status }], 400);
+    }
+
+    const detail = parseTaskDetail(task.detail);
+    if (detail.startedAt) {
+      return fail(reply, "CONFLICT", "Task already started", [{ field: "startedAt", reason: "ALREADY_STARTED" }], 409);
+    }
+    if (!task.adoptedApplicationId) {
+      return fail(reply, "VALIDATION_ERROR", "Adopted application missing", [{ field: "adoptedApplicationId", reason: "MISSING" }], 400);
+    }
+
+    const adoptedApplication = await prisma.taskQuestApplication.findUnique({ where: { id: task.adoptedApplicationId } });
+    if (!adoptedApplication) {
+      return fail(reply, "NOT_FOUND", "Adopted application not found", [{ field: "adoptedApplicationId", reason: "NOT_FOUND" }], 404);
+    }
+
+    const startedAt = new Date().toISOString();
+    const updated = await prisma.taskQuest.update({
+      where: { id: taskId },
+      data: {
+        detail: encodeTaskDetail({
+          ...detail,
+          startedAt,
+          retreatedAt: "",
+        }),
+      },
+    });
+
+    await writeAuditLog({
+      action: "START",
+      entityType: "TASK",
+      entityId: taskId,
+      beforeData: task,
+      afterData: updated,
+      actorId,
+    });
+
+    return ok(reply, { taskId, startedAt });
+  });
+
+  app.post("/api/v1/tasks/:id/retreat", async (req, reply) => {
+    const actorId = getActorId(req);
+    if (actorId === "system") {
+      return fail(reply, "UNAUTHORIZED", "Please login first", [{ field: "authorization", reason: "REQUIRED" }], 401);
+    }
+    const taskId = (req.params as { id: string }).id;
+    const task = await prisma.taskQuest.findUnique({ where: { id: taskId } });
+    if (!task) {
+      return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (task.status !== "ADOPTED" || !task.adoptedApplicationId) {
+      return fail(reply, "VALIDATION_ERROR", "Task is not in active adopted stage", [{ field: "status", reason: task.status }], 400);
+    }
+    const adopted = await prisma.taskQuestApplication.findUnique({ where: { id: task.adoptedApplicationId } });
+    if (!adopted) {
+      return fail(reply, "NOT_FOUND", "Adopted application not found", [{ field: "adoptedApplicationId", reason: "NOT_FOUND" }], 404);
+    }
+    const canRetreat = task.publisherId === actorId || adopted.applicantId === actorId;
+    if (!canRetreat) {
+      return fail(reply, "FORBIDDEN", "Only publisher or adopted team can retreat", [{ field: "actorId", reason: "FORBIDDEN" }], 403);
+    }
+
+    const detail = parseTaskDetail(task.detail);
+    const retreatedAt = new Date().toISOString();
+    await prisma.$transaction(async (tx) => {
+      await tx.taskQuestApplication.update({
+        where: { id: adopted.id },
+        data: { status: "REJECTED" },
+      });
+      await tx.taskQuest.update({
+        where: { id: taskId },
+        data: {
+          status: "OPEN",
+          adoptedApplicationId: null,
+          detail: encodeTaskDetail({
+            ...detail,
+            startedAt: "",
+            retreatedAt,
+          }),
+        },
+      });
+    });
+
+    await writeAuditLog({
+      action: "RETREAT",
+      entityType: "TASK",
+      entityId: taskId,
+      beforeData: task,
+      afterData: { retreatedAt },
+      actorId,
+    });
+    return ok(reply, { taskId, retreatedAt, status: "OPEN" });
+  });
+
+  app.post("/api/v1/tasks/:id/progress", async (req, reply) => {
+    const actorId = getActorId(req);
+    if (actorId === "system") {
+      return fail(reply, "UNAUTHORIZED", "Please login first", [{ field: "authorization", reason: "REQUIRED" }], 401);
+    }
+    const taskId = (req.params as { id: string }).id;
+    const parsed = progressTaskSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return fail(reply, "VALIDATION_ERROR", "Invalid input", [{ field: "body", reason: "INVALID" }], 400);
+    }
+
+    const task = await prisma.taskQuest.findUnique({
+      where: { id: taskId },
+      include: { applications: true },
+    });
+    if (!task) {
+      return fail(reply, "NOT_FOUND", "Task not found", [{ field: "id", reason: "NOT_FOUND" }], 404);
+    }
+    if (!task.adoptedApplicationId) {
+      return fail(reply, "VALIDATION_ERROR", "Task has no adopted team", [{ field: "adoptedApplicationId", reason: "MISSING" }], 400);
+    }
+    const adopted = task.applications.find((item) => item.id === task.adoptedApplicationId);
+    if (!adopted) {
+      return fail(reply, "NOT_FOUND", "Adopted application not found", [{ field: "adoptedApplicationId", reason: "NOT_FOUND" }], 404);
+    }
+
+    const canReport = actorId === task.publisherId || actorId === adopted.applicantId;
+    if (!canReport) {
+      return fail(reply, "FORBIDDEN", "Only publisher or adopted team can report", [{ field: "actorId", reason: "FORBIDDEN" }], 403);
+    }
+
+    const detail = parseTaskDetail(task.detail);
+    const applicationId = parsed.data.applicationId ?? adopted.id;
+    const belongs = task.applications.some((item) => item.id === applicationId);
+    if (!belongs) {
+      return fail(reply, "VALIDATION_ERROR", "Application not in this task", [{ field: "applicationId", reason: "INVALID" }], 400);
+    }
+
+    const nextReport = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      applicationId,
+      reporterId: actorId,
+      report: parsed.data.report,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = await prisma.taskQuest.update({
+      where: { id: taskId },
+      data: {
+        detail: encodeTaskDetail({
+          ...detail,
+          progressReports: [...detail.progressReports, nextReport].slice(-200),
+        }),
+      },
+    });
+
+    await writeAuditLog({
+      action: "PROGRESS_REPORT",
+      entityType: "TASK",
+      entityId: taskId,
+      beforeData: task,
+      afterData: { reportId: nextReport.id },
+      actorId,
+    });
+    return ok(reply, { taskId, report: nextReport, updatedAt: updated.updatedAt });
   });
 }

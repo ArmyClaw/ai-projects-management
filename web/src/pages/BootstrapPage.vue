@@ -60,14 +60,13 @@
             <div class="tag-cloud">
               <span class="tag">{{ locale === "zh-CN" ? "阶段" : "Stages" }}: {{ stages.length }}</span>
               <span class="tag">{{ locale === "zh-CN" ? "队友" : "Teammates" }}: {{ totalAssignments }}</span>
-              <span class="tag">{{ locale === "zh-CN" ? "样例" : "Examples" }}: {{ totalExamples }}</span>
             </div>
           </aside>
 
           <div class="main-side">
             <div class="stepper">
               <button class="step" :class="{ active: step === 1 }" @click="step = 1">{{ locale === "zh-CN" ? "Step 1 - 基本信息" : "Step 1 - Basic Info" }}</button>
-              <button class="step" :class="{ active: step === 2 }" @click="step = 2">{{ locale === "zh-CN" ? "Step 2 - 队友编排" : "Step 2 - Team Pipeline" }}</button>
+              <button class="step" :class="{ active: step === 2 }" @click="step = 2">{{ locale === "zh-CN" ? "Step 2 - 任务攻略（任务执行）" : "Step 2 - Task Playbook (Execution)" }}</button>
               <button class="step" :class="{ active: step === 3 }" @click="step = 3">{{ locale === "zh-CN" ? "Step 3 - 校验保存" : "Step 3 - Validate & Save" }}</button>
             </div>
 
@@ -120,10 +119,10 @@
 
             <div v-if="step === 2" class="step-panel">
               <div class="section-head">
-                <h3 class="section-title">{{ locale === "zh-CN" ? "Step 2 - 组队攻略路线" : "Step 2 - Team Route" }}</h3>
+                <h3 class="section-title">{{ locale === "zh-CN" ? "Step 2 - 任务攻略（任务执行）" : "Step 2 - Task Playbook (Execution)" }}</h3>
                 <button class="button primary" @click="addStage">{{ locale === "zh-CN" ? "+ 添加阶段" : "+ Add Stage" }}</button>
               </div>
-              <p class="muted">{{ locale === "zh-CN" ? "每个阶段至少需要一个队友，且必须有一个 PRIMARY 负责人。" : "Each stage needs at least one teammate and exactly one PRIMARY lead." }}</p>
+              <p class="muted">{{ locale === "zh-CN" ? "每个阶段至少需要一个队友，并为该阶段填写任务计划。" : "Each stage needs at least one teammate and a task plan." }}</p>
 
               <div class="pipeline-board">
                 <div class="stage-card" v-for="(stage, stageIndex) in stages" :key="stage.id">
@@ -137,46 +136,35 @@
                       <label>{{ locale === "zh-CN" ? "阶段标题" : "Stage Title" }}</label>
                       <input v-model="stage.title" class="input" placeholder="Requirement Analysis" />
                     </div>
-                    <div>
-                      <label>{{ locale === "zh-CN" ? "角色 ID" : "Role ID" }}</label>
-                      <input v-model="stage.roleId" class="input" placeholder="role.requirement" />
-                    </div>
                   </div>
 
                   <div>
                     <label>{{ locale === "zh-CN" ? "阶段目标" : "Stage Objective" }}</label>
                     <input v-model="stage.objective" class="input" placeholder="Freeze scope and acceptance criteria" />
                   </div>
+                  <div>
+                    <label>{{ locale === "zh-CN" ? "任务计划（Markdown）" : "Task Plan (Markdown)" }}</label>
+                    <MarkdownEditor v-model="stage.taskPlan" :rows="4" :min-height="150" />
+                  </div>
 
                   <div class="assignment-list">
                     <div class="assignment-row" v-for="(assignment, assignmentIndex) in stage.assignments" :key="`${stage.id}-${assignmentIndex}`">
-                      <div class="row compact-row">
-                        <div>
+                      <div class="assignment-grid">
+                        <div class="assignment-field">
                           <label>{{ locale === "zh-CN" ? "队友" : "Teammate" }}</label>
                           <select v-model="assignment.agentId" class="select" @change="onAgentChanged(stageIndex, assignmentIndex)">
                             <option disabled value="">{{ locale === "zh-CN" ? "选择 Agent" : "Choose agent" }}</option>
                             <option v-for="agent in agents" :key="agent.id" :value="agent.id">{{ agent.name }} ({{ agent.id }})</option>
                           </select>
                         </div>
-                        <div>
-                          <label>{{ locale === "zh-CN" ? "角色" : "Role" }}</label>
-                          <select v-model="assignment.assignmentRole" class="select">
-                            <option value="PRIMARY">PRIMARY</option>
-                            <option value="ASSISTANT">ASSISTANT</option>
-                          </select>
-                        </div>
-                        <div>
+                        <div class="assignment-field">
                           <label>{{ locale === "zh-CN" ? "模型" : "Model" }}</label>
                           <select v-model="assignment.modelId" class="select">
                             <option disabled value="">{{ locale === "zh-CN" ? "选择模型" : "Choose model" }}</option>
                             <option v-for="m in models" :key="m.id" :value="m.id">{{ m.id }} ({{ m.tier }})</option>
                           </select>
                         </div>
-                        <div>
-                          <label>{{ locale === "zh-CN" ? "示例数量" : "Example Count" }}</label>
-                          <input v-model.number="assignment.exampleCount" type="number" min="1" class="input" />
-                        </div>
-                        <div class="remove-cell">
+                        <div class="remove-cell assignment-remove">
                           <button class="button tiny-btn" @click="removeAssignment(stage.id, assignmentIndex)">{{ locale === "zh-CN" ? "移除" : "Remove" }}</button>
                         </div>
                       </div>
@@ -198,10 +186,6 @@
                 <div class="summary-card">
                   <p class="muted">{{ locale === "zh-CN" ? "队友" : "Teammates" }}</p>
                   <h4>{{ totalAssignments }}</h4>
-                </div>
-                <div class="summary-card">
-                  <p class="muted">{{ locale === "zh-CN" ? "示例" : "Examples" }}</p>
-                  <h4>{{ totalExamples }}</h4>
                 </div>
               </div>
               <div class="row">
@@ -228,6 +212,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { apiGet, apiPost, apiPut } from "../lib/api";
 import PaginationBar from "../components/PaginationBar.vue";
+import MarkdownEditor from "../components/MarkdownEditor.vue";
 import { useI18n } from "../lib/i18n";
 
 type Agent = {
@@ -251,16 +236,14 @@ type ProjectRow = {
 
 type StageAssignment = {
   agentId: string;
-  assignmentRole: "PRIMARY" | "ASSISTANT";
   modelId: string;
-  exampleCount: number;
 };
 
 type PipelineStage = {
   id: string;
   title: string;
-  roleId: string;
   objective: string;
+  taskPlan: string;
   assignments: StageAssignment[];
 };
 
@@ -291,9 +274,9 @@ const stages = ref<PipelineStage[]>([]);
 const createDefaultStage = (index = 1): PipelineStage => ({
   id: `stage-${index}`,
   title: index === 1 ? "Requirement Analysis" : `Stage ${index}`,
-  roleId: index === 1 ? "role.requirement" : `role.stage${index}`,
   objective: index === 1 ? "Freeze scope and acceptance criteria" : "",
-  assignments: [{ agentId: "", assignmentRole: "PRIMARY", modelId: "", exampleCount: 3 }],
+  taskPlan: "",
+  assignments: [{ agentId: "", modelId: "" }],
 });
 
 const resetWizardData = () => {
@@ -312,32 +295,21 @@ const resetWizardData = () => {
 };
 
 const totalAssignments = computed(() => stages.value.reduce((acc, stage) => acc + stage.assignments.length, 0));
-const totalExamples = computed(() =>
-  stages.value.reduce((acc, stage) => acc + stage.assignments.reduce((sum, assignment) => sum + Math.max(1, Number(assignment.exampleCount) || 1), 0), 0),
-);
 const totalPages = computed(() => Math.max(1, Math.ceil(projects.value.length / pageSize.value)));
 const pagedProjects = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
   return projects.value.slice(start, start + pageSize.value);
 });
 
-const findAssistantModel = (agent: Agent): string => {
-  const workflow = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>) : null;
-  return workflow && typeof workflow.assistantModelId === "string" ? workflow.assistantModelId : "";
-};
-
-const getSuggestedModel = (agentId: string, assignmentRole: "PRIMARY" | "ASSISTANT") => {
+const getSuggestedModel = (agentId: string) => {
   const agent = agents.value.find((x) => x.id === agentId);
   if (!agent) return "";
-  if (assignmentRole === "PRIMARY") return agent.defaultModelId || "";
-  return findAssistantModel(agent) || agent.defaultModelId || "";
+  return agent.defaultModelId || "";
 };
 
 const makeDefaultAssignment = (): StageAssignment => ({
   agentId: "",
-  assignmentRole: "PRIMARY",
   modelId: "",
-  exampleCount: 1,
 });
 
 const addStage = () => {
@@ -353,9 +325,7 @@ const removeStage = (stageId: string) => {
 const addAssignment = (stageId: string) => {
   const stage = stages.value.find((x) => x.id === stageId);
   if (!stage) return;
-  const assignment = makeDefaultAssignment();
-  assignment.assignmentRole = stage.assignments.some((x) => x.assignmentRole === "PRIMARY") ? "ASSISTANT" : "PRIMARY";
-  stage.assignments.push(assignment);
+  stage.assignments.push(makeDefaultAssignment());
 };
 
 const removeAssignment = (stageId: string, idx: number) => {
@@ -370,7 +340,7 @@ const removeAssignment = (stageId: string, idx: number) => {
 const onAgentChanged = (stageIndex: number, assignmentIndex: number) => {
   const assignment = stages.value[stageIndex]?.assignments[assignmentIndex];
   if (!assignment || assignment.modelId) return;
-  assignment.modelId = getSuggestedModel(assignment.agentId, assignment.assignmentRole);
+  assignment.modelId = getSuggestedModel(assignment.agentId);
 };
 
 const openWizardModal = (project?: ProjectRow) => {
@@ -396,14 +366,15 @@ const formatDateTime = (value?: string) => {
 const normalizeStage = (stage: PipelineStage, index: number) => ({
   id: stage.id || `stage-${index + 1}`,
   name: `Step ${index + 1} - ${stage.title || `Stage ${index + 1}`}`,
-  objective: stage.objective || "",
+  objective: [stage.objective, stage.taskPlan ? `Task Plan:\n${stage.taskPlan}` : ""].filter(Boolean).join("\n\n"),
   roles: [
     {
-      roleId: stage.roleId || `role.stage${index + 1}`,
+      roleId: `role.stage${index + 1}`,
       instances: Math.max(stage.assignments.length, 1),
       responsibilities: stage.assignments.map((assignment) => {
         const agentName = agents.value.find((x) => x.id === assignment.agentId)?.name || assignment.agentId || "unassigned";
-        return `${agentName} handles ${Math.max(1, Number(assignment.exampleCount) || 1)} examples`;
+        const modelLabel = assignment.modelId || "unassigned-model";
+        return `${agentName} executes with model ${modelLabel}`;
       }),
     },
   ],
@@ -411,10 +382,9 @@ const normalizeStage = (stage: PipelineStage, index: number) => ({
 
 const roleAgentAssignments = computed(() =>
   stages.value.map((stage, stageIndex) => ({
-    roleId: stage.roleId || `role.stage${stageIndex + 1}`,
+    roleId: `role.stage${stageIndex + 1}`,
     agents: stage.assignments.map((assignment, assignmentIndex) => ({
       agentId: assignment.agentId,
-      assignmentRole: assignment.assignmentRole,
       modelId: assignment.modelId,
       priority: (assignmentIndex + 1) * 10,
     })),
@@ -453,12 +423,11 @@ const validateLocal = (): string | null => {
   for (let i = 0; i < stages.value.length; i += 1) {
     const stage = stages.value[i];
     if (stage.assignments.length === 0) return `Stage ${i + 1} needs at least one assignment.`;
-    const primaryCount = stage.assignments.filter((assignment) => assignment.assignmentRole === "PRIMARY").length;
-    if (primaryCount !== 1) return `Stage ${i + 1} must have exactly one PRIMARY agent.`;
+    if (!stage.objective.trim()) return `Stage ${i + 1} objective is required.`;
+    if (!stage.taskPlan.trim()) return `Stage ${i + 1} task plan is required.`;
     for (let j = 0; j < stage.assignments.length; j += 1) {
       const assignment = stage.assignments[j];
       if (!assignment.agentId || !assignment.modelId) return `Stage ${i + 1}, assignment ${j + 1} is incomplete.`;
-      if (Math.max(1, Number(assignment.exampleCount) || 1) < 1) return `Stage ${i + 1}, assignment ${j + 1} example count invalid.`;
     }
   }
   return null;
@@ -584,7 +553,7 @@ onMounted(async () => {
 }
 
 .modal-panel {
-  width: min(1320px, 100%);
+  width: min(1160px, 100%);
   max-height: calc(100vh - 40px);
   overflow: auto;
   border: 1px solid #1f1f1f;
@@ -600,7 +569,7 @@ onMounted(async () => {
 
 .wizard-layout {
   display: grid;
-  grid-template-columns: 290px 1fr;
+  grid-template-columns: minmax(240px, 290px) minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -609,6 +578,7 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 12px;
   background: #fff;
+  min-width: 0;
 }
 
 .target-title {
@@ -687,6 +657,7 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 12px;
   background: #fff;
+  min-width: 0;
 }
 
 .stepper {
@@ -703,6 +674,8 @@ onMounted(async () => {
   background: #fff;
   text-align: center;
   cursor: pointer;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .step.active {
@@ -755,18 +728,29 @@ onMounted(async () => {
   background: #fff;
 }
 
-.compact-row {
-  align-items: end;
-}
-
 .remove-cell {
   display: flex;
   align-items: end;
 }
 
+.assignment-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.assignment-field {
+  min-width: 0;
+}
+
+.assignment-remove {
+  justify-content: flex-end;
+}
+
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -815,7 +799,42 @@ onMounted(async () => {
   }
 }
 
+@media (max-width: 1280px) {
+  .wizard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .target-side {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+  }
+
+  .target-avatar {
+    margin: 0;
+  }
+
+  .target-name,
+  .target-note {
+    text-align: left;
+  }
+
+  .tag-cloud {
+    justify-content: flex-start;
+  }
+}
+
 @media (max-width: 980px) {
+  .assignment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .assignment-remove {
+    justify-content: flex-start;
+  }
+
   .stepper {
     grid-template-columns: 1fr;
   }

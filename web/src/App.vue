@@ -8,7 +8,7 @@
             <span class="eye right"></span>
             <span class="smile"></span>
           </span>
-          <span class="brand-text">Agent Team Builder</span>
+          <span class="brand-text">Magic Agent Team</span>
         </div>
         <nav>
           <RouterLink to="/hall" class="nav-link">{{ t("nav.hall") }}</RouterLink>
@@ -72,6 +72,9 @@
               <img :src="registerForm.avatar || user?.avatar || defaultAvatar" alt="host preview avatar" class="host-avatar large" />
               <strong>{{ registerForm.displayName || user?.displayName || (locale === "zh-CN" ? "未命名主理人" : "Unnamed Host") }}</strong>
               <small>@{{ registerForm.handle || user?.handle || "world_host" }}</small>
+              <p v-if="registerForm.codingCliTools.length > 0" class="muted cli-preview">
+                {{ registerForm.codingCliTools.join(" / ") }}
+              </p>
             </div>
           </aside>
 
@@ -88,6 +91,13 @@
               <input v-model.trim="registerForm.displayName" class="input" placeholder="World Commander" />
               <label>{{ locale === "zh-CN" ? "密码" : "Password" }}</label>
               <input v-model="registerForm.password" type="password" class="input" />
+              <label>{{ locale === "zh-CN" ? "常用编码 CLI 工具（可多选）" : "Coding CLI Tools (multiple)" }}</label>
+              <div class="cli-select">
+                <label v-for="tool in codingCliOptions" :key="tool.value" class="cli-option">
+                  <input v-model="registerForm.codingCliTools" type="checkbox" :value="tool.value" />
+                  <span>{{ locale === "zh-CN" ? tool.zh : tool.en }}</span>
+                </label>
+              </div>
               <div class="avatar-upload">
                 <input ref="avatarInputRef" type="file" class="hidden-input" accept="image/*" @change="onPickAvatar" />
                 <button type="button" class="button" @click="pickAvatar">{{ locale === "zh-CN" ? "上传头像" : "Upload Avatar" }}</button>
@@ -121,6 +131,13 @@
         <img :src="user.avatar || defaultAvatar" alt="host avatar" class="host-avatar large" />
         <h3>{{ user.displayName }}</h3>
         <p class="muted">@{{ user.handle }}</p>
+        <p class="muted">
+          {{
+            locale === "zh-CN"
+              ? `编码 CLI: ${user.codingCliTools.length > 0 ? user.codingCliTools.join(" / ") : "未设置"}`
+              : `Coding CLI: ${user.codingCliTools.length > 0 ? user.codingCliTools.join(" / ") : "Not set"}`
+          }}
+        </p>
         <p class="muted">{{ locale === "zh-CN" ? "你是当前世界主理人，所有配置写入会记录你的身份。" : "You are the current world host. All config writes are attributed to you." }}</p>
         <div class="auth-actions">
           <button type="button" class="button" @click="profileOpen = false">{{ t("common.close") }}</button>
@@ -174,7 +191,17 @@ const registerForm = reactive({
   displayName: "",
   password: "",
   avatar: "",
+  codingCliTools: [] as string[],
 });
+
+const codingCliOptions: Array<{ value: string; zh: string; en: string }> = [
+  { value: "OpenAI Codex CLI", zh: "OpenAI Codex CLI", en: "OpenAI Codex CLI" },
+  { value: "Claude Code", zh: "Claude Code", en: "Claude Code" },
+  { value: "Gemini CLI", zh: "Gemini CLI", en: "Gemini CLI" },
+  { value: "Aider", zh: "Aider", en: "Aider" },
+  { value: "Cline CLI", zh: "Cline CLI", en: "Cline CLI" },
+  { value: "Continue CLI", zh: "Continue CLI", en: "Continue CLI" },
+];
 
 const onLocaleChange = (event: Event) => {
   const value = (event.target as HTMLSelectElement).value as Locale;
@@ -215,6 +242,7 @@ const submitRegister = async () => {
       displayName: registerForm.displayName,
       password: registerForm.password,
       avatar: registerForm.avatar || undefined,
+      codingCliTools: registerForm.codingCliTools,
     });
     closeAuthModal();
   } catch (error) {
@@ -510,6 +538,12 @@ onMounted(async () => {
   display: block;
 }
 
+.cli-preview {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .orb {
   width: 22px;
   height: 22px;
@@ -578,6 +612,23 @@ onMounted(async () => {
   max-width: none;
 }
 
+.cli-select {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  border: 1px dashed #d8d8d8;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.cli-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
 .hidden-input {
   display: none;
 }
@@ -617,6 +668,10 @@ onMounted(async () => {
 
   .avatar-upload {
     flex-wrap: wrap;
+  }
+
+  .cli-select {
+    grid-template-columns: 1fr;
   }
 
   .host-entry {

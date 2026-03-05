@@ -34,6 +34,7 @@ export const resolveAuthUser = async (req: FastifyRequest) => {
     handle: session.user.handle,
     displayName: session.user.displayName,
     avatar: session.user.avatar,
+    codingCliTools: session.user.codingCliTools,
   };
 };
 

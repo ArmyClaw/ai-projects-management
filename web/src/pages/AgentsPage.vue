@@ -13,8 +13,7 @@
           <tr>
             <th>{{ t("common.id") }}</th>
             <th>{{ t("common.name") }}</th>
-            <th>{{ t("agents.role") }}</th>
-            <th>{{ t("agents.models") }}</th>
+            <th>{{ locale === "zh-CN" ? "模型" : "Model" }}</th>
             <th>{{ t("skills.title") }}</th>
             <th>{{ t("nav.mcps") }}</th>
             <th>{{ t("agents.workload") }}</th>
@@ -27,13 +26,7 @@
           <tr v-for="a in pagedAgents" :key="a.id">
             <td><code>{{ a.id }}</code></td>
             <td>{{ a.name }}</td>
-            <td><span class="tag">{{ a.roleId }}</span></td>
-            <td>
-              <div class="model-stack">
-                <span>{{ locale === "zh-CN" ? "主模型" : "Primary" }}: {{ a.defaultModelId || "-" }}</span>
-                <span>{{ locale === "zh-CN" ? "副模型" : "Assistant" }}: {{ extractAssistantModelId(a) || "-" }}</span>
-              </div>
-            </td>
+            <td>{{ a.defaultModelId || "-" }}</td>
             <td>{{ summarizeSkills(a.skillIds) }}</td>
             <td>{{ summarizeMcps(extractMcpIds(a)) }}</td>
             <td>{{ a.workload }}%</td>
@@ -44,7 +37,7 @@
             </td>
           </tr>
           <tr v-if="agents.length === 0">
-            <td colspan="10" class="muted">{{ t("agents.noFound") }}</td>
+            <td colspan="8" class="muted">{{ t("agents.noFound") }}</td>
           </tr>
         </tbody>
       </table>
@@ -74,7 +67,7 @@
               </div>
             </div>
             <h3 class="persona-name">{{ newAgentName || (locale === "zh-CN" ? "未命名 Agent" : "Unnamed Agent") }}</h3>
-            <p class="muted">{{ newRoleId || (locale === "zh-CN" ? "未知角色" : "role-unknown") }}</p>
+            <p class="muted">{{ locale === "zh-CN" ? "自动角色：general" : "Auto role: general" }}</p>
             <div class="persona-badges">
               <span class="tag">{{ t("skills.title") }}: {{ newSkillIds.length }}</span>
               <span class="tag">MCP: {{ newMcpIds.length }}</span>
@@ -82,47 +75,51 @@
             </div>
           </aside>
 
-          <div class="form-side">
+          <div ref="formSideRef" class="form-side">
             <h3 class="section-title">{{ editingAgentId ? `${t("common.edit")} Agent` : `${t("common.create")} Agent` }}</h3>
-            <div class="row">
-              <div>
-                <label for="agent-id">Agent ID</label>
-                <input id="agent-id" v-model="newAgentId" :disabled="Boolean(editingAgentId)" class="input" placeholder="agent.backend.primary" />
-              </div>
-              <div>
-                <label for="agent-name">{{ t("common.name") }}</label>
-                <input id="agent-name" v-model="newAgentName" class="input" placeholder="Backend Primary Agent" />
+            <div class="anchor-nav">
+              <button class="button tiny-pill" @click="scrollToBlock('basic')">{{ locale === "zh-CN" ? "基础信息" : "Basic" }}</button>
+              <button class="button tiny-pill" @click="scrollToBlock('model')">{{ locale === "zh-CN" ? "模型配置" : "Model" }}</button>
+              <button class="button tiny-pill" @click="scrollToBlock('capability')">{{ locale === "zh-CN" ? "技能/工具" : "Skills/Tools" }}</button>
+              <button class="button tiny-pill" @click="scrollToBlock('docs')">{{ locale === "zh-CN" ? "文档配置" : "Docs" }}</button>
+            </div>
+
+            <div id="agent-block-basic" class="form-block">
+              <h4 class="block-title">{{ locale === "zh-CN" ? "基础信息" : "Basic Profile" }}</h4>
+              <div class="form-grid-two">
+                <div>
+                  <label for="agent-id">Agent ID</label>
+                  <input id="agent-id" v-model="newAgentId" :disabled="Boolean(editingAgentId)" class="input" placeholder="agent.backend.primary" />
+                </div>
+                <div>
+                  <label for="agent-name">{{ t("common.name") }}</label>
+                  <input id="agent-name" v-model="newAgentName" class="input" placeholder="Backend Primary Agent" />
+                </div>
+                <div>
+                  <label for="agent-workload">{{ locale === "zh-CN" ? "负载 (0-100)" : "Workload (0-100)" }}</label>
+                  <input id="agent-workload" v-model.number="newWorkload" type="number" min="0" max="100" class="input" />
+                </div>
               </div>
             </div>
-            <div class="row">
-              <div>
-                <label for="agent-role">{{ locale === "zh-CN" ? "角色 ID" : "Role ID" }}</label>
-                <input id="agent-role" v-model="newRoleId" class="input" placeholder="backend" />
-              </div>
-              <div>
-                <label for="agent-workload">{{ locale === "zh-CN" ? "负载 (0-100)" : "Workload (0-100)" }}</label>
-                <input id="agent-workload" v-model.number="newWorkload" type="number" min="0" max="100" class="input" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="agent-model-primary">{{ locale === "zh-CN" ? "主模型（可选）" : "Primary Model (optional)" }}</label>
-                <select id="agent-model-primary" v-model="newDefaultModelId" class="select">
-                  <option value="">{{ t("common.none") }}</option>
-                  <option v-for="m in activeModels" :key="m.id" :value="m.id">{{ m.id }}</option>
-                </select>
-              </div>
-              <div>
-                <label for="agent-model-assistant">{{ locale === "zh-CN" ? "副模型（可选）" : "Assistant Model (optional)" }}</label>
-                <select id="agent-model-assistant" v-model="newAssistantModelId" class="select">
-                  <option value="">{{ t("common.none") }}</option>
-                  <option v-for="m in activeModels" :key="`assistant-${m.id}`" :value="m.id">{{ m.id }}</option>
-                </select>
+
+            <div id="agent-block-model" class="form-block">
+              <h4 class="block-title">{{ locale === "zh-CN" ? "模型配置" : "Model" }}</h4>
+              <div class="form-grid-two single-col">
+                <div>
+                  <label for="agent-model-primary">
+                    {{ locale === "zh-CN" ? "模型（可选，不选则自动智能选择）" : "Model (optional, auto-select if empty)" }}
+                  </label>
+                  <select id="agent-model-primary" v-model="newDefaultModelId" class="select">
+                    <option value="">{{ locale === "zh-CN" ? "自动智能选择" : "Auto smart select" }}</option>
+                    <option v-for="m in activeModels" :key="m.id" :value="m.id">{{ m.id }}</option>
+                  </select>
+                </div>
               </div>
             </div>
-            <div class="row">
-              <div>
-                <label>{{ t("skills.title") }} (ACTIVE)</label>
+
+            <div id="agent-block-capability" class="capability-grid">
+              <div class="form-block">
+                <h4 class="block-title">{{ t("skills.title") }} (ACTIVE)</h4>
                 <div class="mcp-picker">
                   <div class="mcp-selected">
                     <span v-if="newSkillIds.length === 0" class="muted">{{ locale === "zh-CN" ? "尚未选择技能。" : "No Skill selected." }}</span>
@@ -141,8 +138,8 @@
                   </div>
                 </div>
               </div>
-              <div>
-                <label>{{ locale === "zh-CN" ? "MCP 工具" : "MCP Tools" }} (ACTIVE)</label>
+              <div class="form-block">
+                <h4 class="block-title">{{ locale === "zh-CN" ? "工具 (ACTIVE)" : "Tools (ACTIVE)" }}</h4>
                 <div class="mcp-picker">
                   <div class="mcp-selected">
                     <span v-if="newMcpIds.length === 0" class="muted">{{ locale === "zh-CN" ? "尚未选择 MCP。" : "No MCP selected." }}</span>
@@ -157,12 +154,13 @@
                       <option v-for="m in availableMcpsToAdd" :key="`pick-${m.id}`" :value="m.id">{{ m.name }} ({{ m.transport }})</option>
                     </select>
                     <button class="button" @click="addSelectedMcp">{{ locale === "zh-CN" ? "+ 添加 MCP" : "+ Add MCP" }}</button>
-                    <button class="button" @click="goToMcpRepo">{{ locale === "zh-CN" ? "前往 MCP 仓库" : "Go MCP Repo" }}</button>
+                    <button class="button" @click="goToMcpRepo">{{ locale === "zh-CN" ? "前往工具仓库" : "Go Tools Repo" }}</button>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="docs-card">
+
+            <div id="agent-block-docs" class="docs-card form-block">
               <label>{{ locale === "zh-CN" ? "Agent 文档（点击查看/编辑）" : "Agent Docs (click to view/edit)" }}</label>
               <div class="doc-row">
                 <div>
@@ -197,7 +195,7 @@
             </div>
 
             <p v-if="createError" class="error-text">{{ createError }}</p>
-            <div class="modal-actions">
+            <div class="modal-actions sticky-actions">
               <button class="button" @click="closeCreateModal">{{ t("common.cancel") }}</button>
               <button class="button primary" @click="submitAgent">{{ editingAgentId ? `${t("common.save")} Agent` : `${t("common.create")} Agent` }}</button>
             </div>
@@ -233,7 +231,7 @@ import MarkdownEditor from "../components/MarkdownEditor.vue";
 import PaginationBar from "../components/PaginationBar.vue";
 import { useI18n } from "../lib/i18n";
 
-type Model = { id: string; status: string };
+type Model = { id: string; status: string; tier: "PREMIUM" | "BALANCED" | "ECONOMY" };
 type Skill = { id: string; name: string; version: string; status: string };
 type Mcp = { id: string; name: string; transport: string; status: string };
 type Agent = {
@@ -264,10 +262,8 @@ const docEditorContent = ref("");
 
 const newAgentId = ref("");
 const newAgentName = ref("");
-const newRoleId = ref("");
 const newWorkload = ref(50);
 const newDefaultModelId = ref("");
-const newAssistantModelId = ref("");
 const newSkillIds = ref<string[]>([]);
 const pendingSkillId = ref("");
 const newMcpIds = ref<string[]>([]);
@@ -292,6 +288,7 @@ const defaultAgentAvatar =
   );
 
 const router = useRouter();
+const formSideRef = ref<HTMLElement | null>(null);
 const currentPage = ref(1);
 const pageSize = ref(10);
 const availableMcpsToAdd = computed(() => activeMcps.value.filter((m) => !newMcpIds.value.includes(m.id)));
@@ -312,14 +309,6 @@ const currentDocTitle = computed(() => {
 const extractMcpIds = (agent: Agent): string[] => {
   const raw = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>).mcpIds : [];
   return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
-};
-
-const extractAssistantModelId = (agent: Agent): string => {
-  const workflow = agent.workflow && typeof agent.workflow === "object" ? (agent.workflow as Record<string, unknown>) : null;
-  if (!workflow) return "";
-  if (typeof workflow.assistantModelId === "string") return workflow.assistantModelId;
-  const modelProfile = workflow.modelProfile && typeof workflow.modelProfile === "object" ? (workflow.modelProfile as Record<string, unknown>) : null;
-  return modelProfile && typeof modelProfile.assistantModelId === "string" ? modelProfile.assistantModelId : "";
 };
 
 const extractPersonaSummary = (agent: Agent): string => {
@@ -428,10 +417,8 @@ const openEditModal = (agent: Agent) => {
   editingAgentId.value = agent.id;
   newAgentId.value = agent.id;
   newAgentName.value = agent.name;
-  newRoleId.value = agent.roleId;
   newWorkload.value = agent.workload;
   newDefaultModelId.value = agent.defaultModelId || "";
-  newAssistantModelId.value = extractAssistantModelId(agent);
   newSkillIds.value = [...agent.skillIds];
   newMcpIds.value = extractMcpIds(agent);
   pendingSkillId.value = "";
@@ -513,10 +500,8 @@ const applyDocEditor = () => {
 const resetForm = () => {
   newAgentId.value = "";
   newAgentName.value = "";
-  newRoleId.value = "";
   newWorkload.value = 50;
   newDefaultModelId.value = "";
-  newAssistantModelId.value = "";
   newSkillIds.value = [];
   pendingSkillId.value = "";
   newMcpIds.value = [];
@@ -527,18 +512,39 @@ const resetForm = () => {
   newAvatarData.value = "";
 };
 
+const scrollToBlock = (key: "basic" | "model" | "capability" | "docs") => {
+  const host = formSideRef.value;
+  if (!host) return;
+  const target = host.querySelector<HTMLElement>(`#agent-block-${key}`);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+const pickSmartModelId = () => {
+  if (newDefaultModelId.value.trim()) return newDefaultModelId.value.trim();
+  const preferBalanced = activeModels.value.find((m) => m.tier === "BALANCED");
+  if (preferBalanced) return preferBalanced.id;
+  const preferPremium = activeModels.value.find((m) => m.tier === "PREMIUM");
+  if (preferPremium) return preferPremium.id;
+  return activeModels.value[0]?.id ?? "";
+};
+
 const submitAgent = async () => {
   createError.value = "";
   const id = newAgentId.value.trim();
   const name = newAgentName.value.trim();
-  const roleId = newRoleId.value.trim();
   const workload = Number(newWorkload.value);
-  if (!id || !name || !roleId || Number.isNaN(workload)) {
-    createError.value = locale.value === "zh-CN" ? "请填写 id、name、roleId 和 workload。" : "Please provide id, name, roleId and workload.";
+  if (!id || !name || Number.isNaN(workload)) {
+    createError.value = locale.value === "zh-CN" ? "请填写 id、name 和 workload。" : "Please provide id, name and workload.";
     return;
   }
   if (workload < 0 || workload > 100) {
     createError.value = locale.value === "zh-CN" ? "Workload 需要在 0-100 之间。" : "Workload must be between 0 and 100.";
+    return;
+  }
+  const selectedModelId = pickSmartModelId();
+  if (!selectedModelId) {
+    createError.value = locale.value === "zh-CN" ? "请先至少发布一个 ACTIVE 模型。" : "Please publish at least one ACTIVE model first.";
     return;
   }
   try {
@@ -546,10 +552,9 @@ const submitAgent = async () => {
       await apiPost("/agents", {
         id,
         name,
-        roleId,
         workload,
-        defaultModelId: newDefaultModelId.value || undefined,
-        assistantModelId: newAssistantModelId.value || undefined,
+        roleId: "general",
+        defaultModelId: selectedModelId,
         skillIds: newSkillIds.value,
         mcpIds: newMcpIds.value,
         agentsMarkdown: newAgentsMarkdown.value,
@@ -561,10 +566,9 @@ const submitAgent = async () => {
     } else {
       await apiPatch(`/agents/${editingAgentId.value}`, {
         name,
-        roleId,
         workload,
-        defaultModelId: newDefaultModelId.value || null,
-        assistantModelId: newAssistantModelId.value || null,
+        roleId: "general",
+        defaultModelId: selectedModelId,
         skillIds: newSkillIds.value,
         mcpIds: newMcpIds.value,
         agentsMarkdown: newAgentsMarkdown.value,
@@ -600,12 +604,6 @@ onMounted(load);
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
-}
-
-.model-stack {
-  display: grid;
-  gap: 2px;
-  font-size: 12px;
 }
 
 .mcp-picker {
@@ -761,6 +759,64 @@ onMounted(load);
   border-radius: 12px;
   padding: 12px;
   background: #fff;
+  display: grid;
+  gap: 10px;
+  max-height: calc(100vh - 90px);
+  overflow: auto;
+  min-width: 0;
+}
+
+.anchor-nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 0 8px;
+  background: linear-gradient(180deg, #fff 70%, rgba(255, 255, 255, 0.85) 100%);
+}
+
+.tiny-pill {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.form-block {
+  border: 1px solid #ece7dd;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.block-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.form-grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.form-grid-two.single-col {
+  grid-template-columns: 1fr;
+}
+
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sticky-actions {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
 }
 
 .modal-actions {
@@ -775,8 +831,18 @@ onMounted(load);
     grid-template-columns: 1fr;
   }
 
+  .form-grid-two,
+  .capability-grid {
+    grid-template-columns: 1fr;
+  }
+
   .mcp-picker-actions {
     grid-template-columns: 1fr;
+  }
+
+  .anchor-nav {
+    position: static;
+    padding-top: 0;
   }
 
   .doc-row {

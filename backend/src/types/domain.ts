@@ -1,7 +1,6 @@
 export type CapabilityStatus = "DRAFT" | "ACTIVE" | "DEPRECATED" | "ARCHIVED";
 export type HealthStatus = "UNKNOWN" | "HEALTHY" | "UNHEALTHY" | "DEGRADED";
 export type ModelTier = "PREMIUM" | "BALANCED" | "ECONOMY";
-export type AssignmentRole = "PRIMARY" | "ASSISTANT";
 
 export interface ModelConfig {
   id: string;
@@ -25,7 +24,6 @@ export interface Agent {
 
 export interface RoleAssignmentAgent {
   agentId: string;
-  assignmentRole: AssignmentRole;
   modelId: string;
   priority: number;
 }

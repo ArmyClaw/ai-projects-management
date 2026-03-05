@@ -40,7 +40,7 @@ export async function hallRoutes(app: FastifyInstance) {
       }),
       prisma.agent.findMany({ select: { id: true, name: true, skillIds: true, workflow: true } }),
       prisma.projectRoleAgent.findMany({
-        select: { projectId: true, roleId: true, agentId: true, modelId: true, assignmentRole: true, priority: true },
+        select: { projectId: true, roleId: true, agentId: true, modelId: true, priority: true },
       }),
       prisma.projectRoleAgent.groupBy({
         by: ["modelId"],

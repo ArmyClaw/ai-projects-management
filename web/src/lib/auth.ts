@@ -9,6 +9,7 @@ type AuthUser = {
   handle: string;
   displayName: string;
   avatar: string;
+  codingCliTools: string[];
 };
 
 const TOKEN_KEY = "app.auth.token";
@@ -79,7 +80,13 @@ const authFetch = async <T>(path: string, method: "GET" | "POST", body?: unknown
 export const getAuthToken = () => tokenRef.value;
 
 export const useAuth = () => {
-  const register = async (params: { handle: string; displayName: string; password: string; avatar?: string }) => {
+  const register = async (params: {
+    handle: string;
+    displayName: string;
+    password: string;
+    avatar?: string;
+    codingCliTools?: string[];
+  }) => {
     const data = await authFetch<{ user: AuthUser; token: string }>("/auth/register", "POST", params);
     tokenRef.value = data.token;
     userRef.value = data.user;

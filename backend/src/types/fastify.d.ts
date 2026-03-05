@@ -7,6 +7,7 @@ declare module "fastify" {
       handle: string;
       displayName: string;
       avatar: string;
+      codingCliTools: string[];
     };
   }
 }

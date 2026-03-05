@@ -7,15 +7,12 @@ const detectApiBases = () => {
   if (envBase) return unique([envBase]);
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
-    if (window.location.port === "5173") {
-      return unique([`${window.location.origin}/api/v1`]);
-    }
     return unique([
-      `${window.location.origin}/api/v1`,
       `${window.location.protocol}//${host}:4000/api/v1`,
       `http://${host}:4000/api/v1`,
       `https://${host}:4000/api/v1`,
       "http://localhost:4000/api/v1",
+      `${window.location.origin}/api/v1`,
     ]);
   }
   return ["http://localhost:4000/api/v1"];
